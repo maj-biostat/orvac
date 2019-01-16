@@ -32,7 +32,7 @@ idsim: "NULL"
 outfile: "res_null.RDS"
 
 seed: 222
-nsims: 100
+nsims: 1
 
 # interims
 # first look is always 50 thereafter n increases based on people_per_interim_period 
@@ -91,7 +91,7 @@ post_sero_thresh: 0.975
 # i.e. rate = 1/exp(mu)
 
 ctl_med_tte: 30
-trt_med_tte: 30
+trt_med_tte: 35
 
 
 b0tte: 0.02772589

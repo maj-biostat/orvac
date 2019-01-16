@@ -101,7 +101,6 @@ results <- foreach(i = 1:cfg$nsims,
   stop_clin_fut <- 0
   stop_clin_sup <- 0
 
-
   dt1 <- gen_dat(cfg)
 
   flog.appender(appender.file(file.path(getwd(), "logs", cfg$flog_logfile)), name='ROOT')
@@ -114,7 +113,7 @@ results <- foreach(i = 1:cfg$nsims,
     # idx = i = 2; look = look + 1; look
     # idx = i = look = 5
     # idx = i = look = 6
-    # idx = i = 1; look = 33
+    # idx = i = 1; look = 28
 
     m_immu_res <- m_clin_res <- NULL
 
@@ -147,14 +146,12 @@ results <- foreach(i = 1:cfg$nsims,
       m_immu_res <- tryCatch({
         model_immu_2(d, cfg, look, i)
       }, error = function(err) {
-        flog.info("CATCH ERROR model_immu_2 err = %s", err)
-        flog.info("CATCH ERROR model_immu_2 i = %s look = %s", i, look)
+        flog.info("CATCH ERROR model_immu_2 err = %s \n i = %s look = %s", err, i, look)
         flog.info("CATCH ERROR model_immu_2 sys.calls follow")
         flog.info(sys.calls())
         stop("Stopped in main loop model_immu_2 error")
       }, warning=function(cond) {
-        flog.info("CATCH WARNING model_immu_2 err = %s", cond)
-        flog.info("CATCH WARNING model_immu_2 i = %s look = %s", i, look)
+        flog.info("CATCH WARNING model_immu_2 err = %s \n i = %s look = %s", cond, i, look)
         flog.info("CATCH WARNING model_immu_2 sys.calls follow")
         flog.info(sys.calls())
         stop("Stopped in main loop model_immu_2 warning")
@@ -175,7 +172,7 @@ results <- foreach(i = 1:cfg$nsims,
         stop_ven_samp <<- 1
         stop_i_this_iteration$stop_ven_samp <- 1
       }
-
+      
       ss_immu <- n_obs
     }
 
@@ -189,14 +186,12 @@ results <- foreach(i = 1:cfg$nsims,
       m_clin_res <- tryCatch({
         model_clin_1(d, cfg, look, i)
       }, error = function(err) {
-        flog.info("CATCH ERROR model_clin_1 err = %s", err)
-        flog.info("CATCH ERROR model_clin_1 i = %s look = %s", i, look)
+        flog.info("CATCH ERROR model_clin_1 err = %s \n i = %s look = %s", err, i, look)
         flog.info("CATCH ERROR model_clin_1 sys.calls follow")
         flog.info(sys.calls())
         stop("Stopped in main loop model_clin_1 error")
       }, warning=function(cond) {
-        flog.info("CATCH WARNING model_clin_1 err = %s", cond)
-        flog.info("CATCH WARNING model_clin_1 i = %s look = %s", i, look)
+        flog.info("CATCH WARNING model_clin_1 err = %s \n i = %s look = %s", cond, i, look)
         flog.info("CATCH WARNING model_clin_1 sys.calls follow")
         flog.info(sys.calls())
         stop("Stopped in main loop model_clin_1 warning")
@@ -226,22 +221,25 @@ results <- foreach(i = 1:cfg$nsims,
     if (exists("m_immu_res") & !is.null(m_immu_res)){
       immu_res = m_immu_res
     } else {
-      immu_res = rep(NA, 4)
+      immu_res = rep(NA, length(cfg$immu_rtn_names))
+      names(immu_res) <- cfg$immu_rtn_names
     }
 
     if (exists("m_clin_res") & !is.null(m_clin_res)){
       clin_res = m_clin_res
     } else {
-      clin_res = rep(NA, 4)
+      clin_res = rep(NA, length(cfg$clin_rtn_names))
+      names(clin_res) <- cfg$clin_rtn_names
     }
 
     if (!is.null(warnings())){
-      flog.info("main loop warnings - current simulation %s, look %s", i, look)
-      flog.info("Warnings: %s.", warnings())
+      flog.info("main loop warnings - current simulation %s, look %s \n warnings %s", i, look, warnings())
+      # clears any warnings.
       assign("last.warning", NULL, envir = baseenv())
     }
 
     # update control variables
+
     lr <- tryCatch({
       lr <- c(idxsim = i,
             look = look,
@@ -257,67 +255,63 @@ results <- foreach(i = 1:cfg$nsims,
             stop_c_fut = stop_i_this_iteration$stop_clin_fut,
             stop_c_sup = stop_i_this_iteration$stop_clin_sup)
 
-        names(lr) <- c("idxsim",
-                    "look",
-                   "n_obs",
-                    "ss_immu",
-                    "ss_clin",
-                    "n_max",
-                    "n_max_sero",
-                    "i_ppos_n", "i_ppos_max", "i_post_prop_ctl", "i_post_prop_trt",   # immunological
-                    "c_ppos_n","c_ppos_max","c_post_lambda_ctl","c_post_lambda_trt",  # clinical
-                    "stop_v_samp",
-                    "stop_i_fut",
-                    "stop_c_fut",
-                    "stop_c_sup")
+        names(lr) <- cfg$field_names
         lr
 
       }, error = function(err) {
-        flog.info("CATCH ERROR err = %s", err)
-        flog.info("CATCH ERROR i = %s look = %s", i, look)
-        flog.info("CATCH ERROR n_obs = %s", n_obs)
-        flog.info("CATCH ERROR ss_immu = %s", ss_immu)
-        flog.info("CATCH ERROR ss_clin = %s", ss_clin)
-        flog.info("CATCH ERROR n_max = %s", n_max)
-        flog.info("CATCH ERROR n_max_sero = %s", cfg$nmaxsero)
-        flog.info("CATCH ERROR immu_res = %s", paste0(immu_res, collapse = ", "))
-        flog.info("CATCH ERROR clin_res = %s", paste0(clin_res, collapse = ", "))
-        flog.info("CATCH ERROR stop_v_samp = %s", stop_i_this_iteration$stop_ven_samp)
-        flog.info("CATCH ERROR stop_i_fut = %s", stop_i_this_iteration$stop_immu_fut)
-        flog.info("CATCH ERROR stop_c_fut = %s", stop_i_this_iteration$stop_clin_fut)
-        flog.info("CATCH ERROR stop_c_sup = %s", stop_i_this_iteration$stop_clin_sup)
-        flog.info("CATCH ERROR system calls follow now:")
+        
+        flog.info("CATCH ERROR err = %s \n
+                                 i = %s look = %s n_obs = %s \n
+                                 ss_immu = %s \n
+                                 ss_clin = %s \n
+                                 n_max = %s \n
+                                 n_max_sero = %s \n
+                                 immu_res = %s \n
+                                 clin_res = %s \n
+                                 stop_v_samp = %s \n
+                                 stop_i_fut = %s \n
+                                 stop_c_fut = %s \n
+                                 stop_c_sup = %s ", 
+                  err, i, look, n_obs, 
+                  ss_immu, ss_clin, 
+                  n_max, cfg$nmaxsero, 
+                  paste0(immu_res, collapse = ", "), 
+                  paste0(clin_res, collapse = ", "), 
+                  stop_i_this_iteration$stop_ven_samp, 
+                  stop_i_this_iteration$stop_immu_fut, 
+                  stop_i_this_iteration$stop_clin_fut, 
+                  stop_i_this_iteration$stop_clin_sup)
+
         flog.info(sys.calls())
-        lrerr <- rep(NA, 19)
+        lrerr <- rep(NA, length(cfg$field_names))
         return(lrerr)
       }, warning=function(cond) {
-        flog.info("CATCH WARNING cond = %s", cond)
-        flog.info("CATCH WARNING i = %s look = %s", i, look)
-        flog.info("CATCH WARNING n_obs = %s", n_obs)
-        flog.info("CATCH WARNING ss_immu = %s", ss_immu)
-        flog.info("CATCH WARNING ss_clin = %s", ss_clin)
-        flog.info("CATCH WARNING n_max = %s", n_max)
-        flog.info("CATCH WARNING n_max_sero = %s", cfg$nmaxsero)
-        flog.info("CATCH WARNING immu_res = %s", paste0(immu_res, collapse = ", "))
-        flog.info("CATCH WARNING clin_res = %s", paste0(clin_res, collapse = ", "))
-        flog.info("CATCH WARNING stop_v_samp = %s", stop_i_this_iteration$stop_ven_samp)
-        flog.info("CATCH WARNING stop_i_fut = %s", stop_i_this_iteration$stop_immu_fut)
-        flog.info("CATCH WARNING stop_c_fut = %s", stop_i_this_iteration$stop_clin_fut)
-        flog.info("CATCH WARNING stop_c_sup = %s", stop_i_this_iteration$stop_clin_sup)
-        flog.info("CATCH WARNING system calls follow now:")
+        flog.info("CATCH WARNING err = %s \n
+                                 i = %s look = %s n_obs = %s \n
+                                 ss_immu = %s \n
+                                 ss_clin = %s \n
+                                 n_max = %s \n
+                                 n_max_sero = %s \n
+                                 immu_res = %s \n
+                                 clin_res = %s \n
+                                 stop_v_samp = %s \n
+                                 stop_i_fut = %s \n
+                                 stop_c_fut = %s \n
+                                 stop_c_sup = %s ", 
+                  cond, i, look, n_obs, 
+                  ss_immu, ss_clin, 
+                  n_max, cfg$nmaxsero, 
+                  paste0(immu_res, collapse = ", "), 
+                  paste0(clin_res, collapse = ", "), 
+                  stop_i_this_iteration$stop_ven_samp, 
+                  stop_i_this_iteration$stop_immu_fut, 
+                  stop_i_this_iteration$stop_clin_fut, 
+                  stop_i_this_iteration$stop_clin_sup)
+        
         flog.info(sys.calls())
-        lrerr <- rep(NA, 19)
+        lrerr <- rep(NA, length(cfg$field_names))
         return(lrerr)
       })
-
-
-    # round(lr, 4)
-
-    # at the moment creating the whole trial then post processing but could
-    # terminate early if using a while or for structure, i.e.
-    # if(stop_immu_fut | stop_clin_fut | stop_clin_sup){
-    #   return(lr1)
-    # }
 
     return(lr)
   }

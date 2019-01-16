@@ -54,7 +54,33 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$desc <- tt$desc
   l$outfile <- tt$outfile
   
-
+  # for return fields
+  l$field_names <- c("idxsim",
+                   "look",
+                   "n_obs",
+                   "ss_immu",
+                   "ss_clin",
+                   "n_max",
+                   "n_max_sero",
+                   
+                   "i_ppos_n", "i_ppos_max", "i_post_prop_ctl", "i_post_prop_trt",  # immunological
+                   "i_delta_mean", "i_delta_lwr_95", "i_delta_upr_95",          # immunological
+                   
+                   "c_ppos_n","c_ppos_max","c_post_lambda_ctl","c_post_lambda_trt", # clinical
+                   "c_lambda_mean", "c_lambda_lwr_95", "c_lambda_upr_95",       # clinical
+                   
+                   "stop_v_samp",
+                   "stop_i_fut",
+                   "stop_c_fut",
+                   "stop_c_sup")
+  
+  
+  # "stop_i_sup",
+  
+  l$immu_rtn_names <- c("ppos_n", "ppos_max", "mean_post_prop_ctl", "mean_post_prop_trt",
+                        "delta", "delta_lwr_95", "delta_upr_95")
+  l$clin_rtn_names <- c("ppos_n", "ppos_max", "mean_post_lambda_ctl", "mean_post_lambda_trt", 
+                        "delta", "delta_lwr_95", "delta_upr_95")
 
 
   # Sim control variables
@@ -328,6 +354,11 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
     # write.csv(opt, "test.csv")
  
   }
+  
+  
+  
+  
+  
 
   return(l)
 }
@@ -385,12 +416,6 @@ stop_immu <- function(stop_ven_samp,
                       stop_clin_fut,
                       stop_clin_sup, n_look, n_maxsero){
   
-  if(stop_clin(stop_immu_fut,
-               stop_clin_fut,
-               stop_clin_sup)){
-    return(T)
-  }
-  
   if(stop_ven_samp){
     return(T)
   }
@@ -399,6 +424,12 @@ stop_immu <- function(stop_ven_samp,
     return(T)
   }
   
+  if(stop_clin(stop_immu_fut,
+               stop_clin_fut,
+               stop_clin_sup)){
+    return(T)
+  }
+
   return(F)
 }
 

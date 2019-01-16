@@ -5,8 +5,15 @@ output:
     toc: true
     theme: united
     classoption: landscape
+  geometry: margin=0cm
+  pdf_document:
+    toc: yes
+    toc_depth: 3
+    number_sections: true
+    fig_caption: yes
 editor_options:
   chunk_output_type: console
+classoption: landscape  
 ---
 
 <style type="text/css">
@@ -66,7 +73,7 @@ We simulate 1000 trial by generating data as follows:
 
 + equal numbers of participants in the control and treatment arms accrued sequentially (treatment, control, treatment, control...etc)
 + age of participants based on a truncated normal distribution with the lower and upper bounds set to 6 and 12 respectively with a mean of 6.5 months and a standard deviation of 1 month (used to assess censoring in the time to event analyses)
-+ accrual time (time of randomisation) is set sequentially for each participant. Specifically the accrual times for participants $1, 2, 3, \dots, n$ are set to $0, t, 2t, 3t, \dots, nt$ where $t$ is the time required to accrue a participant
++ accrual time (time of randomisation) is set sequentially for each participant. Specifically the accrual times for participants $1, 2, 3, \dots, n$ are set to $0, t, 2t, 3t, \dots, (n-1)t$ where $t$ is the time required to accrue a participant
 + for each individual, baseline seroconversion status is generated as a bernoulli random draw parameterised with $p$ equal to the baseline seroconversion probability and $n$ is the $n^{th}$ participant
 + seroconversion status after the third dose/placebo is generated in the same fashion conditional on treatment status, baseline seroconversion status and treatment arm probability of seroconversion
 + time to event times are generated as draws from an exponential distribtion with rate parameter set conditional on treatment group status. Censoring occurs due to age at interim and events that are unobserved at the current interim time.
@@ -93,6 +100,8 @@ The time to event model uses a gamma conjugate prior to the exponential likeliho
 
 ## Decision rules and thresholds
 
+The key points are that (1) the trial may be stopped due to futility based on an assessment of either endpoint (2) the trial may be stopped for superiority solely on the basis of an assessment of the clinical endpoint and (3) venous sampling can be stopped based on an assessment of the immunological endpoint.
+
 + To declare superiority in the immunological endpoint (and cease venous sampling but continue enrolling for the clinical endpoint) we require $Pr(\delta >0) > 0.975$ where $\delta = p_{trt} - p_{ctl}$. If delta is the distribution of the differences between the proportions in each arm, then we require that the probability that the difference is in excess of zero be greater than 0.975.
 
 + To declare futility in the immunological endpoint we require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\delta >0)>0.975) < 0.05$. In other words, if less than 5% of our simulated datasets result in a successful trial we declare futility.
@@ -109,11 +118,55 @@ Based on the above rules we can claim superiority in the immunological endpoint,
 
 Delays in information (i.e. in obtaining the blood results) are not currenly implemented.
 
+The type i and type ii errors need to be balanced. We might be unwilling to risk incorrectly rejecting the null hypothesis at the 5% significance level. However, decreasing the type i error implicitly increases the type ii error (and therefore reduces power) when the alternative hypothesis is true. Thus if the type i error is really low and the power is not quite where we want it to be then we can trade these two thresholds off against one another to try and improve the overall operating characteristics.
+
+![Figure 1](images/typei_tpyeii.png "Figure 1")
+
 The models are based on conjugate priors -- I tried many other ways, including writing samplers in C++ and approximations. In the actual analysis we will use generalised linear models (logistic regression) and piecewise exponential survival models both estimated with MCMC. These models will likely include additional covariates but the decision process will remain the same. I am worried that the necessary simulations (i.e. for the real analyses) will take way to long, but will cross that bridge when we come to it. See the SAP for further detail.
 
 ## Results from simulation scenarios
 
 The following tables and plots summarise the scenarios that were simulated. We use the thresholds mentioned above.
+
+### Summary of results
+
+**Todo**
+
+should report the difference for clin and immu along with the uncertainty/95% percentiles.
+
+i need to update code + tables to also present the pct futility results for the clinical arm - can do this by making the decision based on a boolean and.
+
+need to add look at which futility/super/stop v occurred
+
+introduce a really really high threshold for the posterior decision on immunological (latter will be more palatable)
+
+look up bias and precision - pdt
+
+check choice of parameterisation
+https://www.johndcook.com/blog/conjugate_prior_diagram/#exponential
+
+
+**Null Scenarios**
+
+Difference - bias and precision.
+
+Across the range of true parameters and accrual rates used to generate the data, trials are indicated as futile > 95% of the time. In the majority of cases, the futility decision is due to  seroconversion. However, note that this is just an artefact of the current implementation arising due to the fact that the seroconversion analysis is run first. It is likely that the medical endpoint would be indicated as futile as well.
+
+The sample size at which futility is announced is typcially around 100 participants at interim 2 or 3 (dependent on accrual rate). Superiority is indicated less than 2.5% of the time. Venous sampling is stopped around 10-15% of the time but venous sampling, but this needs to be considered in the context of the fact that most trials are identified as futile.
+
+**Immunological effect**
+
+Difference - bias and precision.
+
+Futility is still high - try to fix by using immuno endpoint.
+
+
+
+
+
+### Reading the tables
+
+Reading the header from left to right, the tables each show a simulation id, the number of simulations ran, along with the clinical and immunological parameters used to generate the data. Accrual represents the number of participants randomised in each three month period between interim analyses. Next shown are the immunological and clinical estimates of the parameters (means and sd) for each arm.  The futility, superiority and stop venous sampling fields show (1) the percentage of the simulations where the trial was stopped for futility, the percentage of the futile trials due to an assessment of the immunological endpoint followed by the mean sample size, the standard deviation and the median sample size (2) the percentage of the simulations where the trial was stopped for superiority along with sample size metrics and (3) the percentage of times that venous sample was stopped along with sample size metrics. Finally, the filename of the source data is presented.
 
 ```{r, echo = F}
 resfiles <- list.files("out", pattern = "*.RDS")
@@ -121,7 +174,7 @@ resfiles <- list.files("out", pattern = "*.RDS")
 df_all <- data.frame(stringsAsFactors = F)
 for(fname in resfiles){
   d1 <- readRDS(file.path(getwd(), "out", fname))
-  # d1 <- readRDS(file.path(getwd(), "out", "results-2019-01-12-00-43.RDS"))
+  # d1 <- readRDS(file.path(getwd(), "out", "out/res-2019-01-16-11-52-47.RDS"))
   df_res <- as.data.frame(d1$results)
 
   nsim <- d1$cfg$nsims
@@ -141,12 +194,12 @@ for(fname in resfiles){
   df_tmp <- df_res %>%
     dplyr::filter(stop_i_fut == 1 ) %>%
     dplyr::mutate(fut = stop_i_fut)
-  pct_fut_i <- nrow(df_tmp)/max(df_res$idxsim)
+  pct_fut_i <- 100* nrow(df_tmp)/max(df_res$idxsim)
   # futility due to either
   df_tmp <- df_res %>%
     dplyr::filter(stop_i_fut == 1 | stop_c_fut == 1) %>%
     dplyr::mutate(fut = stop_i_fut + stop_c_fut)
-  pct_fut <- nrow(df_tmp)/max(df_res$idxsim)
+  pct_fut <- 100*nrow(df_tmp)/max(df_res$idxsim)
   
   # ss_fut
   ss_fut_stats <- df_tmp %>%
@@ -155,7 +208,7 @@ for(fname in resfiles){
   # superiority
   df_tmp <- df_res %>%
     dplyr::filter(stop_c_sup == 1)
-  pct_sup <- nrow(df_tmp)/max(df_res$idxsim)
+  pct_sup <- 100*nrow(df_tmp)/max(df_res$idxsim)
 
   # ss_sup
   ss_sup_stats <- df_tmp %>%
@@ -164,7 +217,7 @@ for(fname in resfiles){
   # stop venous sampling
   df_tmp <- df_res %>%
     dplyr::filter(stop_v_samp == 1)
-  pct_stopv <- nrow(df_tmp)/max(df_res$idxsim)
+  pct_stopv <-100*nrow(df_tmp)/max(df_res$idxsim)
 
   # ss_stopv
   ss_stopv_stats <- df_tmp %>%
@@ -172,10 +225,11 @@ for(fname in resfiles){
 
   dtmp <- data.frame(idsim = d1$cfg$idsim,
                                           nsim = nsim,
-                                         baseclin = baseclin,
-                                         trtclin = trtclin,
+                                        
                                          basesero = basesero,
                                          trtsero = trtsero,
+                                          baseclin = baseclin,
+                                         trtclin = trtclin,
                                          accrual = accrual,
 
                                          # immuno outcome control mean posterior
@@ -281,8 +335,10 @@ df_clinsero3 <- df_all %>%
 
 These are primarily to assess type i error and sample size.
 
+Across theVenous sampling 
+
 ```{r, echo = F, eval = T}
-digits <- c(0, 0, 0, 0, 2, 2, 0,
+digits <- c(0, 0, 2, 2, 0, 0, 0,
             3, 3, 3, 3,
             2, 2, 2, 2,
             3, 3, 1, 1, 1,
@@ -303,7 +359,8 @@ kable(df_0 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                     "Clinical" = 2, "Seroconversion" = 2, " " = 1,
+                     "Seroconversion" = 2, "Clinical" = 2, 
+                     " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
                      "Futility (%, sampsize)" = 5,
@@ -312,6 +369,10 @@ kable(df_0 %>% dplyr::select(-idsim),
                    " " = 1))
 
 ```
+
+
+##
+
 
 ### Immunological effect scenarios
 
@@ -332,7 +393,8 @@ kable(df_sero1 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                     "Clinical" = 2, "Seroconversion" = 2, " " = 1,
+                      "Seroconversion" = 2, "Clinical" = 2, 
+                     " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
                      "Futility (%, sampsize)" = 5,
@@ -359,7 +421,8 @@ kable(df_sero2 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                     "Clinical" = 2, "Seroconversion" = 2, " " = 1,
+                      "Seroconversion" = 2, "Clinical" = 2, 
+                     " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
                      "Futility (%, sampsize)" = 5,
@@ -388,7 +451,8 @@ kable(df_clin1 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                     "Clinical" = 2, "Seroconversion" = 2, " " = 1,
+                      "Seroconversion" = 2, "Clinical" = 2, 
+                     " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
                      "Futility (%, sampsize)" = 5,
@@ -414,7 +478,8 @@ kable(df_clin2 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                     "Clinical" = 2, "Seroconversion" = 2, " " = 1,
+                      "Seroconversion" = 2, "Clinical" = 2, 
+                     " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
                      "Futility (%, sampsize)" = 5,
@@ -444,7 +509,8 @@ kable(df_clinsero1 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                     "Clinical" = 2, "Seroconversion" = 2, " " = 1,
+                      "Seroconversion" = 2, "Clinical" = 2, 
+                     " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
                      "Futility (%, sampsize)" = 5,
@@ -471,7 +537,8 @@ kable(df_clinsero2 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                     "Clinical" = 2, "Seroconversion" = 2, " " = 1,
+                      "Seroconversion" = 2, "Clinical" = 2, 
+                     " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
                      "Futility (%, sampsize)" = 5,
@@ -499,7 +566,8 @@ kable(df_clinsero3 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                     "Clinical" = 2, "Seroconversion" = 2, " " = 1,
+                      "Seroconversion" = 2, "Clinical" = 2, 
+                     " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
                      "Futility (%, sampsize)" = 5,

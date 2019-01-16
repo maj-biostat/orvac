@@ -6,6 +6,7 @@
 *.bak
 *.RDS
 out/*.*
+figs/*.*
 *.tar
 *.html
 test.R

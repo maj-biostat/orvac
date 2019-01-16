@@ -187,10 +187,16 @@ model_immu_2 <- function(d, cfg, look, idx){
   # hist(res)
   ppos_max <- mean(res)
 
-  p <- c(ppos_n, ppos_max, mean(dat_ctl$theta), mean(dat_trt$theta))
-  names(p) <- c("ppos_n", "ppos_max", "mean_post_prop_ctl", "mean_post_prop_trt")
+  delta <- dat_trt$theta - dat_ctl$theta
+  delta_mean <- mean(delta)
+  delta_wald_lwr_95 <- delta_mean + qnorm(0.025) * sd(delta)
+  delta_wald_upr_95 <- delta_mean + qnorm(0.975) * sd(delta)
 
+  p <- c(ppos_n, ppos_max, mean(dat_ctl$theta), mean(dat_trt$theta), 
+         delta_mean, delta_wald_lwr_95, delta_wald_upr_95)
 
+  names(p) <- cfg$immu_rtn_names
+  
   flog.info("model_immu_2 current simulation %s, look %s, result %s", idx, look,
             paste0("(", paste(p, collapse = ", "), ")"))
   return(p)
@@ -518,8 +524,17 @@ model_clin_1 <- function(d, cfg, look, idx){
   ppos_max <- mean(res, na.rm = T)
 
   p <- tryCatch({
-    p <- c(ppos_n, ppos_max, mean(dat_ctl$lambda), mean(dat_trt$lambda))
-    names(p) <- c("ppos_n", "ppos_max", "mean_post_lambda_ctl", "mean_post_lambda_trt")
+    
+    # Wald isn't great but it is quick, the alternative is to compute a density 
+    # kernel and then obtain the quantiles from that.
+    delta <- dat_ctl$lambda / dat_trt$lambda
+    delta_mean <- mean(delta)
+    delta_wald_lwr_95 <- delta_mean + qnorm(0.025) * sd(delta)
+    delta_wald_upr_95 <- delta_mean + qnorm(0.975) * sd(delta)
+    
+    p <- c(ppos_n, ppos_max, mean(dat_ctl$lambda), mean(dat_trt$lambda), 
+           delta_mean, delta_wald_lwr_95, delta_wald_upr_95)
+    names(p) <- cfg$clin_rtn_names
     p
   }, error = function(err) {
     flog.info("CATCH ERROR model_clin_1 creating return value i = %s look = %s, err = %s", idx, look, err)
@@ -553,196 +568,3 @@ model_clin_1 <- function(d, cfg, look, idx){
 
 
 
-
-interim_decision <- function(m_immu_res, m_clin_res, cfg, look){
-
-
-  lres <- list(continue_trial = 0,
-               sup = 0,
-               sup_imm = 0,
-               sup_clin = 0,
-               fut = 0,
-               fut_imm = 0,
-               fut_clin = 0,
-               exp_suc_imm = 0,
-               exp_suc_clin = 0,
-               stop_ven_samp = 0)
-
-  # check ppos for NA
-
-  # rule 1
-  # immunological
-  flog.info("interim_decision lr1$ppos %s", as.character(lr1$ppos))
-  if(length(lr1) > 0){
-    if(!is.na(lr1$ppos)){
-      if(cfg$looks[look] <= cfg$nmaxsero){
-        if(lr1$ppos < cfg$rule1_sero_pposthresh){
-          lres$fut <- 1
-          lres$fut_imm <- 1
-        }
-      }
-    }
-  }
-
-
-  # Clinical endpoint
-  flog.info("interim_decision lr2$ppos %s", as.character(lr2$ppos))
-  if(!is.na(lr2$ppos)){
-
-    if(lr2$ppos < cfg$rule1_tte_pposthresh){
-      lres$fut <- 1
-      lres$fut_clin <- 1
-    }
-  }
-  if(lres$fut == 1){
-    return(lres)
-  }
-  # end of rule 1
-
-  # rule 2
-  flog.info("interim_decision rule 2")
-  s1 <- summary(lr2$posterior_fit, quantiles = c(1 - cfg$rule2_tte_postthresh))
-  lwr <- s1$quantiles["b1"]
-  if(lwr > 0){
-    lres$sup <- 1
-    lres$sup_clin <- 1
-    return(lres)
-  }
-  # end of rule 2
-
-  # rule 3
-  flog.info("interim_decision rule 3")
-  if(cfg$looks[look] <= cfg$nmaxsero){
-
-    flog.info("interim_decision rule 3 s1 ")
-
-    if(length(lr1) > 0){
-      s1 <- summary(lr1$posterior_fit, probs = c(1 - cfg$rule3_sero_postthresh))$summary
-      lwr1 <- s1["b[1]", paste0(100*(1 - cfg$rule3_sero_postthresh), "%")]
-    } else {
-      flog.info("setting lwr1 to -ve")
-      lwr1 <- -1
-    }
-
-
-    flog.info("interim_decision rule 3 s2")
-    s1 <- summary(lr2$posterior_fit, quantiles = c(1 - cfg$rule3_tte_postthresh))
-    lwr2 <- s1$quantiles["b1"]
-
-    flog.info("interim_decision rule 3 lwr")
-    if(lwr1 > 0 & lwr2 < 0){
-      lres$stop_ven_samp <- 1
-      lres$continue_trial <- 1
-      return(lres)
-    }
-  }
-
-
-  # end of rule 3
-
-  # matrix(lres)
-
-  # otherwise continue
-  flog.info("set continue trial")
-  lres$continue_trial <- 1
-  return(lres)
-
-}
-
-# need to do frequentist sanity checks on models
-# make main loop parallel
-# accomodate fast accrual
-
-simloop <- function(cfg, fs0, ft0){
-
-  dres <- data.table(
-    success = numeric(cfg$nsims),
-    futile = numeric(cfg$nsims),
-    superiority_immuno = numeric(cfg$nsims),
-    superiority_clinical = numeric(cfg$nsims),
-    expected_success_immuno = numeric(cfg$nsims),
-    expected_success_clinical = numeric(cfg$nsims),
-    futile_immuno = numeric(cfg$nsims),
-    futile_clinical = numeric(cfg$nsims),
-    ss = numeric(cfg$nsims),
-    stopped_venous_sampling = numeric(cfg$nsims)
-  )
-
-  pb <- progress_bar$new(format = "  downloading [:bar] :percent in :elapsed",
-                         total = cfg$nsims)
-
-
-  # needs to be parallelised
-
-  # results <- foreach(j = 1:nsim,
-  #                    .packages=c("rstan", "progress")) %dopar% {
-
-  for(i in 1:cfg$nsims){
-
-    pb$tick()
-
-    look = 0
-    result = 0
-    iresult = 0
-
-    dt1 = gen_dat(cfg)
-
-    while(result == 0){
-
-      lr1 <- lr2 <- list()
-
-      look = look + 1
-
-      # flog.info("On sim %s current interim: %s.",
-      #           as.character(i),
-      #           as.character(cfg$looks[look]))
-
-      # Are we still venous sampling?
-      if(cfg$looks[look] <= cfg$nmaxsero){
-
-        lr1 <- mcmc1(d = copy(dt1), cfg, look, fs0)
-
-      }
-
-      # Clinical endpoint - do you really need to make a second copy?
-      lr2 <- mcmc2(d = copy(dt1), cfg, look, ft0)
-
-
-
-      # are we at the end of the trial?
-      if (look == length(cfg$looks)){
-
-        # Now we have all the data available to us.
-        # OR do we? The tte data runs out to 36 months so when do we
-        # say the trial is finished????
-
-        iresult <- 1
-
-      } else{
-
-        iresult <- interim_decision(lr1, lr2, cfg, look)
-        t(as.data.frame(iresult))
-      }
-
-      # print(paste0("Test outcome  ", i,
-      #              " iresult is: ", switch(iresult + 1,
-      #                                      "no_decision",
-      #                                      "stop_exptect_superior",
-      #                                      "stop_futile"),
-      #              ", venous sample: ", lcfg$venous_sampling,
-      #              ", sample size: ", lcfg$looks[look]))
-      #
-      # if (iresult > 0){
-      #   result <- iresult
-      # }
-
-
-      if(look == length(cfg$looks)){
-        result = 1
-      }
-
-    }
-
-  }
-
-}
