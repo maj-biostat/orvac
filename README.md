@@ -1,3 +1,3 @@
-# Simualation Orvac
+# Orvac
 
-This is the simulation code for the ORVAC Bayesian Adaptive Trial.
+Contains documentation and the simulation code for the ORVAC Bayesian Adaptive Trial.
