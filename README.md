@@ -1,2 +1,3 @@
-# orvac_sim_01
-Simulation code for orvac trial
+# Simualation RCT Orvac
+
+This is the simulation code for the ORVAC Bayesian Adaptive Trial.
