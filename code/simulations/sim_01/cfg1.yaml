@@ -1,0 +1,156 @@
+---
+# NOTE
+# 1. Final blank line required
+# 2. Never __EVER__ use TAB characters
+# 3. hosp.name MUST be unique
+
+# For logging, see https://github.com/zatonovo/futile.logger
+# Also see log4j.
+# Appender can be file or console
+# Log files have the following predefined 
+# logging levels (thresholds):
+# ALL log all messages.
+# DEBUG log all debug level messages and above.
+# INFO log all informational level messages and above.
+# WARN log all warning level messages and above.
+# ERROR log all error level messages and above.
+# FATAL log only fatal error messages.
+# OFF disable logging.
+# 
+# For general use leave profiling off.
+# for appender use console or file
+logging:
+    - appender: file
+    - logfile: 'out_1.log'
+    - threshold: DEBUG
+    - profile: FALSE
+
+# Simulation config parameters - null case
+# specify things in probability, code takes care
+# of the conversion to odds ratios etc.
+idsim: "NULL"
+outfile: "res_null.RDS"
+
+seed: 222
+nsims: 100
+
+# interims
+# first look is always 50 thereafter n increases based on people_per_interim_period 
+nstart: 50
+nstop: 1000
+# max of 3 months between interims - don't change
+interim_period: 3 
+# controls the accrual rate
+people_per_interim_period:  30
+# max number of venous samp
+nmaxsero: 250
+# n when we start assessing the clinical endpoint
+nstartclin: 250
+
+
+
+# data generation
+trtallocprob: 0.5
+remoteprob: 0.5
+age_months_lwr: 6
+age_months_upr: 12
+age_months_mean: 6.5
+age_months_sd: 1
+max_age_fu_months: 36
+  
+
+
+
+
+# seroconversion control variables
+baselineprobsero: 0.4
+trtprobsero: 0.7
+# note - need to build utility functions to compute these
+#deltaserot3: 0.0 # (see above)
+#deltaremoteserot3: 0
+
+# for significance testing of a win in the pp section
+post_sero_thresh: 0.975
+
+
+
+
+
+# time to event control variables
+# exponential
+# rates obtained from formula for med surv time (which are in months)
+# control log(2)/25 
+# treatment log(2)/30 - log(2)/25 
+# log(2)/25  = 0.027773
+# log(2)/30  = 0.023105
+
+# note - interp of survreg is fuckt 
+# see https://www.ms.uky.edu/~mai/Rsurv.pdf (top of page 4)
+# coefs aka. mu are related to rate via
+# mu = log(1/rate) 
+# i.e. rate = 1/exp(mu)
+
+ctl_med_tte: 30
+trt_med_tte: 30
+
+
+b0tte: 0.02772589
+b1tte: 0 # -0.004620981 # trt effect
+b2tte: 0 # remote
+b3tte: 0 # baseline serot2 status
+
+
+# for significance testing of a win in the pp section
+post_tte_thresh: 0.95
+
+
+# Ideally would like to incorporate serot2 status
+# cfg[:btte] = [cfg[:b0tte], cfg[:b1tte], cfg[:b2tte]]
+
+
+
+
+# posterior and posterior predictive thresholds
+# superiority/futility thresholds for futility checks
+
+rule1_sero_dens_lwr: 0.025
+rule1_sero_ppos_sup_thresh: 0.05
+rule1_sero_pp_fut_thresh: 0.05
+rule1_sero_ppos_fut_thresh: 0.05
+
+rule1_tte_postthresh: 0.95
+rule1_tte_ppthresh: 0.05
+rule1_tte_pposthresh: 0.025
+
+rule2_tte_postthresh: 0.975
+
+rule3_sero_postthresh: 0.95
+rule3_tte_postthresh: 0.975
+rule3_sero_ppos_thresh: 0.95
+
+
+# conjugate posterior
+post_draw: 1000
+
+# mcmc
+mcmcchains: 1
+mcmciter: 500
+mcmcburnin: 200
+mcmcthin: 1
+
+# gibbs
+mcmc_gchains: 1
+mcmc_giter: 4000
+mcmc_gburnin: 1000
+mcmc_gthin: 2
+mcmc_gadapt: 100
+
+# nimble
+mcmc_nim_chains: 1
+mcmc_nim_iter: 5000
+mcmc_nim_burnin: 1000
+mcmc_nim_thin: 1
+
+
+
+# R Bug - Terminating Line Required - Do not remove

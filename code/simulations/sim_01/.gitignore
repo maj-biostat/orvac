@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.log
+*.bak
+*.RDS
+out/*.*
+*.tar
+*.html
+test.R

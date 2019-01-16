@@ -1,0 +1,48 @@
+---
+title: "Fancy table example"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(kableExtra))
+source("util.R")
+```
+
+```{r, echo = F}
+lenout <- 12
+
+clin1 <- rep("Median 25 months, no diff b/w groups", 4)
+clin2 <- rep("Median 30 months, no diff b/w groups", 4)
+clin3 <- rep("Median 35 months, no diff b/w groups", 4)
+
+basesero <- c(0.3, 0.4, 0.5, 0.6)
+trtsero <- rep(0, 4)
+accrual1 <- rep(50, 4)
+accrual2 <- rep(30, 4)
+
+d_scen <- data.frame(`Clinical` = c(clin1,
+                                    clin2,
+                                    clin3),
+                     `Baseline Sero` = rep(basesero, length.out = lenout),
+                     `Sero Trt Effect` = rep(trtsero, length.out = lenout),
+                     `Accrual rate` = rep(accrual1, length.out = lenout)) 
+d_scen <- rbind(d_scen, 
+                data.frame(`Clinical` = c(clin1,
+                                    clin2,
+                                    clin3),
+                     `Baseline Sero` = rep(basesero, length.out = lenout),
+                     `Sero Trt Effect` = rep(trtsero, length.out = lenout),
+                     `Accrual rate` = rep(accrual2, length.out = lenout)) )
+
+kable(d_scen, caption = "Table 1. Simulation Scenarios") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left") %>%
+  collapse_rows(columns = 1)
+```
