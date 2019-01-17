@@ -204,8 +204,6 @@ for(fname in resfiles){
     dplyr::filter(trial_outcome %in% c("Futile", "Superior", "Inconclusive") )
     
   
-  
-  
   df_stopv <- df_res %>%
     dplyr::filter(stop_v_samp == 1) 
   
