@@ -32,7 +32,7 @@ idsim: "NULL"
 outfile: "res_null.RDS"
 
 seed: 222
-nsims: 1
+nsims: 100
 
 # interims
 # first look is always 50 thereafter n increases based on people_per_interim_period 
@@ -64,7 +64,7 @@ max_age_fu_months: 36
 
 # seroconversion control variables
 baselineprobsero: 0.4
-trtprobsero: 0.7
+trtprobsero: 0.6
 # note - need to build utility functions to compute these
 #deltaserot3: 0.0 # (see above)
 #deltaremoteserot3: 0
@@ -93,7 +93,7 @@ post_sero_thresh: 0.975
 ctl_med_tte: 30
 trt_med_tte: 35
 
-
+# TODO - get rid
 b0tte: 0.02772589
 b1tte: 0 # -0.004620981 # trt effect
 b2tte: 0 # remote

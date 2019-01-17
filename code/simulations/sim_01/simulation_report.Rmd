@@ -132,6 +132,8 @@ The following tables and plots summarise the scenarios that were simulated. We u
 
 **Todo**
 
+add create logs, out and dbg directory.
+
 should report the difference for clin and immu along with the uncertainty/95% percentiles.
 
 i need to update code + tables to also present the pct futility results for the clinical arm - can do this by making the decision based on a boolean and.
@@ -174,33 +176,42 @@ resfiles <- list.files("out", pattern = "*.RDS")
 df_all <- data.frame(stringsAsFactors = F)
 for(fname in resfiles){
   d1 <- readRDS(file.path(getwd(), "out", fname))
-  # d1 <- readRDS(file.path(getwd(), "out", "out/res-2019-01-16-11-52-47.RDS"))
+  # d1 <- readRDS(file.path(getwd(), "out", "res-2019-01-17-11-59-12.RDS"))
   df_res <- as.data.frame(d1$results)
 
   nsim <- d1$cfg$nsims
-
-  # median surv mnth
+  # true values for median surv (mnth)
   baseclin <- med_surv(d1$cfg$b0tte)
   trtclin <- med_surv(d1$cfg$b0tte + d1$cfg$b1tte)
-
-  # sero probs
+  # true values for seroconversion prob
   basesero <- d1$cfg$baselineprobsero
   trtsero <- d1$cfg$trtprobsero
-
   # accrual
   accrual <- d1$cfg$people_per_interim_period
-
-  # this is the pct futility just due to sero tests
-  df_tmp <- df_res %>%
-    dplyr::filter(stop_i_fut == 1 ) %>%
-    dplyr::mutate(fut = stop_i_fut)
-  pct_fut_i <- 100* nrow(df_tmp)/max(df_res$idxsim)
-  # futility due to either
-  df_tmp <- df_res %>%
-    dplyr::filter(stop_i_fut == 1 | stop_c_fut == 1) %>%
-    dplyr::mutate(fut = stop_i_fut + stop_c_fut)
-  pct_fut <- 100*nrow(df_tmp)/max(df_res$idxsim)
   
+  
+  df_res$trial_outcome <- NA
+  df_res$trial_outcome <- ifelse(df_res$stop_i_fut == 1 | df_res$stop_c_fut == 1, 1, df_res$trial_outcome)
+  df_res$trial_outcome <- ifelse(df_res$stop_c_sup == 1, 2, df_res$trial_outcome)
+  df_res$trial_outcome <- ifelse(df_res$inconclusive == 1, 3, df_res$trial_outcome)
+  
+  df_res$trial_outcome <- factor(df_res$trial_outcome, levels = 1:3, labels = c("Futile", "Superior", "Inconclusive"))
+
+  # df_res$trial_outcome <- ifelse(stop_v_samp == 1, 3, df_res$trial_outcome)
+
+  # trials are either futile or superior 
+  df_outcome <- df_res %>%
+    dplyr::filter(trial_outcome %in% c("Futile", "Superior", "Inconclusive") )
+    
+  
+  
+  
+  df_stopv <- df_res %>%
+    dplyr::filter(stop_v_samp == 1) 
+  
+  
+  pct_fut <- 100*nrow(df_tmp)/max(df_res$idxsim)
+
   # ss_fut
   ss_fut_stats <- df_tmp %>%
     dplyr::summarise(mean = mean(n_obs), sd = sd(n_obs), med = median(n_obs))
@@ -225,7 +236,7 @@ for(fname in resfiles){
 
   dtmp <- data.frame(idsim = d1$cfg$idsim,
                                           nsim = nsim,
-                                        
+
                                          basesero = basesero,
                                          trtsero = trtsero,
                                           baseclin = baseclin,
@@ -237,6 +248,7 @@ for(fname in resfiles){
                                          i_c_sd = sd(df_res$i_post_prop_ctl, na.rm = T),
                                          i_t_mean = mean(df_res$i_post_prop_trt, na.rm = T),
                                          i_t_sd = sd(df_res$i_post_prop_trt, na.rm = T),
+                                         i_delta_mean = mean(df_res$)
 
                                          # clinical outcome control mean posterior
                                          c_c_mean = mean(log(2)/df_res$c_post_lambda_ctl, na.rm = T),
@@ -245,7 +257,6 @@ for(fname in resfiles){
                                          c_c_sd = sd(log(2)/df_res$c_post_lambda_trt, na.rm = T),
 
                                          pct_fut = pct_fut,
-                                         pct_fut_i = pct_fut_i,
                                          ss_fut_mean = as.numeric(ss_fut_stats[1]),
                                          ss_fut_sd = as.numeric(ss_fut_stats[2]),
                                          ss_fut_med = as.numeric(ss_fut_stats[3]),
@@ -335,7 +346,7 @@ df_clinsero3 <- df_all %>%
 
 These are primarily to assess type i error and sample size.
 
-Across theVenous sampling 
+Across theVenous sampling
 
 ```{r, echo = F, eval = T}
 digits <- c(0, 0, 2, 2, 0, 0, 0,
@@ -359,7 +370,7 @@ kable(df_0 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                     "Seroconversion" = 2, "Clinical" = 2, 
+                     "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
@@ -393,7 +404,7 @@ kable(df_sero1 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                      "Seroconversion" = 2, "Clinical" = 2, 
+                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
@@ -421,7 +432,7 @@ kable(df_sero2 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                      "Seroconversion" = 2, "Clinical" = 2, 
+                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
@@ -451,7 +462,7 @@ kable(df_clin1 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                      "Seroconversion" = 2, "Clinical" = 2, 
+                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
@@ -478,7 +489,7 @@ kable(df_clin2 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                      "Seroconversion" = 2, "Clinical" = 2, 
+                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
@@ -509,7 +520,7 @@ kable(df_clinsero1 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                      "Seroconversion" = 2, "Clinical" = 2, 
+                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
@@ -537,7 +548,7 @@ kable(df_clinsero2 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                      "Seroconversion" = 2, "Clinical" = 2, 
+                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
@@ -566,7 +577,7 @@ kable(df_clinsero3 %>% dplyr::select(-idsim),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
-                      "Seroconversion" = 2, "Clinical" = 2, 
+                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1,
                      "Immu posterior" = 4,
                      "Clin posterior" = 4,
@@ -581,7 +592,7 @@ kable(df_clinsero3 %>% dplyr::select(-idsim),
 ```{r, echo = F, fig.height=8, fig.width=12}
 df_tmp <- df_clinsero1
 df_tmp$accrual <- as.factor(df_tmp$accrual)
-p1 <- ggplot(df_tmp, aes(x = baseclin, y = 100*pct_fut, 
+p1 <- ggplot(df_tmp, aes(x = baseclin, y = 100*pct_fut,
                          colour = accrual))+
               geom_point() +
   geom_line() +
@@ -618,9 +629,3 @@ p3 <- ggplot(df_tmp, aes(x = baseclin, y = 100*pct_stopv, colour = accrual))+
 
 
 ## Conclusions
-
-
-
-
-
-

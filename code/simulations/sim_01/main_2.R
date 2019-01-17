@@ -56,7 +56,6 @@ if (opt$use == T && length(opt) <= 3){
   stop("If you are going to override you need to specify further
   command line args.\n", call.=FALSE)
 }
-
 cfg <- sim_cfg(opt$cfgfile, opt)
 
 # cfgfile = "cfg1.yaml"
@@ -100,6 +99,7 @@ results <- foreach(i = 1:cfg$nsims,
   stop_immu_fut <- 0
   stop_clin_fut <- 0
   stop_clin_sup <- 0
+  inconclusive <- 0
 
   dt1 <- gen_dat(cfg)
 
@@ -112,18 +112,20 @@ results <- foreach(i = 1:cfg$nsims,
     # idx = i = look = 1
     # idx = i = 2; look = look + 1; look
     # idx = i = look = 5
-    # idx = i = look = 6
+    # idx = i = look = 8
     # idx = i = 1; look = 28
+    # idx = i = 1; look = 33
 
     m_immu_res <- m_clin_res <- NULL
 
     # note! do not reset stop_i to zero!!!
     # stop_i_this is a (bit of a) cludge so that we do not get confusing output
     # and can reduce unnecessary sim processing
-    stop_i_this_iteration <- list(stop_ven_samp = 0,
+    trial_state <- list(stop_ven_samp = 0,
                                   stop_immu_fut = 0,
                                   stop_clin_fut = 0,
-                                  stop_clin_sup = 0)
+                                  stop_clin_sup = 0,
+                                 inconclusive = 0)
 
 
     # Take a copy of the trial data so that we can fiddle with it.
@@ -142,35 +144,28 @@ results <- foreach(i = 1:cfg$nsims,
                   stop_clin_sup,
                   cfg$looks[look],
                   cfg$nmaxsero)){
-
       m_immu_res <- tryCatch({
         model_immu_2(d, cfg, look, i)
       }, error = function(err) {
         flog.info("CATCH ERROR model_immu_2 err = %s \n i = %s look = %s", err, i, look)
-        flog.info("CATCH ERROR model_immu_2 sys.calls follow")
         flog.info(sys.calls())
         stop("Stopped in main loop model_immu_2 error")
       }, warning=function(cond) {
         flog.info("CATCH WARNING model_immu_2 err = %s \n i = %s look = %s", cond, i, look)
-        flog.info("CATCH WARNING model_immu_2 sys.calls follow")
         flog.info(sys.calls())
         stop("Stopped in main loop model_immu_2 warning")
       })
 
       # rule 1 - "futility test"
       if (m_immu_res["ppos_max"] < cfg$rule1_sero_pp_fut_thresh){
-        # ok, so I will (almost certainly) burn in hell for this, but it should be safe because of
-        # the way that things are parallelised...
         stop_immu_fut <<- 1
-        stop_i_this_iteration$stop_immu_fut <- 1
+        trial_state$stop_immu_fut <- 1
       }
 
       # rule 3 - "stop venous sampling"
       if (m_immu_res["ppos_n"] > cfg$rule3_sero_ppos_thresh){
-        # ok, so I will (almost certainly) burn in hell for this, but it should be safe because of
-        # the way that things are parallelised...
         stop_ven_samp <<- 1
-        stop_i_this_iteration$stop_ven_samp <- 1
+        trial_state$stop_ven_samp <- 1
       }
       
       ss_immu <- n_obs
@@ -184,32 +179,34 @@ results <- foreach(i = 1:cfg$nsims,
                   stop_clin_sup) & cfg$looks[look] >= cfg$nstartclin){
 
       m_clin_res <- tryCatch({
-        model_clin_1(d, cfg, look, i)
+        model_clin(d, cfg, look, i)
       }, error = function(err) {
-        flog.info("CATCH ERROR model_clin_1 err = %s \n i = %s look = %s", err, i, look)
-        flog.info("CATCH ERROR model_clin_1 sys.calls follow")
+        flog.info("CATCH ERROR model_clin err = %s \n i = %s look = %s", err, i, look)
         flog.info(sys.calls())
-        stop("Stopped in main loop model_clin_1 error")
+        stop("Stopped in main loop model_clin error")
       }, warning=function(cond) {
-        flog.info("CATCH WARNING model_clin_1 err = %s \n i = %s look = %s", cond, i, look)
-        flog.info("CATCH WARNING model_clin_1 sys.calls follow")
+        flog.info("CATCH WARNING model_clin err = %s \n i = %s look = %s", cond, i, look)
         flog.info(sys.calls())
-        stop("Stopped in main loop model_clin_1 warning")
+        stop("Stopped in main loop model_clin warning")
       })
 
-      if (m_clin_res["ppos_max"] < cfg$rule1_sero_pp_fut_thresh){
-        # ok, so I will (almost certainly) burn in hell for this, but it should be safe because of
-        # the way that things are parallelised...
+      # ppos_max will be NA at max looks since that is the final analysis and we just
+      # look at the posterior rather than the predictive probability
+      if (!is.na(m_clin_res["ppos_max"]) && m_clin_res["ppos_max"] < cfg$rule1_sero_pp_fut_thresh){
         stop_clin_fut <<- 1
-        stop_i_this_iteration$stop_clin_fut <- 1
+        trial_state$stop_clin_fut <- 1
       }
 
       if (m_clin_res["ppos_n"] > cfg$rule2_tte_postthresh){
-        # ok, so I will (almost certainly) burn in hell for this, but it should be safe because of
-        # the way that things are parallelised...
         stop_clin_sup <<- 1
-        stop_i_this_iteration$stop_clin_sup <- 1
+        trial_state$stop_clin_sup <- 1
       }
+      
+      if (look == length(cfg$looks) && stop_clin_fut == 0 && stop_clin_sup == 0){
+        inconclusive <<- 1
+        trial_state$inconclusive <- 1
+      }
+      
       # we are not concerned with the zeros.
       ss_clin <- n_obs
     }
@@ -250,16 +247,16 @@ results <- foreach(i = 1:cfg$nsims,
             n_max_sero = cfg$nmaxsero,
             immu_res = immu_res,
             clin_res = clin_res,
-            stop_v_samp = stop_i_this_iteration$stop_ven_samp,
-            stop_i_fut = stop_i_this_iteration$stop_immu_fut,
-            stop_c_fut = stop_i_this_iteration$stop_clin_fut,
-            stop_c_sup = stop_i_this_iteration$stop_clin_sup)
+            stop_v_samp = trial_state$stop_ven_samp,
+            stop_i_fut = trial_state$stop_immu_fut,
+            stop_c_fut = trial_state$stop_clin_fut,
+            stop_c_sup = trial_state$stop_clin_sup,
+            inconclusive = trial_state$inconclusive)
 
         names(lr) <- cfg$field_names
         lr
 
       }, error = function(err) {
-        
         flog.info("CATCH ERROR err = %s \n
                                  i = %s look = %s n_obs = %s \n
                                  ss_immu = %s \n
@@ -271,17 +268,18 @@ results <- foreach(i = 1:cfg$nsims,
                                  stop_v_samp = %s \n
                                  stop_i_fut = %s \n
                                  stop_c_fut = %s \n
-                                 stop_c_sup = %s ", 
+                                 stop_c_sup = %s \n
+                                  inconclusive = %s", 
                   err, i, look, n_obs, 
                   ss_immu, ss_clin, 
                   n_max, cfg$nmaxsero, 
                   paste0(immu_res, collapse = ", "), 
                   paste0(clin_res, collapse = ", "), 
-                  stop_i_this_iteration$stop_ven_samp, 
-                  stop_i_this_iteration$stop_immu_fut, 
-                  stop_i_this_iteration$stop_clin_fut, 
-                  stop_i_this_iteration$stop_clin_sup)
-
+                  trial_state$stop_ven_samp, 
+                  trial_state$stop_immu_fut, 
+                  trial_state$stop_clin_fut, 
+                  trial_state$stop_clin_sup,
+                  trial_state$inconclusive)
         flog.info(sys.calls())
         lrerr <- rep(NA, length(cfg$field_names))
         return(lrerr)
@@ -297,17 +295,18 @@ results <- foreach(i = 1:cfg$nsims,
                                  stop_v_samp = %s \n
                                  stop_i_fut = %s \n
                                  stop_c_fut = %s \n
-                                 stop_c_sup = %s ", 
+                                 stop_c_sup = %s \n
+                                  inconclusive = %s", 
                   cond, i, look, n_obs, 
                   ss_immu, ss_clin, 
                   n_max, cfg$nmaxsero, 
                   paste0(immu_res, collapse = ", "), 
                   paste0(clin_res, collapse = ", "), 
-                  stop_i_this_iteration$stop_ven_samp, 
-                  stop_i_this_iteration$stop_immu_fut, 
-                  stop_i_this_iteration$stop_clin_fut, 
-                  stop_i_this_iteration$stop_clin_sup)
-        
+                  trial_state$stop_ven_samp, 
+                  trial_state$stop_immu_fut, 
+                  trial_state$stop_clin_fut, 
+                  trial_state$stop_clin_sup,
+                  trial_state$inconclusive)
         flog.info(sys.calls())
         lrerr <- rep(NA, length(cfg$field_names))
         return(lrerr)
@@ -322,8 +321,6 @@ results <- foreach(i = 1:cfg$nsims,
 }
 
 
-
-
 end <- proc.time()
 
 duration <- end - start
@@ -333,16 +330,6 @@ flog.info("system  %s", round(duration[2], 2) )
 flog.info("elapsed %s", round(duration[3], 2) )
 
 beepr::beep()
-
-
-
-dothis <- FALSE
-if (dothis){
-  head(print_immu_res(results), 25)
-  tail(print_immu_res(results), 10)
-  head(print_clin_res(results), 25)
-  tail(print_clin_res(results), 10)
-}
 
 w <- warnings()
 

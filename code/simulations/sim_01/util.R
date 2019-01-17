@@ -72,7 +72,8 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
                    "stop_v_samp",
                    "stop_i_fut",
                    "stop_c_fut",
-                   "stop_c_sup")
+                   "stop_c_sup",
+                   "inconclusive")
   
   
   # "stop_i_sup",
@@ -117,7 +118,8 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
 
   stopifnot(length(l$interimmnths) == length(l$looks))
   stopifnot(max(l$looks) == l$nstop)
-  
+
+
   # data generation
 
   
@@ -134,7 +136,8 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   
   l$max_age_fu_months <- tt$max_age_fu_months
   
-
+  # we delay the final analysis until the youngest kid is 36 months 
+  l$final_analysis_month <- l$max_age_fu_months - l$age_months_lwr + max(l$interimmnths)
 
 
   # seroconversion control variables
@@ -305,6 +308,9 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       if(length(l$interimmnths) < length(l$looks)){
         l$interimmnths <- c(l$interimmnths, max(l$interimmnths)+l$interim_period)
       }
+      
+      # we delay the final analysis until the youngest kid is 36 months 
+      l$final_analysis_month <- l$max_age_fu_months - l$age_months_lwr + max(l$interimmnths)
       
       stopifnot(length(l$interimmnths) == length(l$looks))
       stopifnot(max(l$looks) == l$nstop)
