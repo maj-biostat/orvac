@@ -139,6 +139,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   # we delay the final analysis until the youngest kid is 36 months 
   l$final_analysis_month <- l$max_age_fu_months - l$age_months_lwr + max(l$interimmnths)
 
+  l$sero_info_delay <- tt$sero_info_delay
 
   # seroconversion control variables
   # note - need to build utility functions to compute these
@@ -318,6 +319,15 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       
       flog.info("Updated interimmnths: %s.", paste0(l$interimmnths, collapse = ", "))
     }
+    
+    if(!is.null(opt$delay)){
+      
+      l$sero_info_delay <- opt$delay
+      
+      flog.info("Updated information delay: %s.", paste0(l$sero_info_delay, collapse = ", "))
+      
+    }
+    
     
     
     if(!is.null(opt$basesero)){

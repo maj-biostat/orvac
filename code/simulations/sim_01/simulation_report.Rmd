@@ -5,6 +5,7 @@ output:
     toc: true
     theme: united
     classoption: landscape
+    self_contained: no
   geometry: margin=0cm
   pdf_document:
     toc: yes
@@ -25,7 +26,7 @@ classoption: landscape
 </style>
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.path = 'figs/')
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(ggplot2))
@@ -61,7 +62,7 @@ ggplot2::theme_update(text = element_text(size = 10))
 ggplot2::theme_update(axis.text.x = element_text(size = 10))
 ggplot2::theme_update(axis.text.y = element_text(size = 10))
 
-
+# Work|Right|Fast
 # rmarkdown::render("simulation_report.Rmd", clean=TRUE)
 ```
 
@@ -120,7 +121,7 @@ Delays in information (i.e. in obtaining the blood results) are not currenly imp
 
 The type i and type ii errors need to be balanced. We might be unwilling to risk incorrectly rejecting the null hypothesis at the 5% significance level. However, decreasing the type i error implicitly increases the type ii error (and therefore reduces power) when the alternative hypothesis is true. Thus if the type i error is really low and the power is not quite where we want it to be then we can trade these two thresholds off against one another to try and improve the overall operating characteristics.
 
-![Figure 1](images/typei_tpyeii.png "Figure 1")
+![Figure 1](figs/typei_tpyeii.png "Figure 1")
 
 The models are based on conjugate priors -- I tried many other ways, including writing samplers in C++ and approximations. In the actual analysis we will use generalised linear models (logistic regression) and piecewise exponential survival models both estimated with MCMC. These models will likely include additional covariates but the decision process will remain the same. I am worried that the necessary simulations (i.e. for the real analyses) will take way to long, but will cross that bridge when we come to it. See the SAP for further detail.
 
@@ -176,7 +177,7 @@ resfiles <- list.files("out", pattern = "*.RDS")
 df_all <- data.frame(stringsAsFactors = F)
 for(fname in resfiles){
   d1 <- readRDS(file.path(getwd(), "out", fname))
-  # d1 <- readRDS(file.path(getwd(), "out", "res-2019-01-17-11-59-12.RDS"))
+  # d1 <- readRDS(file.path(getwd(), "out", resfiles[1]))
   df_res <- as.data.frame(d1$results)
 
   nsim <- d1$cfg$nsims
@@ -188,14 +189,15 @@ for(fname in resfiles){
   trtsero <- d1$cfg$trtprobsero
   # accrual
   accrual <- d1$cfg$people_per_interim_period
+  info_delay <- d1$cfg$sero_info_delay
   
-  
+  outcome_labs <- c("Futile", "Superior", "Inconclusive")
   df_res$trial_outcome <- NA
   df_res$trial_outcome <- ifelse(df_res$stop_i_fut == 1 | df_res$stop_c_fut == 1, 1, df_res$trial_outcome)
   df_res$trial_outcome <- ifelse(df_res$stop_c_sup == 1, 2, df_res$trial_outcome)
   df_res$trial_outcome <- ifelse(df_res$inconclusive == 1, 3, df_res$trial_outcome)
   
-  df_res$trial_outcome <- factor(df_res$trial_outcome, levels = 1:3, labels = c("Futile", "Superior", "Inconclusive"))
+  df_res$trial_outcome <- factor(df_res$trial_outcome, levels = 1:3, labels = outcome_labs)
 
   # df_res$trial_outcome <- ifelse(stop_v_samp == 1, 3, df_res$trial_outcome)
 
@@ -203,126 +205,128 @@ for(fname in resfiles){
   df_outcome <- df_res %>%
     dplyr::filter(trial_outcome %in% c("Futile", "Superior", "Inconclusive") )
     
-  
   df_stopv <- df_res %>%
     dplyr::filter(stop_v_samp == 1) 
   
+  n <- c(table(df_res$trial_outcome),   nrow(df_stopv))
+  prob <- c(prop.table(table(df_res$trial_outcome)),   nrow(df_stopv)/max(df_res$idxsim))
+  names(prob) <- c(names(prob)[1:3], "StopV")
   
-  pct_fut <- 100*nrow(df_tmp)/max(df_res$idxsim)
-
-  # ss_fut
-  ss_fut_stats <- df_tmp %>%
-    dplyr::summarise(mean = mean(n_obs), sd = sd(n_obs), med = median(n_obs))
-
-  # superiority
-  df_tmp <- df_res %>%
-    dplyr::filter(stop_c_sup == 1)
-  pct_sup <- 100*nrow(df_tmp)/max(df_res$idxsim)
-
-  # ss_sup
-  ss_sup_stats <- df_tmp %>%
-    dplyr::summarise(mean = mean(n_obs), sd = sd(n_obs), med = median(n_obs))
-
-  # stop venous sampling
-  df_tmp <- df_res %>%
-    dplyr::filter(stop_v_samp == 1)
-  pct_stopv <-100*nrow(df_tmp)/max(df_res$idxsim)
-
-  # ss_stopv
-  ss_stopv_stats <- df_tmp %>%
-    dplyr::summarise(mean = mean(n_obs), sd = sd(n_obs), med = median(n_obs))
+  df_ss <- df_outcome %>% 
+    dplyr::group_by(trial_outcome) %>%
+    dplyr::summarise(ss_mean = mean(n_obs), 
+                     ss_sd = sd(n_obs)) %>%
+    tidyr::complete(trial_outcome, fill = list(ss_mean = 0))
+  
+  
 
   dtmp <- data.frame(idsim = d1$cfg$idsim,
-                                          nsim = nsim,
+                     nsim = nsim,
 
-                                         basesero = basesero,
-                                         trtsero = trtsero,
-                                          baseclin = baseclin,
-                                         trtclin = trtclin,
-                                         accrual = accrual,
+                     basesero = basesero,
+                     trtsero = trtsero,
+                     baseclin = baseclin,
+                     trtclin = trtclin,
+                     accrual = accrual,
+                     info_delay = info_delay,
+                     
+                     
+                     prob_sup = prob["Superior"],
+                     prob_fut = prob["Futile"],
+                     prob_incon = prob["Inconclusive"],
+                     prob_stopv = prob["StopV"],
+                     
+                     n_sup = n[2],
+                     n_fut = n[1],
+                     n_incon = n[3],
+                     n_stopv = n[4],
+                                         
+                     ss_fut_mean = unlist(df_ss[df_ss$trial_outcome == "Futile", "ss_mean"]), 
+                     ss_fut_sd = unlist(df_ss[df_ss$trial_outcome == "Futile", "ss_sd"]), 
+                     
+                     ss_sup_mean = unlist(df_ss[df_ss$trial_outcome == "Superior", "ss_mean"]), 
+                     ss_sup_sd = unlist(df_ss[df_ss$trial_outcome == "Superior", "ss_sd"]), 
+                    
+                     ss_incon_mean = unlist(df_ss[df_ss$trial_outcome == "Inconclusive", "ss_mean"]), 
+                     ss_incon_sd = unlist(df_ss[df_ss$trial_outcome == "Inconclusive", "ss_sd"]), 
+                     
+                     ss_stopv_mean = mean(df_stopv$n_obs),
+                     ss_stopv_sd = sd(df_stopv$n_obs),
 
-                                         # immuno outcome control mean posterior
-                                         i_c_mean = mean(df_res$i_post_prop_ctl, na.rm = T),
-                                         i_c_sd = sd(df_res$i_post_prop_ctl, na.rm = T),
-                                         i_t_mean = mean(df_res$i_post_prop_trt, na.rm = T),
-                                         i_t_sd = sd(df_res$i_post_prop_trt, na.rm = T),
-                                         i_delta_mean = mean(df_res$)
+                     fname = fname, stringsAsFactors = F)
+  
+  dtmp <- dtmp %>%
+    dplyr::mutate(f_prob_sup = sprintf("%.2f (%d)", prob_sup, n_sup),
+                  f_prob_fut = sprintf("%.2f (%d)", prob_fut, n_fut),
+                  f_prob_incon = sprintf("%.2f (%d)", prob_incon, n_incon),
+                  f_prob_stopv = sprintf("%.2f (%d)", prob_stopv, n_stopv),
+                  
+                  f_ss_sup = sprintf("%.1f (%.1f)", ss_sup_mean, ss_sup_sd),
+                  f_ss_fut = sprintf("%.1f (%.1f)", ss_fut_mean, ss_fut_sd),
+                  f_ss_incon = sprintf("%.1f (%.1f)", ss_incon_mean, ss_incon_sd),
+                  f_ss_stopv = sprintf("%.1f (%.1f)", ss_stopv_mean, ss_stopv_sd) )
+  
 
-                                         # clinical outcome control mean posterior
-                                         c_c_mean = mean(log(2)/df_res$c_post_lambda_ctl, na.rm = T),
-                                         c_c_sd = sd(log(2)/df_res$c_post_lambda_ctl, na.rm = T),
-                                         c_c_mean = mean(log(2)/df_res$c_post_lambda_trt, na.rm = T),
-                                         c_c_sd = sd(log(2)/df_res$c_post_lambda_trt, na.rm = T),
-
-                                         pct_fut = pct_fut,
-                                         ss_fut_mean = as.numeric(ss_fut_stats[1]),
-                                         ss_fut_sd = as.numeric(ss_fut_stats[2]),
-                                         ss_fut_med = as.numeric(ss_fut_stats[3]),
-                                         pct_sup = pct_sup,
-                                         ss_sup_mean = as.numeric(ss_sup_stats[1]),
-                                         ss_sup_sd = as.numeric(ss_sup_stats[2]),
-                                         ss_sup_med = as.numeric(ss_sup_stats[3]),
-                                         pct_stopv = pct_stopv,
-                                         ss_stopv_mean = as.numeric(ss_stopv_stats[1]),
-                                         ss_stopv_sd = as.numeric(ss_stopv_stats[2]),
-                                         ss_stopv_med = as.numeric(ss_stopv_stats[3]),
-                                       fname = fname, stringsAsFactors = F)
+  
 
   df_all <- rbind(df_all,  dtmp, stringsAsFactors  = F)
-
 
 }
 
 
 # unique(df_all$idsim)
 df_0 <- df_all %>%
-  dplyr::filter(idsim == "Null01") %>%
   dplyr::arrange(-accrual, baseclin, basesero) %>%
   dplyr::mutate(row = 1:n()) %>%
-  dplyr::select(row, everything())
+  dplyr::select(row, nsim, 
+                basesero, trtsero, baseclin, trtclin, accrual,info_delay,
+                f_prob_sup, f_prob_fut, f_prob_incon, f_prob_stopv, 
+                f_ss_sup, f_ss_fut, f_ss_incon, f_ss_stopv,
+                fname)
 
-df_sero1 <- df_all %>%
-      dplyr::filter(idsim == "SeroTrt02") %>%
-      dplyr::arrange(-accrual, baseclin, basesero)%>%
-      dplyr::mutate(row = 1:n()) %>%
-      dplyr::select(row, everything())
-
-df_sero2 <- df_all %>%
-  dplyr::filter(idsim == "SeroTrt01") %>%
-  dplyr::arrange(-accrual, baseclin, basesero) %>%
-  dplyr::mutate(row = 1:n()) %>%
-  dplyr::select(row, everything())
-
-df_clin1 <- df_all %>%
-  dplyr::filter(idsim == "ClinTrt03") %>%
-  dplyr::arrange(-accrual, baseclin, basesero) %>%
-  dplyr::mutate(row = 1:n()) %>%
-  dplyr::select(row, everything())
-
-
-df_clin2 <- df_all %>%
-  dplyr::filter(idsim == "ClinTrt02") %>%
-  dplyr::arrange(-accrual, baseclin, basesero) %>%
-  dplyr::mutate(row = 1:n()) %>%
-  dplyr::select(row, everything())
-
-df_clinsero1 <- df_all %>%
-  dplyr::filter(idsim == "ClinSeroTrt01") %>%
-  dplyr::arrange(-accrual, baseclin, trtclin, basesero) %>%
-  dplyr::mutate(row = 1:n()) %>%
-  dplyr::select(row, everything())
-
-df_clinsero2 <- df_all %>%
-  dplyr::filter(idsim == "ClinSeroTrt02") %>%
-  dplyr::arrange(-accrual, baseclin, trtclin, basesero) %>%
-  dplyr::mutate(row = 1:n()) %>%
-  dplyr::select(row, everything())
-
-df_clinsero3 <- df_all %>%
-  dplyr::filter(idsim == "ClinSeroTrt03") %>%
-  dplyr::arrange(-accrual, baseclin, trtclin, basesero) %>%
-  dplyr::mutate(row = 1:n()) %>%
-  dplyr::select(row, everything())
+# 
+# df_sero1 <- df_all %>%
+#       dplyr::filter(idsim == "SeroTrt02") %>%
+#       dplyr::arrange(-accrual, baseclin, basesero)%>%
+#       dplyr::mutate(row = 1:n()) %>%
+#       dplyr::select(row, everything())
+# 
+# df_sero2 <- df_all %>%
+#   dplyr::filter(idsim == "SeroTrt01") %>%
+#   dplyr::arrange(-accrual, baseclin, basesero) %>%
+#   dplyr::mutate(row = 1:n()) %>%
+#   dplyr::select(row, everything())
+# 
+# df_clin1 <- df_all %>%
+#   dplyr::filter(idsim == "ClinTrt03") %>%
+#   dplyr::arrange(-accrual, baseclin, basesero) %>%
+#   dplyr::mutate(row = 1:n()) %>%
+#   dplyr::select(row, everything())
+# 
+# 
+# df_clin2 <- df_all %>%
+#   dplyr::filter(idsim == "ClinTrt02") %>%
+#   dplyr::arrange(-accrual, baseclin, basesero) %>%
+#   dplyr::mutate(row = 1:n()) %>%
+#   dplyr::select(row, everything())
+# 
+# df_clinsero1 <- df_all %>%
+#   dplyr::filter(idsim == "ClinSeroTrt01") %>%
+#   dplyr::arrange(-accrual, baseclin, trtclin, basesero) %>%
+#   dplyr::mutate(row = 1:n()) %>%
+#   dplyr::select(row, everything())
+# 
+# df_clinsero2 <- df_all %>%
+#   dplyr::filter(idsim == "ClinSeroTrt02") %>%
+#   dplyr::arrange(-accrual, baseclin, trtclin, basesero) %>%
+#   dplyr::mutate(row = 1:n()) %>%
+#   dplyr::select(row, everything())
+# 
+# df_clinsero3 <- df_all %>%
+#   dplyr::filter(idsim == "ClinSeroTrt03") %>%
+#   dplyr::arrange(-accrual, baseclin, trtclin, basesero) %>%
+#   dplyr::mutate(row = 1:n()) %>%
+#   dplyr::select(row, everything())
 
 
 # df_2 <- df_all %>%
@@ -347,34 +351,29 @@ These are primarily to assess type i error and sample size.
 Across theVenous sampling
 
 ```{r, echo = F, eval = T}
-digits <- c(0, 0, 2, 2, 0, 0, 0,
-            3, 3, 3, 3,
-            2, 2, 2, 2,
-            3, 3, 1, 1, 1,
-            3, 1, 1, 1,
-            3, 1, 1, 1)
+digits <- c(0, 0, 
+            2, 2, 0, 0, 0, 2,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0)
 options(knitr.kable.NA = '-')
-stopifnot(nrow(df_0) == 24)
-kable(df_0 %>% dplyr::select(-idsim),
+#stopifnot(nrow(df_0) == 24)
+kable(df_0 ,
       caption = "Table 1. Simulation Null Scenarios",
-      col.names = c("","nsims", "base", "trt", "base", "trt", "accrual",
-                    "mean_ctl", "sd_ctl", "mean_trt", "sd_trt",
-                    "mean_ctl", "sd_ctl", "mean_trt", "sd_trt",
-                    "%", "immu_%", "mean", "sd", "med",
-                    "%","mean", "sd", "med",
-                    "%","mean", "sd", "med", "file"),
+      col.names = c("","nsims", 
+                    "base", "trt", "base", "trt", "accrual", "info delay",
+                    "superiority", "futility", "inconclusive", "stop v samp",
+                    "superiority", "futility", "inconclusive", "stop v samp",
+                    "file"),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
                 font_size = 11) %>%
   add_header_above(c(" " = 1, " " = 1,
                      "Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1,
-                     "Immu posterior" = 4,
-                     "Clin posterior" = 4,
-                     "Futility (%, sampsize)" = 5,
-                     "Superiority (%, sampsize)" = 4,
-                     "Stop V Samp (%, sampsize)" = 4,
+                     " " = 1, " " = 1,
+                     "Probability (number of trials)" = 4,
+                     "Mean sample size (sd)" = 4,
                    " " = 1))
 
 ```
@@ -388,7 +387,9 @@ kable(df_0 %>% dplyr::select(-idsim),
 These look at a number of treatment effects in seroconversion for a range of clinical and accrual parameters.
 
 ```{r, echo = F}
-stopifnot(nrow(df_sero1) == 24)
+
+if(exists("df_sero1")){
+  stopifnot(nrow(df_sero1) == 24)
 kable(df_sero1 %>% dplyr::select(-idsim),
       caption = "Table 2. Immunological effect scenario 1",
       col.names = c("","nsims", "base", "trt", "base", "trt", "accrual",
@@ -410,12 +411,15 @@ kable(df_sero1 %>% dplyr::select(-idsim),
                      "Superiority (%, sampsize)" = 4,
                      "Stop V Samp (%, sampsize)" = 4,
                    " " = 1))
+}
+
 
 ```
 
 
 
 ```{r, echo = F}
+if(exists("df_sero2")){
 stopifnot(nrow(df_sero2) == 24)
 kable(df_sero2 %>% dplyr::select(-idsim),
       caption = "Table 3. Immunological effect scenario 2",
@@ -438,6 +442,7 @@ kable(df_sero2 %>% dplyr::select(-idsim),
                      "Superiority (%, sampsize)" = 4,
                      "Stop V Samp (%, sampsize)" = 4,
                    " " = 1))
+}
 ```
 
 
@@ -446,6 +451,7 @@ kable(df_sero2 %>% dplyr::select(-idsim),
 These look at a number of treatment effects in clinical outcome for a range of seroconversion and accrual parameters.
 
 ```{r, echo = F}
+if(exists("df_clin1")){
 stopifnot(nrow(df_clin1) == 24)
 kable(df_clin1 %>% dplyr::select(-idsim),
       caption = "Table 4. Clinical effect scenario 1",
@@ -468,11 +474,13 @@ kable(df_clin1 %>% dplyr::select(-idsim),
                      "Superiority (%, sampsize)" = 4,
                      "Stop V Samp (%, sampsize)" = 4,
                    " " = 1))
+}
 
 ```
 
 
 ```{r, echo = F}
+if(exists("df_clin2")){
 stopifnot(nrow(df_clin2) == 24)
 kable(df_clin2 %>% dplyr::select(-idsim),
       caption = "Table 4. Clinical effect scenario 1",
@@ -495,6 +503,7 @@ kable(df_clin2 %>% dplyr::select(-idsim),
                      "Superiority (%, sampsize)" = 4,
                      "Stop V Samp (%, sampsize)" = 4,
                    " " = 1))
+}
 
 ```
 
@@ -504,6 +513,7 @@ kable(df_clin2 %>% dplyr::select(-idsim),
 These look at combined treatment effects for immunological and clinical outcomes.
 
 ```{r, echo = F}
+if(exists("df_clinsero1")){
 stopifnot(nrow(df_clinsero1) == 24)
 kable(df_clinsero1 %>% dplyr::select(-idsim),
       caption = "Table 5. Combined effect scenario 1",
@@ -526,12 +536,13 @@ kable(df_clinsero1 %>% dplyr::select(-idsim),
                      "Superiority (%, sampsize)" = 4,
                      "Stop V Samp (%, sampsize)" = 4,
                    " " = 1))
-
+}
 ```
 
 
 
 ```{r, echo = F}
+if(exists("df_clinsero2")){
 stopifnot(nrow(df_clinsero2) == 24)
 kable(df_clinsero2 %>% dplyr::select(-idsim),
       caption = "Table 6. Combined effect scenario 2",
@@ -554,6 +565,7 @@ kable(df_clinsero2 %>% dplyr::select(-idsim),
                      "Superiority (%, sampsize)" = 4,
                      "Stop V Samp (%, sampsize)" = 4,
                    " " = 1))
+}
 
 ```
 
@@ -561,6 +573,7 @@ kable(df_clinsero2 %>% dplyr::select(-idsim),
 
 
 ```{r, echo = F}
+if(exists("df_clinsero3")){
 stopifnot(nrow(df_clinsero3) == 24)
 kable(df_clinsero3 %>% dplyr::select(-idsim),
       caption = "Table 7. Combined effect scenario 3",
@@ -583,11 +596,12 @@ kable(df_clinsero3 %>% dplyr::select(-idsim),
                      "Superiority (%, sampsize)" = 4,
                      "Stop V Samp (%, sampsize)" = 4,
                    " " = 1))
+}
 
 ```
 
 
-```{r, echo = F, fig.height=8, fig.width=12}
+```{r, echo = F, eval = F, fig.height=8, fig.width=12}
 df_tmp <- df_clinsero1
 df_tmp$accrual <- as.factor(df_tmp$accrual)
 p1 <- ggplot(df_tmp, aes(x = baseclin, y = 100*pct_fut,

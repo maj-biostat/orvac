@@ -77,129 +77,162 @@ gen_dat <- function(cfg, n_override = NULL){
 # NEED TO CONSIDER DELAYED RESPONSE DUE TO TIME WINDOW THAT TESTS WILL NEED TO COME BACK.
 
 # this model looks at a dichotomous outcome via conjugate beta-binmoial
-model_immu_2 <- function(d, cfg, look, idx){
-
+model_immu <- function(d, cfg, look, idx){
+  
+  delta <- NA
+  ppos_n <- NA
+  delta_mean <- NA
+  delta_wald_lwr_95 <- NA
+  delta_wald_upr_95 <- NA
+  ppos_max <- NA
+  
   interim_month <- cfg$interimmnths[look]
-
   flog.info("model_immu_2 current simulation %s, look %s, interim_month = %s", idx, look, interim_month)
 
-  # function to return relevant data by treatment group
-  do_dat <- function(trt_status = 0){
 
-    accrualtimes <- d[d$accrt < interim_month & trt == trt_status & id <= cfg$nmaxsero, accrt]
-
-    # currently we can only see up to n_obs_grp observations for this group -
-    # i.e. there are n_obs_grp that have been randomised to this arm
-    n_obs_grp <- length(accrualtimes)
-
-    n_seroconverted <- sum(d$serot3[d$trt == trt_status][1:n_obs_grp])
-    n_impute <- floor(cfg$nmaxsero/2) - n_obs_grp
-
-    # draw from posterior then the dgp distribution (rbinom) to impute the 'unobserved' values
-    # these two lines are equivalent to making draws from the posterior predictive dist.
-
-    # theta is probability of seroconversion
-    theta <- rbeta(n = cfg$post_draw,
-                   shape1 = 1 + n_seroconverted,
-                   shape2 = 1 + n_obs_grp - n_seroconverted)
-    pp <- lapply(theta, rbinom, n = n_impute, size = 1)
-
-    # horrendous fix to address NA draws from binomial. there must be a prettier way...
-    pp_incna <- which(unlist(lapply(pp, anyNA)) > 0)
-    trytimes <- 0
-    while(length(pp_incna) > 0 || trytimes > 100){
-      trytimes <- trytimes + 1
-      tmp <- lapply(lambda[pp_incna], rexp, n = n_impute)
-      for(i in 1:length(pp_incna)){
-        flog.debug("model_immu_2 attempting to fill %s NAs in pp", length(pp_incna))
-        pp[[pp_incna[i]]] <- tmp[[i]]
-      }
-      pp_incna <- which(unlist(lapply(pp, anyNA)) > 0)
-    }
-    stopifnot(!is.null(which(unlist(lapply(pp, anyNA)) > 0)))
-
-
-
-    # combine the observed and pp
-    combine_dat <- function(x){
-      y_rep_x <- c(d$serot3[d$trt == trt_status][1:n_obs_grp], pp[[x]])
-
-      n_sero_by_max_x <- sum(y_rep_x)
-      return(list(y_rep_x = y_rep_x, n_sero_by_max_x = n_sero_by_max_x))
-    }
-    dat_interims <- lapply(1:length(pp), combine_dat)
-
-    return(list(n_obs_grp = n_obs_grp,
-                n_impute = n_impute,
-                n_max_grp = n_obs_grp + n_impute,
-                n_seroconverted = n_seroconverted,
-                theta = theta,
-                dat_interims = dat_interims))
-  }
-
-  # get relevant data for each arm
-  # n_max and n_look are divided by 2 in the called function
-  dat_ctl <- do_dat(0)
-  dat_trt <- do_dat(1)
-
-  # den_plot1(dat_trt$theta, dat_ctl$theta)
-  # plot(density(dat_trt$theta - dat_ctl$theta))
-
-  # difference between proportions from the posteriors.
-  # if there is an effect 'at the 97.5%' level then ppos_n
-  # will be > 0.975
-  ppos_n <- mean((dat_trt$theta - dat_ctl$theta) > 0)
-  # plot(density(dat_trt$theta - dat_ctl$theta))
-
-
-
-  # compute difference distribution
-  diff_prop <- function(x){
-
-    # look at the complete trial for futility
-    # x = x + 1
-    n_sero_by_max_trt = dat_trt$dat_interims[[x]]$n_sero_by_max_x
-    n_sero_by_max_ctl = dat_ctl$dat_interims[[x]]$n_sero_by_max_x
-
-    # first look at the interim for superiority
-    prop_trt <- rbeta(n = cfg$post_draw,
-                   shape1 = 1 + n_sero_by_max_trt,
-                   shape2 = 1 + floor(cfg$nmaxsero/2) - n_sero_by_max_trt)
-
-    prop_ctl <- rbeta(n = cfg$post_draw,
-                   shape1 = 1 + n_sero_by_max_ctl,
-                   shape2 = 1 + floor(cfg$nmaxsero/2) - n_sero_by_max_ctl)
-
-    # the distribution of the difference will be approximately normal
-    diff <- prop_trt - prop_ctl
-
-    # den_plot1(prop_trt, prop_ctl, xlim = c(0,1))
-    # plot(density(diff))
-
-    # do we see a treatment effect?
-    win <- mean(diff > 0) > cfg$post_sero_thresh
-    # win
-
-    return(win)
-  }
-
-  res <- unlist(lapply(1:cfg$post_draw, diff_prop))
-  # hist(res)
-  ppos_max <- mean(res)
-
-  delta <- dat_trt$theta - dat_ctl$theta
-  delta_mean <- mean(delta)
-  delta_wald_lwr_95 <- delta_mean + qnorm(0.025) * sd(delta)
-  delta_wald_upr_95 <- delta_mean + qnorm(0.975) * sd(delta)
-
-  p <- c(ppos_n, ppos_max, mean(dat_ctl$theta), mean(dat_trt$theta), 
-         delta_mean, delta_wald_lwr_95, delta_wald_upr_95)
+  # Both the interim analysis and the final are based on predictive prob.
+  # While cfg$looks[look] can be > cfg$nmaxsero we only make the assessment on cfg$nmaxsero.
+  if(cfg$looks[look] >= cfg$nmaxsero){
+    dat_ctl <- immu_dat(d, cfg, look, n_target = cfg$nmaxsero, info_delay = 0, trt_status = 0)
+    dat_trt <- immu_dat(d, cfg, look, n_target = cfg$nmaxsero, info_delay = 0, trt_status = 1)
+    # final analysis for seroconversion looks at posterior
+    delta <- dat_trt$theta - dat_ctl$theta
+    ppos_n <- mean(delta > 0)
+    
+    delta_mean <- mean(delta)
+    delta_wald_lwr_95 <- delta_mean + qnorm(0.025) * sd(delta)
+    delta_wald_upr_95 <- delta_mean + qnorm(0.975) * sd(delta)
+    
+    p <- c(ppos_n, ppos_max, mean(dat_ctl$theta), mean(dat_trt$theta), 
+           delta_mean, delta_wald_lwr_95, delta_wald_upr_95)
+    
+  } else {
+    # get relevant data for each arm
+    # n_max and n_look are divided by 2 in the called function
+    dat_ctl <- immu_dat(d, cfg, look, n_target = cfg$looks[look], info_delay = cfg$sero_info_delay, trt_status = 0)
+    dat_trt <- immu_dat(d, cfg, look, n_target = cfg$looks[look], info_delay = cfg$sero_info_delay, trt_status = 1)
+    # this is the posterior based on the observed seroconversion events
+    tctl <- mean(dat_ctl$theta)
+    ttrt <- mean(dat_trt$theta)
+    
+    delta <- dat_trt$theta - dat_ctl$theta
+    delta_mean <- mean(delta)
+    delta_wald_lwr_95 <- delta_mean + qnorm(0.025) * sd(delta)
+    delta_wald_upr_95 <- delta_mean + qnorm(0.975) * sd(delta)
+    
+    # interim analysis based on predictive prob due to info delay
+    ppos_n <- immu_pred_prob(dat_trt, dat_ctl, cfg, n_target = cfg$looks[look])
+    
+    dat_ctl <- immu_dat(d, cfg, look, n_target = cfg$nmaxsero, info_delay = cfg$sero_info_delay, trt_status = 0)
+    dat_trt <- immu_dat(d, cfg, look, n_target = cfg$nmaxsero, info_delay = cfg$sero_info_delay, trt_status = 1)
+    ppos_max <- immu_pred_prob(dat_trt, dat_ctl, cfg, n_target = cfg$nmaxsero)
+    
+    p <- c(ppos_n, ppos_max, tctl, ttrt, 
+           delta_mean, delta_wald_lwr_95, delta_wald_upr_95)
+  } 
 
   names(p) <- cfg$immu_rtn_names
   
   flog.info("model_immu_2 current simulation %s, look %s, result %s", idx, look,
             paste0("(", paste(p, collapse = ", "), ")"))
   return(p)
+}
+
+
+# function to return relevant data by treatment group
+# information delay is built into the calcs
+# n_target is what n_obs (total obs) would be at this interim if we had no delayed data
+immu_dat <- function(d, cfg, look, n_target, info_delay, trt_status = 0){
+  
+  accrualtimes <- d[d$accrt < (cfg$interimmnths[look] - info_delay) & 
+                      trt == trt_status & 
+                      id <= cfg$nmaxsero, accrt]
+  
+  # currently we can only see up to n_obs_grp observations for this group -
+  # i.e. there are n_obs_grp that have been randomised to this arm
+  n_obs_grp <- length(accrualtimes)
+  n_seroconverted <- sum(d$serot3[d$trt == trt_status][1:n_obs_grp])
+  n_impute <- floor(n_target/2) - n_obs_grp
+
+  # draw from _posterior_ then the dgp distribution (rbinom) to impute the 'unobserved' values
+  # these two lines are equivalent to making draws from the posterior predictive dist.
+  # theta is posterior probability of seroconversion
+  theta <- rbeta(n = cfg$post_draw,
+                 shape1 = 1 + n_seroconverted,
+                 shape2 = 1 + n_obs_grp - n_seroconverted)
+  
+ 
+  # immu_impute
+  dat_interims <- NULL
+  if(n_impute > 0){
+    pp <- lapply(theta, rbinom, n = n_impute, size = 1)
+    stopifnot(sum(unlist(lapply(pp, anyNA))) == 0)
+    
+    # combine the observed and pp
+    combine_dat <- function(x){
+      y_rep_x <- c(d$serot3[d$trt == trt_status][1:n_obs_grp], pp[[x]])
+      
+      n_sero_by_max_x <- sum(y_rep_x)
+      return(list(y_rep_x = y_rep_x, n_sero_by_max_x = n_sero_by_max_x))
+    }
+    dat_interims <- lapply(1:length(pp), combine_dat)
+  }
+
+  
+  return(list(n_obs_grp = n_obs_grp,
+              n_impute = n_impute,
+              n_max_grp = n_obs_grp + n_impute,
+              n_seroconverted = n_seroconverted,
+              theta = theta,
+              dat_interims = dat_interims))
+}
+
+
+
+
+# compute difference over all simulated trials
+immu_pred_prob <- function(dat_trt, dat_ctl, cfg, n_target){
+  
+  
+  # compute difference distribution
+  diff_prop <- function(x){
+    
+    # look at the complete trial for futility
+    # x = x + 1
+    n_sero_by_max_trt = dat_trt$dat_interims[[x]]$n_sero_by_max_x
+    n_sero_by_max_ctl = dat_ctl$dat_interims[[x]]$n_sero_by_max_x
+    
+    # first look at the interim for superiority
+    prop_trt <- rbeta(n = cfg$post_draw,
+                      shape1 = 1 + n_sero_by_max_trt,
+                      shape2 = 1 + floor(n_target/2) - n_sero_by_max_trt)
+
+    prop_ctl <- rbeta(n = cfg$post_draw,
+                      shape1 = 1 + n_sero_by_max_ctl,
+                      shape2 = 1 + floor(n_target/2) - n_sero_by_max_ctl)
+    
+    # the distribution of the difference will be approximately normal
+    diff <- prop_trt - prop_ctl
+    
+    # den_plot1(prop_trt, prop_ctl, xlim = c(0,1))
+    # plot(density(diff))
+    
+    # do we see a treatment effect?
+    win <- mean(diff > 0) > cfg$post_sero_thresh
+    # win
+    
+    return(win)
+  }
+  
+  res <- unlist(lapply(1:cfg$post_draw, diff_prop))
+  
+  # predictive probability for:
+  # superiority (at current look) and
+  # futility (assuming trial expends all resources)
+  ppos_max <- mean(res, na.rm = T)
+  
+  ppos_max
+  
 }
 
 
@@ -216,8 +249,8 @@ model_clin <- function(d, cfg, look, idx){
 
   # get relevant data for each arm
   # n_max and n_look are divided by 2 in the called function
-  dat_ctl <- clin_dat(d, cfg, look, idx, trt_status = 0)
-  dat_trt <- clin_dat(d, cfg, look, idx, trt_status = 1)
+  dat_ctl <- clin_dat(d, cfg, look, trt_status = 0)
+  dat_trt <- clin_dat(d, cfg, look, trt_status = 1)
 
   # inference at the interim is based on the ratio of lambda_trt / lambda_ctl.
   # both distributions are gammas with integer shape parameter therefore we can transform
@@ -262,7 +295,7 @@ model_clin <- function(d, cfg, look, idx){
 
 # Extract the relevant datasets for this interim.
 # Also initiates the call to create simulated data from this interim to max trial size.
-clin_dat <- function(d, cfg, look, idx, trt_status = 0){
+clin_dat <- function(d, cfg, look, trt_status = 0){
   
   interim_month <- cfg$interimmnths[look]
 
@@ -353,6 +386,7 @@ clin_impute <- function(d, lambda, trt_status, n_impute, n_obs_grp,
   # draw from posterior predictive to impute the 'unobserved' values
   # using gamma(1,1) prior
   pp <- lapply(lambda, rexp, n = n_impute)
+  stopifnot(sum(unlist(lapply(pp, anyNA))) == 0)
   
   # combine the observed and pp
   combine_dat <- function(x){

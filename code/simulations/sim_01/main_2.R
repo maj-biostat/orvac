@@ -29,8 +29,11 @@ option_list <- list(
   make_option(c("-s", "--seed"), type = "integer", default = NULL,
               help = "random seed", metavar = "integer"),
   make_option(c("-a", "--accrual"), type = "integer", default = NULL,
-              help = "accrual rate - people_per_interim_period",
+              help = "accrual rate i.e. people_per_interim_period",
               metavar = "integer"),
+  make_option(c("-d", "--delay"), type = "double", default = NULL,
+              help = "seroconversion information delay",
+              metavar = "double"),
   make_option(c("-b", "--basesero"), type = "double", default = NULL,
               help = "baseline seroconversion prob", metavar = "double"),
   make_option(c("-p", "--trtprobsero"), type = "double", default = NULL,
@@ -51,16 +54,22 @@ if (length(opt) < 3){
   stop("At a minimum you need to specify the config file.\n", call. = FALSE)
 }
 
-if (opt$use == T && length(opt) <= 3){
-  print_help(opt_parser)
-  stop("If you are going to override you need to specify further
+debug = F
+if(!debug){
+  
+  if (opt$use == T && length(opt) <= 3){
+    print_help(opt_parser)
+    stop("If you are going to override you need to specify further
   command line args.\n", call.=FALSE)
+  }
+  cfg <- sim_cfg(opt$cfgfile, opt)
+  
+} else {
+  
+  cfgfile = "cfg1.yaml"
+  cfg <- sim_cfg("cfg1.yaml", opt)
 }
-cfg <- sim_cfg(opt$cfgfile, opt)
 
-# cfgfile = "cfg1.yaml"
-# cfg <- sim_cfg("cfg1.yaml", opt)
-# cfg$seed <- 4565
 
 
 # dummy dataset
@@ -68,10 +77,14 @@ dt1 <- gen_dat(cfg)
 
 
 # Initiate cluster
-cl <- makeCluster(parallel::detectCores() - 2, outfile="")
-registerDoParallel(cl)
-# to move back to sequential
-# registerDoSEQ()
+cl <- NA
+if(!debug){
+  cl <- makeCluster(parallel::detectCores() - 2, outfile="")
+  registerDoParallel(cl)
+} else {
+  registerDoSEQ()
+}
+
 nworkers <- getDoParWorkers()
 flog.info("number of workers %s", nworkers)
 
@@ -145,7 +158,7 @@ results <- foreach(i = 1:cfg$nsims,
                   cfg$looks[look],
                   cfg$nmaxsero)){
       m_immu_res <- tryCatch({
-        model_immu_2(d, cfg, look, i)
+        model_immu(d, cfg, look, i)
       }, error = function(err) {
         flog.info("CATCH ERROR model_immu_2 err = %s \n i = %s look = %s", err, i, look)
         flog.info(sys.calls())
@@ -157,7 +170,8 @@ results <- foreach(i = 1:cfg$nsims,
       })
 
       # rule 1 - "futility test"
-      if (m_immu_res["ppos_max"] < cfg$rule1_sero_pp_fut_thresh){
+      # at the nmaxsero (which I am assuming is the final analysis for this endpoint) ppos_max is NA
+      if (!is.na(m_immu_res["ppos_max"]) && m_immu_res["ppos_max"] < cfg$rule1_sero_pp_fut_thresh){
         stop_immu_fut <<- 1
         trial_state$stop_immu_fut <- 1
       }
@@ -338,5 +352,8 @@ flog.info("saving rdsfilename : %s", rdsfilename )
 saveRDS(list(results=results, cfg = cfg, warnings = w), rdsfilename)
 assign("last.warning", NULL, envir = baseenv())
 
-stopCluster(cl)
+if(!debug){
+  stopCluster(cl)
+}
+
 flog.info("Done. Cluster stopped. Exiting now." )

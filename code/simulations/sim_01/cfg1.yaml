@@ -32,7 +32,7 @@ idsim: "NULL"
 outfile: "res_null.RDS"
 
 seed: 222
-nsims: 100
+nsims: 1
 
 # interims
 # first look is always 50 thereafter n increases based on people_per_interim_period 
@@ -42,10 +42,12 @@ nstop: 1000
 interim_period: 3 
 # controls the accrual rate
 people_per_interim_period:  30
+
+sero_info_delay: 0.5
 # max number of venous samp
 nmaxsero: 250
 # n when we start assessing the clinical endpoint
-nstartclin: 250
+nstartclin: 150
 
 
 
