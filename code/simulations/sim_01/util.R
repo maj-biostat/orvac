@@ -153,8 +153,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
     
   # l$deltaremoteserot3 <- tt$deltaremoteserot3 
 
-  # for significance testing of a win in the pp section
-  l$post_sero_thresh <- tt$post_sero_thresh 
+
   
 
 
@@ -202,24 +201,26 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   # Ideally would like to incorporate serot2 status
   l$btte <- c(l$b0tte, l$b1tte)
   
-  l$post_tte_thresh <- tt$post_tte_thresh
-  
   l$ftte <- tt$ftte
   l$ttemodfile <- tt$ttemodfile
   
+  
+  # for significance testing of a win in the pp section 
+  l$post_tte_thresh <- tt$post_tte_thresh
+  l$post_sero_thresh <- tt$post_sero_thresh 
+  
   # thresholds for interim decisions
-  l$rule1_sero_dens_lwr <- tt$rule1_sero_dens_lwr
-  l$rule1_sero_ppos_sup_thresh <- tt$rule1_sero_ppos_sup_thresh
+  
+  # futility tests
   l$rule1_sero_pp_fut_thresh <- tt$rule1_sero_pp_fut_thresh
-  l$rule1_sero_ppos_fut_thresh <- tt$rule1_sero_ppos_fut_thresh
-  l$rule1_tte_postthresh  <- tt$rule1_tte_postthresh
-  l$rule1_tte_ppthresh <- tt$rule1_tte_ppthresh
-  l$rule1_tte_pposthresh  <- tt$rule1_tte_pposthresh
-  l$rule2_tte_postthresh  <- tt$rule2_tte_postthresh
-  l$rule3_sero_postthresh <- tt$rule3_sero_postthresh
-  l$rule3_tte_postthresh  <- tt$rule3_tte_postthresh
-  l$rule3_sero_ppos_thresh <- tt$rule3_sero_ppos_thresh
-
+  l$rule1_tte_pp_fut_thresh <- tt$rule1_tte_pp_fut_thresh
+  
+  # superiority test
+  l$rule2_tte_pp_sup_thresh  <- tt$rule2_tte_pp_sup_thresh
+  
+  # stop v sampling test
+  l$rule3_sero_pp_sup_thresh <- tt$rule3_sero_pp_sup_thresh
+  
   
   # bayesian model control parameters
   

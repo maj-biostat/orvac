@@ -104,6 +104,8 @@ results <- foreach(i = 1:cfg$nsims,
                    .combine = 'rbind'
                    ) %dopar%{
 
+  #
+  set.seed(cfg$seed + i)
   # sample size and venous sampling status
   ss_clin <- ss_immu <- 0
 
@@ -177,7 +179,7 @@ results <- foreach(i = 1:cfg$nsims,
       }
 
       # rule 3 - "stop venous sampling"
-      if (m_immu_res["ppos_n"] > cfg$rule3_sero_ppos_thresh){
+      if (m_immu_res["ppos_n"] > cfg$rule3_sero_pp_sup_thresh){
         stop_ven_samp <<- 1
         trial_state$stop_ven_samp <- 1
       }
@@ -206,12 +208,12 @@ results <- foreach(i = 1:cfg$nsims,
 
       # ppos_max will be NA at max looks since that is the final analysis and we just
       # look at the posterior rather than the predictive probability
-      if (!is.na(m_clin_res["ppos_max"]) && m_clin_res["ppos_max"] < cfg$rule1_sero_pp_fut_thresh){
+      if (!is.na(m_clin_res["ppos_max"]) && m_clin_res["ppos_max"] < cfg$rule1_tte_pp_fut_thresh){
         stop_clin_fut <<- 1
         trial_state$stop_clin_fut <- 1
       }
 
-      if (m_clin_res["ppos_n"] > cfg$rule2_tte_postthresh){
+      if (m_clin_res["ppos_n"] > cfg$rule2_tte_pp_sup_thresh){
         stop_clin_sup <<- 1
         trial_state$stop_clin_sup <- 1
       }
@@ -221,6 +223,7 @@ results <- foreach(i = 1:cfg$nsims,
         trial_state$inconclusive <- 1
       }
       
+
       # we are not concerned with the zeros.
       ss_clin <- n_obs
     }

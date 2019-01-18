@@ -72,7 +72,7 @@ trtprobsero: 0.6
 #deltaremoteserot3: 0
 
 # for significance testing of a win in the pp section
-post_sero_thresh: 0.975
+
 
 
 
@@ -103,7 +103,7 @@ b3tte: 0 # baseline serot2 status
 
 
 # for significance testing of a win in the pp section
-post_tte_thresh: 0.95
+
 
 
 # Ideally would like to incorporate serot2 status
@@ -115,20 +115,35 @@ post_tte_thresh: 0.95
 # posterior and posterior predictive thresholds
 # superiority/futility thresholds for futility checks
 
-rule1_sero_dens_lwr: 0.025
-rule1_sero_ppos_sup_thresh: 0.05
+post_sero_thresh: 0.975
+post_tte_thresh: 0.95
+
+# futility test
 rule1_sero_pp_fut_thresh: 0.05
-rule1_sero_ppos_fut_thresh: 0.05
+rule1_tte_pp_fut_thresh: 0.05
 
-rule1_tte_postthresh: 0.95
-rule1_tte_ppthresh: 0.05
-rule1_tte_pposthresh: 0.025
+# superiority test
+rule2_tte_pp_sup_thresh: 0.975
 
-rule2_tte_postthresh: 0.975
+# stop v sampling test
+rule3_sero_pp_sup_thresh: 0.975
 
-rule3_sero_postthresh: 0.95
-rule3_tte_postthresh: 0.975
-rule3_sero_ppos_thresh: 0.95
+
+
+# rule1_sero_dens_lwr: 0.025
+# rule1_sero_ppos_sup_thresh: 0.05
+# rule1_sero_pp_fut_thresh: 0.05
+# rule1_sero_ppos_fut_thresh: 0.05
+# 
+# rule1_tte_postthresh: 0.95
+# rule1_tte_ppthresh: 0.05
+# rule1_tte_pposthresh: 0.025
+# 
+# rule2_tte_postthresh: 0.975
+# 
+# rule3_sero_postthresh: 0.95
+# rule3_tte_postthresh: 0.975
+# rule3_sero_ppos_thresh: 0.95
 
 
 # conjugate posterior
