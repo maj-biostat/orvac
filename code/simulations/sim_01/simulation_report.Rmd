@@ -1,11 +1,15 @@
 ---
-title: "Simulation Results"
+title: "Orvac Simulation Results"
+author: Mark Jones
+date: 2019-01-18
 output:
   html_document:
     toc: true
+    number_sections: TRUE
     theme: united
     classoption: landscape
-    self_contained: no
+    self_contained: yes
+    css: style.css
   geometry: margin=0cm
   pdf_document:
     toc: yes
@@ -69,109 +73,30 @@ ggplot2::theme_update(axis.text.y = element_text(size = 10))
 ```
 
 
+# Results from simulation scenarios
+***
+The following tables and plots summarise the scenarios that were simulated. We use the thresholds as discussed in the sections at the end of this report.
 
-## Data generation processes
+<!-- ### Todo -->
 
-We simulate 1000 trial by generating data as follows:
+<!-- should report the difference for clin and immu along with the uncertainty/95% percentiles. -->
 
-+ equal numbers of participants in the control and treatment arms accrued sequentially (treatment, control, treatment, control...etc)
-+ age of participants based on a truncated normal distribution with the lower and upper bounds set to 6 and 12 respectively with a mean of 6.5 months and a standard deviation of 1 month (used to assess censoring in the time to event analyses)
-+ accrual time (time of randomisation) is set sequentially for each participant. Specifically the accrual times for participants $1, 2, 3, \dots, n$ are set to $0, t, 2t, 3t, \dots, (n-1)t$ where $t$ is the time required to accrue a participant
-+ for each individual, baseline seroconversion status is generated as a bernoulli random draw parameterised with $p$ equal to the baseline seroconversion probability and $n$ is the $n^{th}$ participant
-+ seroconversion status after the third dose/placebo is generated in the same fashion conditional on treatment status, baseline seroconversion status and treatment arm probability of seroconversion
-+ time to event times are generated as draws from an exponential distribtion with rate parameter set conditional on treatment group status. Censoring occurs due to age at interim and events that are unobserved at the current interim time.
+<!-- introduce a really really high threshold for the posterior decision on immunological (latter will be more palatable) -->
 
-## Seroconversion modelling
+<!-- look up bias and precision - pdt -->
 
-The seroconversion model uses a beta conjugate prior to the bernoulli likelihood. The prior is uniform, i.e. $Beta(1, 1)$, i.e. uninformative. On the basis of the number of seroconversions in each arm and the number of observed individuals at the interim, we compute the posterior distribution for the parameter of interest (probability of a successful trial, $p$). We do this for the control and treatment arms independently, yielding posteriors for $p_{trt}$ and $p_{ctl}$. The difference between these two is approximately normal so we could assess the difference on that basis. However, instead we just look at the proportion of times (out of our posterior draws) that the difference between the two posterior draws is greater than zero. This proportion is an empirical probability and if it is in excess of the some nominated threshold (see section thresholds below) we claim that the immunological endpoint is successful and cease further venous sampling.
+## Reading the tables
 
-Now, we have a posterior for $p_{ij}$ $i = 1..n_{post}$ where $n_{post}$ is number of posterior draws we sampled and $j = 0, 1$ is an indicator of treatment group. Thus, we can impute the currently unobserved results for seroconversion up to the maximum possible number of venous samples. We can do this directly from a beta-binomial distribution, or, we can iterate through the posterior draws $p_i$ and generate random draws from a bernoulli distribution parameterised with our current value of $p$. We do the latter making as many simulated data sets as we wish.
+From left to right:
 
-Next, assuming we have generated $n$ data sets corresponding to the combination of currently observed values for seroconversion status and those that we imputed, we can (once again) compute the posterior of our paramater of interest in each case. Again, we can look at the posterior of the parameter of interest and again we can deterime an empirical probability that it is in excess of some nominated threshold. We do this for ALL $n$ of the imputed datasets. The proportion of these in which a successful trial was observed is compared to a futility threshold, say 5% (see below). If the proportion of successful trials is less than this threshold, we say the trial is futile and cease enrollment.
++ number of simulations
++ true seroconversion probabilities (both arms)
++ true median survival time (both arms)
++ accrual -- number of people per 3 month period (i.e. time between interims)
++ information delay for seroconversion results
++ probabilities of trial being declared superior, futile, inconclusive or venous sampling being stopped (number of trials is shown in parentheses)
++ mean (and sd in parentheses) of sample size at the time when trial stopped
 
-Note - we stop venous sampling at 250 participants.
-
-## Medical attendance modelling
-
-Note - we do not start modelling medical attendance until we have 250 participants. If we start this from 50 then we are going to get ridiculous results because we will see no events.
-
-Conceptually, the approach is similar to the one adopted for modelling seroconversion. Obviously the modelling assumptions are somewhat different and censoring is also involved. Let's talk about censoring first.
-
-At each interim we have an increasing number of participants. Each will have been accrued at a certain time and will have an age somewhere between 6 and 12 months at the time of accrual/ranomdisation. Knowing the month of the interim, the accrual time and the age at which they were accrued, we can compute the age at the current interim. If the sum of a participants age and their time to event (see later) is in excess of 36 months (max. follow up time) they are censored with censoring time equal to 36 months. Additionally, if the sum of a participants time to event and the accrual time is in excess of the interim then they are censored. The censoring time is the minimum of the 36 months and the difference between the current interim and the time of accrual.
-
-The time to event model uses a gamma conjugate prior to the exponential likelihood and essentially everything is as per the seroconversion model. We compute the posterior for the parameter of interest (a rate parameter $\gamma$ to the exponential distribution) and generate imputed datasets for the participants that were yet to be observed up to the maximum sample size. For superiority we examine the ratio of the rate parameters which is proportional to the ratio of median survival time and compare this ratio to 1. For futility we do the equivalent, but on numerous hypothetical data we generated based on our current knowledge of the posterior.
-
-## Decision rules and thresholds
-
-The key points are that (1) the trial may be stopped due to futility based on an assessment of either endpoint (2) the trial may be stopped for superiority solely on the basis of an assessment of the clinical endpoint and (3) venous sampling can be stopped based on an assessment of the immunological endpoint.
-
-+ To declare superiority in the immunological endpoint (and cease venous sampling but continue enrolling for the clinical endpoint) we require $Pr(\delta >0) > 0.975$ where $\delta = p_{trt} - p_{ctl}$. If delta is the distribution of the differences between the proportions in each arm, then we require that the probability that the difference is in excess of zero be greater than 0.975.
-
-+ To declare futility in the immunological endpoint we require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\delta >0)>0.975) < 0.05$. In other words, if less than 5% of our simulated datasets result in a successful trial we declare futility.
-
-+ To declare superiority in the clinical endpoint (and therefore in the trial) we require $Pr(\delta >0) > 0.975$ where $\delta = p_{trt} - p_{ctl}$. In other words, if delta is the difference in the proportion of seroconverted participants. Then we require that the probability that this difference is in excess of zero be greater than 0.975.
-
-+ To declare futility in the clinical endpoint require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\delta >0)>0.975) < 0.05$. In other words, if less than 5% of our simulated datasets result in a successful trial we declare futility.
-
-## Nuance/Limitations
-
-The number of individuals is constrained to a maximum of 1000. We assume that funds are available to continue the experiment up to this point regardless of the accrual rate. However, this may not be realistic.
-
-Based on the above rules we can claim superiority in the immunological endpoint, cease venous sampling, but continue enrolling for the clinical endpoint. Therefore we can conceivably conclude futility in the clinical endpoint in the same simulated trial. This may or may not be desirable.
-
-Delays in information (i.e. in obtaining the blood results) are not currenly implemented.
-
-The type i and type ii errors need to be balanced. We might be unwilling to risk incorrectly rejecting the null hypothesis at the 5% significance level. However, decreasing the type i error implicitly increases the type ii error (and therefore reduces power) when the alternative hypothesis is true. Thus if the type i error is really low and the power is not quite where we want it to be then we can trade these two thresholds off against one another to try and improve the overall operating characteristics.
-
-![Figure 1](figs/typei_tpyeii.png "Figure 1")
-
-The models are based on conjugate priors -- I tried many other ways, including writing samplers in C++ and approximations. In the actual analysis we will use generalised linear models (logistic regression) and piecewise exponential survival models both estimated with MCMC. These models will likely include additional covariates but the decision process will remain the same. I am worried that the necessary simulations (i.e. for the real analyses) will take way to long, but will cross that bridge when we come to it. See the SAP for further detail.
-
-## Results from simulation scenarios
-
-The following tables and plots summarise the scenarios that were simulated. We use the thresholds mentioned above.
-
-### Summary of results
-
-**Todo**
-
-add create logs, out and dbg directory.
-
-should report the difference for clin and immu along with the uncertainty/95% percentiles.
-
-i need to update code + tables to also present the pct futility results for the clinical arm - can do this by making the decision based on a boolean and.
-
-need to add look at which futility/super/stop v occurred
-
-introduce a really really high threshold for the posterior decision on immunological (latter will be more palatable)
-
-look up bias and precision - pdt
-
-check choice of parameterisation
-https://www.johndcook.com/blog/conjugate_prior_diagram/#exponential
-
-
-**Null Scenarios**
-
-Difference - bias and precision.
-
-Across the range of true parameters and accrual rates used to generate the data, trials are indicated as futile > 95% of the time. In the majority of cases, the futility decision is due to  seroconversion. However, note that this is just an artefact of the current implementation arising due to the fact that the seroconversion analysis is run first. It is likely that the medical endpoint would be indicated as futile as well.
-
-The sample size at which futility is announced is typcially around 100 participants at interim 2 or 3 (dependent on accrual rate). Superiority is indicated less than 2.5% of the time. Venous sampling is stopped around 10-15% of the time but venous sampling, but this needs to be considered in the context of the fact that most trials are identified as futile.
-
-**Immunological effect**
-
-Difference - bias and precision.
-
-Futility is still high - try to fix by using immuno endpoint.
-
-
-
-
-
-### Reading the tables
-
-Reading the header from left to right, the tables each show a simulation id, the number of simulations ran, along with the clinical and immunological parameters used to generate the data. Accrual represents the number of participants randomised in each three month period between interim analyses. Next shown are the immunological and clinical estimates of the parameters (means and sd) for each arm.  The futility, superiority and stop venous sampling fields show (1) the percentage of the simulations where the trial was stopped for futility, the percentage of the futile trials due to an assessment of the immunological endpoint followed by the mean sample size, the standard deviation and the median sample size (2) the percentage of the simulations where the trial was stopped for superiority along with sample size metrics and (3) the percentage of times that venous sample was stopped along with sample size metrics. Finally, the filename of the source data is presented.
 
 ```{r, echo = F}
 resfiles <- list.files("out", pattern = "*.RDS")
@@ -258,15 +183,15 @@ for(fname in resfiles){
                      fname = fname, stringsAsFactors = F)
   
   dtmp <- dtmp %>%
-    dplyr::mutate(f_prob_sup = sprintf("%.2f (%d)", prob_sup, n_sup),
-                  f_prob_fut = sprintf("%.2f (%d)", prob_fut, n_fut),
-                  f_prob_incon = sprintf("%.2f (%d)", prob_incon, n_incon),
-                  f_prob_stopv = sprintf("%.2f (%d)", prob_stopv, n_stopv),
+    dplyr::mutate(f_prob_sup = sprintf("%.3f (%d)", prob_sup, n_sup),
+                  f_prob_fut = sprintf("%.3f (%d)", prob_fut, n_fut),
+                  f_prob_incon = sprintf("%.3f (%d)", prob_incon, n_incon),
+                  f_prob_stopv = sprintf("%.3f (%d)", prob_stopv, n_stopv),
                   
-                  f_ss_sup = sprintf("%.1f (%.1f)", ss_sup_mean, ss_sup_sd),
-                  f_ss_fut = sprintf("%.1f (%.1f)", ss_fut_mean, ss_fut_sd),
-                  f_ss_incon = sprintf("%.1f (%.1f)", ss_incon_mean, ss_incon_sd),
-                  f_ss_stopv = sprintf("%.1f (%.1f)", ss_stopv_mean, ss_stopv_sd) )
+                  f_ss_sup = sprintf("%.0f (%.1f)", ss_sup_mean, ss_sup_sd),
+                  f_ss_fut = sprintf("%.0f (%.1f)", ss_fut_mean, ss_fut_sd),
+                  f_ss_incon = sprintf("%.0f (%.1f)", ss_incon_mean, ss_incon_sd),
+                  f_ss_stopv = sprintf("%.0f (%.1f)", ss_stopv_mean, ss_stopv_sd) )
   
 
   
@@ -275,6 +200,12 @@ for(fname in resfiles){
 
 }
 
+df_tmp <- df_all %>%
+  dplyr::arrange(-accrual, baseclin, basesero) %>%
+  dplyr::mutate(row = 1:n()) %>%
+  dplyr::filter(idsim == "Null01") 
+
+# mean(df_tmp$ss_fut_mean)
 
 # unique(df_all$idsim)
 df_0 <- df_all %>%
@@ -298,11 +229,11 @@ datatable(df_0, options = list(pageLength = 100, autoWidth = TRUE,  columnDefs =
 ```
 
 
-### Null Scenarios
+## Null Scenarios
 
-These are primarily to assess type i error and sample size.
+Trials are indicated as futile > 95% of the time with a type i error < 0.05.
 
-Across theVenous sampling
+Average sample size at which futility is announced is 150. Venous sampling is stopped less than 5% of the time, but this needs to be considered in the context of the fact that most trials are already identified as futile.
 
 ```{r, echo = F, eval = T}
 digits <- c(0, 
@@ -336,9 +267,11 @@ kable(df_0 %>% dplyr::filter(idsim == "Null01") %>% dplyr::select(-idsim) %>%
 
 
 
-### Immunological effect scenarios
+## Immunological effect scenarios
 
-These look at a number of treatment effects in seroconversion for a range of clinical and accrual parameters.
+Table 2 shows the results from a 25% increase in seroconversion rate, no difference across the arms in the clinical endpoint. Accrual is 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
+
+Futility is still high (mean of 0.9) because superiority can only be determined based on the clinical endpoint. Mean (median) type i error are both around 0.08 (because there is no clinical endpoint effect). Venous sampling is more likely to be stopped but again most of the trials are deemed futile. Average sample size for declaring futility is approximately 298, i.e. is higher than the null case above. Approximately 1.5% of trials were inconclusive.
 
 ```{r, echo = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
@@ -360,12 +293,15 @@ kable(df_0 %>% dplyr::filter(idsim == "SeroTrt01") %>% dplyr::select(-idsim) %>%
                      "Probability (number of trials)" = 4,
                      "Mean sample size (sd)" = 4,
                    " " = 1))
+
 ```
 
 
-### Clinical effect scenarios
+## Clinical effect scenarios
 
-These look at a number of treatment effects in clinical outcome for a range of seroconversion and accrual parameters.
+Table 3 shows the results from zero difference in seroconversion rate. Median survival time is assumed to increase by 5 months. Accrual is 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
+
+Futility decision is still very likely (mean probability of futility equals 0.93) and power is very low (6%). Venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
 
 
 ```{r, echo = F}
@@ -390,6 +326,10 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinTrt01") %>% dplyr::select(-idsim) %>%
                    " " = 1))
 ```
 
+Table 4 shows the results from zero difference in seroconversion rate. Median survival time is assumed to increase by 9 months. Accrual is 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
+
+Futility decision is still very likely (mean probability of futility equals 0.9) and power is very low (9%). Again, venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
+
 ```{r, echo = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinTrt02") %>% dplyr::select(-idsim) %>%
@@ -410,12 +350,16 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinTrt02") %>% dplyr::select(-idsim) %>%
                      "Probability (number of trials)" = 4,
                      "Mean sample size (sd)" = 4,
                    " " = 1))
+
+
 ```
 
 
-### Combined effect scenarios
+## Combined effect scenarios
 
-These look at combined treatment effects for immunological and clinical outcomes.
+Table 5 shows the results from 25% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 5 months. Accrual is 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
+
+Power has increased but is still low (26%). Probability of a futile outcome is around 0.7. Mean sample size to declare superiority is 520, whereas futility is declared around ss of 281. Venous sampling is stopped more often with a mean probability of stopping equal to 0.37. Around 4% of trials are inconclusive.
 
 ```{r, echo = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
@@ -439,6 +383,12 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt01") %>% dplyr::select(-idsim)
                    " " = 1))
 ```
 
+
+Table 6 shows the results from 45% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 5 months. Accrual is 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
+
+Power has increased again but is still low (40%). Probability of a futile outcome is around 0.5. Mean sample size to declare superiority is 532, whereas futility is declared around ss of 419. Venous sampling is very likely to be stopped (mean probability of stopping 0.73). Around 7% of trials are inconclusive.
+
+
 ```{r, echo = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt02") %>% dplyr::select(-idsim) %>%
@@ -459,6 +409,13 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt02") %>% dplyr::select(-idsim)
                      "Probability (number of trials)" = 4,
                      "Mean sample size (sd)" = 4,
                    " " = 1))
+
+# df_tmp <- df_all %>%
+#   dplyr::arrange(-accrual, baseclin, basesero) %>%
+#   dplyr::mutate(row = 1:n()) %>%
+#   dplyr::filter(idsim == "ClinSeroTrt02") 
+# 
+# mean(df_tmp$prob_sup)
 ```
 
 ```{r, echo = F}
@@ -545,5 +502,68 @@ p3 <- ggplot(df_tmp, aes(x = baseclin, y = 100*pct_stopv, colour = accrual))+
 #                             gp = grid::gpar(fontsize = 12)))
 ```
 
+# Data generation processes
+***
+We simulate 1000 trials by generating data as follows:
 
-## Conclusions
++ equal numbers of participants in the control and treatment arms accrued sequentially (treatment, control, treatment, control...etc)
++ age of participants based on a truncated normal distribution with the lower and upper bounds set to 6 and 12 months, a mean of 6.5 months and a standard deviation of 1 month (the age is used to assess censoring in the time to event analyses - we follow participants until 36 months)
++ accrual time (time of randomisation) is set sequentially for each participant. Specifically, the accrual times for participants $1, 2, 3, \dots, n$ are set to $0, t, 2t, 3t, \dots, (n-1)t$ where $t$ is the time required to accrue a single participant
++ for each participant, baseline seroconversion status is generated as a bernoulli random draw parameterised with $p$ equal to the baseline seroconversion probability
++ seroconversion status after the third dose/placebo is generated in the same fashion conditional on treatment status, baseline seroconversion status and treatment arm probability of seroconversion
++ time to event times are generated as draws from an exponential distribtion with rate parameter set conditional on treatment group status. Censoring occurs due to age at interim and events that are unobserved at the current interim time.
++ interim analyses are done on the basis of predictive probability
++ final analyses are complete after follow up. For the time to event analysis this means waiting until the youngest participant at the end of the enrollment period is 36 months old. For the immunological analysis this means we wait until all seroconversion results are obtained.
+
+# Seroconversion modelling
+***
+The seroconversion model uses a beta conjugate prior to the bernoulli likelihood. The prior is uniform, i.e. $Beta(1, 1)$, i.e. uninformative. We model an information delay such that, at any given interim, some individuals will have been randomised and treated but seroconversion will still be pending. 
+
+On the basis the seroconversions in each arm and the number of observed individuals at the interim, we compute the posterior distribution for the parameter of interest (probability of a successful trial, $p$). We do this for the control and treatment arms independently, yielding posteriors for $p_{trt}$ and $p_{ctl}$. We impute the participants for whom seroconversion results are pending and combine with the observed data. On the basis of this data we compute the probability of success. If this is greater than the nominated threshold then we claim success and cease further venous sampling. When repeated multiple times on the imputed datasets we obtain a predictive probability of success.
+
+To assess futility, we repeat the equivalent process but impute to the maximum number of seroconversion samples. However, for futility, we compare the proportion of successful trial with a futility threshold, say 5% (see below). If the proportion of successful trials is less than this threshold, we say the trial is futile and cease enrollment.
+
+The final analysis assumes that we have waited until we have all the seroconversion results and then computes the posterior for the difference between the control and treatment arms.
+
+Note - we stop venous sampling at 250 participants.
+
+# Medical attendance modelling
+***
+Note - we do not start modelling medical attendance until we have 150 participants. If we start the time to event analyses from 50 then we are going to get ridiculous results because we will see no events.
+
+The approach is similar to the one adopted for modelling seroconversion. Obviously the modelling assumptions are somewhat different and censoring is also involved.
+
+At each interim we have an increasing number of participants. Each will have been accrued at a certain time and will have an age somewhere between 6 and 12 months at the time of accrual/ranomdisation. Knowing the month of the interim, the accrual time and the age at which they were accrued, we can compute the age at the current interim. If the sum of a participants age and their time to event (see later) is in excess of 36 months (max. follow up time) they are censored with censoring time equal to 36 months. Additionally, if the sum of a participants time to event and the accrual time is in excess of the interim then they are censored. The censoring time is the minimum of the 36 months and the difference between the current interim and the time of accrual.
+
+The time to event model uses a gamma conjugate prior to the exponential likelihood and essentially everything is as per the seroconversion model. We compute the posterior for the parameter of interest (a rate parameter $\gamma$ to the exponential distribution) and generate imputed datasets for the participants that were yet to be observed up to the maximum sample size.
+
+# Decision rules and thresholds
+***
+The key points are that (1) the trial may be stopped due to futility based on an assessment of either endpoint (2) the trial may be stopped for superiority only on the basis of the clinical endpoint and (3) venous sampling can be stopped based on an assessment of the immunological endpoint.
+
++ To declare superiority in the immunological endpoint (and cease venous sampling but continue enrolling for the clinical endpoint) we require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\delta_{interim} >0)>0.975) > 0.975$ where $n_{post}$ is the number of posterior draws used in imputing the pending observations, $\delta_{interim} = p_{trt} - p_{ctl}$ is the difference between the probability of seroconversion in the treatment and control arms calculated using the observed and imputed seroconversions results to the time of the interim analysis.
+
++ To declare futility in the immunological endpoint we require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\delta_{max n} >0)>0.975) < 0.05$. In other words, if less than 5% of our simulated datasets result in a successful trial we declare futility.
+
++ To declare superiority in the clinical endpoint (and therefore in the trial) we require $Pr(\gamma >0) > 0.975$ where $\gamma = t_{trt} / t_{ctl}$, where $t$ is the median survival time. In other words, if gamma is the ratio in the median survival times then we require that the probability that this difference is in excess of zero be greater than 0.975.
+
++ To declare futility in the clinical endpoint require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\gamma >0)>0.975) < 0.05$. In other words, if less than 5% of our simulated datasets result in a successful trial we declare futility.
+
+# Nuance/Limitations
+***
+The number of individuals is constrained to a maximum of 1000. We assume that funds are available to continue the experiment up to this point regardless of the accrual rate. However, this may not be realistic.
+
+Based on the above rules we can claim superiority in the immunological endpoint, cease venous sampling, but continue enrolling for the clinical endpoint. However, it is possible for the trial to still be inconclusive or futile on the basis of the clinical results.
+
+Delays in information (i.e. in obtaining the blood results) are implemented.
+
+The type i and type ii errors need to be balanced. We might be unwilling to risk incorrectly rejecting the null hypothesis at the 5% significance level. However, decreasing the type i error implicitly increases the type ii error (and therefore reduces power) when the alternative hypothesis is true. If the type i error is really low and the power is not quite where we want it to be then we can trade these two thresholds off against one another to try and improve the overall operating characteristics.
+
+The models are based on conjugate priors -- I tried many other methods, including writing samplers in C++ and approximations. In the actual analysis we will use generalised linear models (logistic regression) and piecewise exponential survival models both estimated with MCMC. These models will likely include additional covariates but the decision process will remain the same. 
+
+See the SAP/Protocol for further details.
+
+# Conclusions
+***
+
+TBD
