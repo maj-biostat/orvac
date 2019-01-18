@@ -1,24 +1,27 @@
 ---
 title: "Orvac Simulation Results"
-author: Mark Jones
-date: 2019-01-18
+author: "Mark Jones"
+date: '2019-01-18'
 output:
   html_document:
-    toc: true
-    number_sections: TRUE
-    theme: united
     classoption: landscape
-    self_contained: yes
     css: style.css
-  geometry: margin=0cm
+    number_sections: yes
+    self_contained: yes
+    theme: united
+    toc: yes
   pdf_document:
+    fig_caption: yes
+    number_sections: yes
     toc: yes
     toc_depth: 3
-    number_sections: true
-    fig_caption: yes
+  word_document:
+    toc: yes
+    toc_depth: '3'
+geometry: left=0.2cm,right=0.2cm,top=1cm,bottom=1cm
 editor_options:
   chunk_output_type: console
-classoption: landscape  
+classoption: landscape
 ---
 
 <style type="text/css">
@@ -134,7 +137,7 @@ gen_plot <- function(x){
     geom_point() + 
     geom_hline(yintercept=delta_true, col = "blue") +
     scale_x_continuous("Look (n)", limits = c(0,1000)) +
-    scale_y_continuous("Difference in probability of seroconversion")
+    scale_y_continuous("Diff in prob of seroconversion")
     )
   
   p2 <- suppressWarnings(ggplot(df_all %>% dplyr::filter(exampleid == x ), 
@@ -173,13 +176,15 @@ gen_plot <- function(x){
 lplots <- lapply(1:length(fnames), gen_plot)
 ```
 
+
 ## Example 1
 
 Both control and treatment arms set with seroconversion probability of 0.4 and median survival time of 30 months. Accrual was 50 per interim period, information delay for seroconversion results was 2 weeks. 
 
 Figure 1 shows the point estimates and 95% intervals from the posterior computed from the data observed at the interim analyses. Trial abandoned (futile) on the basis of immunological results. Probability of successful trial assuming all resources were expended was 0.014.
 
-```{r, echo = F, fig.width=9,fig.height=8}
+
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 1)
 suppressWarnings(gridExtra::grid.arrange(lplots[[1]]$sero, 
                                          lplots[[1]]$tte, 
@@ -189,8 +194,9 @@ suppressWarnings(gridExtra::grid.arrange(lplots[[1]]$sero,
              top = grid::textGrob("Figure 1. Interim analyses",
                             x = 0, y = 0.5,
                             just = "left",
-                            gp = grid::gpar(fontsize = 12))))
+                            gp = grid::gpar(fontsize = 10))))
 ```
+
 
 ## Example 2
 
@@ -198,7 +204,7 @@ Both control and treatment arms set with seroconversion probability of 0.4 and m
 
 Figure 2 shows the point estimates and 95% intervals from the posterior computed from the data observed at the interim analyses. Trial abandoned (futile) on the basis of immunological results. Probability of successful trial assuming all resources were expended was 0.002.
 
-```{r, echo = F, fig.width=9,fig.height=8}
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 2)
 suppressWarnings(gridExtra::grid.arrange(lplots[[2]]$sero, 
                                          lplots[[2]]$tte, 
@@ -208,8 +214,9 @@ suppressWarnings(gridExtra::grid.arrange(lplots[[2]]$sero,
              top = grid::textGrob("Figure 2. Interim analyses",
                             x = 0, y = 0.5,
                             just = "left",
-                            gp = grid::gpar(fontsize = 12))))
+                            gp = grid::gpar(fontsize = 10))))
 ```
+
 
 ## Example 3
 
@@ -217,7 +224,7 @@ Probabilities of seroconversion were 0.4 and 0.58 in control and treatment arms 
 
 Figure 3 shows the point estimates and 95% intervals from the posterior computed from the data observed at the interim analyses. Trial deemed successful (superiority). Venous sampling stopped at second interim. Probability of effect in immunological arm based on the interim assessment 0.979. Probability of effect in the clinical endpoint based on the interim assessment was 0.989.
 
-```{r, echo = F, fig.width=9,fig.height=8}
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 3)
 suppressWarnings(gridExtra::grid.arrange(lplots[[3]]$sero, 
                                          lplots[[3]]$tte, 
@@ -227,7 +234,7 @@ suppressWarnings(gridExtra::grid.arrange(lplots[[3]]$sero,
              top = grid::textGrob("Figure 3. Interim analyses",
                             x = 0, y = 0.5,
                             just = "left",
-                            gp = grid::gpar(fontsize = 12))))
+                            gp = grid::gpar(fontsize = 10))))
 ```
 
 ## Example 4
@@ -236,7 +243,7 @@ Probabilities of seroconversion were 0.4 and 0.58 in control and treatment arms 
 
 Figure 4 shows the point estimates and 95% intervals from the posterior computed from the data observed at the interim analyses. Trial deemed successful (superiority). Venous sampling not stopped. Probability of effect in the clinical endpoint based on the interim assessment was 0.978. 
 
-```{r, echo = F, fig.width=9,fig.height=8}
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 4)
 suppressWarnings(gridExtra::grid.arrange(lplots[[4]]$sero, 
                                          lplots[[4]]$tte, 
@@ -246,16 +253,16 @@ suppressWarnings(gridExtra::grid.arrange(lplots[[4]]$sero,
              top = grid::textGrob("Figure 4. Interim analyses",
                             x = 0, y = 0.5,
                             just = "left",
-                            gp = grid::gpar(fontsize = 12))))
+                            gp = grid::gpar(fontsize = 10))))
 ```
 
-## Example 5
+## Example 4
 
 Same as example 4 but with accrual rate of 30 per 3 months and information delay of 0.85.
 
 Figure 5 shows the point estimates and 95% intervals from the posterior computed from the data observed at the interim analyses. Trial deemed successful (superiority). Venous sampling stopped at fifth interim. Probability of effect in immunological arm based on the interim assessment 0.976. Probability of effect in the clinical endpoint based on the interim assessment was 0.986.
 
-```{r, echo = F, fig.width=9,fig.height=8}
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 5)
 suppressWarnings(gridExtra::grid.arrange(lplots[[5]]$sero, 
                                          lplots[[5]]$tte, 
@@ -265,8 +272,9 @@ suppressWarnings(gridExtra::grid.arrange(lplots[[5]]$sero,
              top = grid::textGrob("Figure 5. Interim analyses",
                             x = 0, y = 0.5,
                             just = "left",
-                            gp = grid::gpar(fontsize = 12))))
+                            gp = grid::gpar(fontsize = 10))))
 ```
+
 
 # Results from simulation scenarios
 ***
@@ -450,7 +458,8 @@ kable(df_0 %>% dplyr::filter(idsim == "Null01") %>% dplyr::select(-idsim) %>%
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11) %>%
+                font_size = 11,
+                latex_options = "hold_position") %>%
   add_header_above(c(" " = 1,
                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1, " " = 1,
@@ -481,7 +490,8 @@ kable(df_0 %>% dplyr::filter(idsim == "SeroTrt01") %>% dplyr::select(-idsim) %>%
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11) %>%
+                font_size = 11,
+                latex_options = "hold_position") %>%
   add_header_above(c(" " = 1,
                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1, " " = 1,
@@ -512,7 +522,8 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinTrt01") %>% dplyr::select(-idsim) %>%
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11) %>%
+                font_size = 11,
+                latex_options = "hold_position") %>%
   add_header_above(c(" " = 1,
                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1, " " = 1,
@@ -538,7 +549,8 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinTrt02") %>% dplyr::select(-idsim) %>%
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11) %>%
+                font_size = 11,
+                latex_options = "hold_position") %>%
   add_header_above(c(" " = 1,
                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1, " " = 1,
@@ -569,7 +581,8 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt01") %>% dplyr::select(-idsim)
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11) %>%
+                font_size = 11,
+                latex_options = "hold_position") %>%
   add_header_above(c(" " = 1,
                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1, " " = 1,
@@ -597,7 +610,8 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt02") %>% dplyr::select(-idsim)
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11) %>%
+                font_size = 11,
+                latex_options = "hold_position") %>%
   add_header_above(c(" " = 1,
                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1, " " = 1,
@@ -626,7 +640,8 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt03") %>% dplyr::select(-idsim)
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11) %>%
+                font_size = 11,
+                latex_options = "hold_position") %>%
   add_header_above(c(" " = 1,
                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1, " " = 1,
@@ -648,7 +663,8 @@ kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt04") %>% dplyr::select(-idsim)
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11) %>%
+                font_size = 11,
+                latex_options = "hold_position") %>%
   add_header_above(c(" " = 1,
                      "Seroconversion" = 2, "Clinical" = 2,
                      " " = 1, " " = 1,
