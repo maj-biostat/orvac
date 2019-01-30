@@ -116,7 +116,7 @@ b3tte: 0 # baseline serot2 status
 # superiority/futility thresholds for futility checks
 
 post_sero_thresh: 0.975
-post_tte_thresh: 0.95
+post_tte_thresh: 0.975
 
 # futility test
 rule1_sero_pp_fut_thresh: 0.05
