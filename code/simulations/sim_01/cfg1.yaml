@@ -36,14 +36,14 @@ nsims: 1
 
 # interims
 # first look is always 50 thereafter n increases based on people_per_interim_period 
-nstart: 50
+nstart: 80
 nstop: 1000
 # max of 3 months between interims - don't change
 interim_period: 3 
 # controls the accrual rate
 people_per_interim_period:  30
 
-sero_info_delay: 0.5
+sero_info_delay: 0.75
 # max number of venous samp
 nmaxsero: 250
 # n when we start assessing the clinical endpoint

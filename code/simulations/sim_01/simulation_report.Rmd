@@ -86,7 +86,7 @@ A range of example trials are presented below.
 
 Each example has two sets of plots. In the upper two plots, the blue line shows true difference in seroconversion probability and true ratio of median survival times respectively. "Credible intervals" are just Wald based -- they serve as an indicative interval around the estimate -- don't take them too literally. In the lower two plots are the predictive probabilities at the interim (red dots) and projected to the end of the trial assuming all resources are expended (blue dots). In the case of the clinical endpoint, the predicted probability at the interim is just the probability that the ratio of medians is greater than 1.
 
-```{r, echo = F}
+```{r, echo = F, eval = F}
 fnames <- c("res-2019-01-18-14-56-28.RDS",
 "res-2019-01-18-14-56-41.RDS",
 "res-2019-01-18-14-57-04.RDS",
@@ -185,7 +185,7 @@ Both control and treatment arms set with seroconversion probability of 0.4 and m
 Figure 1 shows the point estimates and 95% intervals frofor the parameters of interest computed from the data observed at the interim analyses. Trial was abandoned (futile) on the basis of immunological results. Probability of successful trial assuming all resources were expended was 0.014.
 
 
-```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6, eval = F}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 1)
 suppressWarnings(gridExtra::grid.arrange(lplots[[1]]$sero, 
                                          lplots[[1]]$tte, 
@@ -205,7 +205,7 @@ Both control and treatment arms set with seroconversion probability of 0.4 and m
 
 Figure 2 shows the point estimates and 95% intervals for the parameters of interest computed from the data observed at the interim analyses. Trial was abandoned (futile) on the basis of immunological results. Probability of successful trial assuming all resources were expended was 0.002.
 
-```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6, eval = F}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 2)
 suppressWarnings(gridExtra::grid.arrange(lplots[[2]]$sero, 
                                          lplots[[2]]$tte, 
@@ -225,7 +225,7 @@ Probabilities of seroconversion were 0.4 and 0.58 in control and treatment arms 
 
 Figure 3 shows the point estimates and 95% intervals for the parameters of interest computed from the data observed at the interim analyses. Trial deemed successful (superiority). Venous sampling stopped at second interim. Probability of effect in immunological arm based on the interim assessment 0.979. Probability of effect in the clinical endpoint based on the interim assessment was 0.989.
 
-```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6, eval = F}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 3)
 suppressWarnings(gridExtra::grid.arrange(lplots[[3]]$sero, 
                                          lplots[[3]]$tte, 
@@ -244,7 +244,7 @@ Probabilities of seroconversion were 0.4 and 0.58 in control and treatment arms 
 
 Figure 4 shows the point estimates and 95% intervals for the parameters of interest computed from the data observed at the interim analyses. Trial deemed successful (superiority). Venous sampling not stopped. Probability of effect in the clinical endpoint based on the interim assessment was 0.978. 
 
-```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6, eval = F}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 4)
 suppressWarnings(gridExtra::grid.arrange(lplots[[4]]$sero, 
                                          lplots[[4]]$tte, 
@@ -263,7 +263,7 @@ Same as example 4 but with accrual rate of 30 per 3 months and information delay
 
 Figure 5 shows the point estimates and 95% intervals for the parameters of interest computed from the data observed at the interim analyses. Trial deemed successful (superiority). Venous sampling stopped at fifth interim. Probability of effect in immunological arm based on the interim assessment 0.976. Probability of effect in the clinical endpoint based on the interim assessment was 0.986.
 
-```{r, echo = F, fig.align='center', fig.width=6, fig.height=6}
+```{r, echo = F, fig.align='center', fig.width=6, fig.height=6, eval = F}
 dfextmp <- df_all %>% dplyr::filter(exampleid == 5)
 suppressWarnings(gridExtra::grid.arrange(lplots[[5]]$sero, 
                                          lplots[[5]]$tte, 
@@ -436,11 +436,15 @@ Trials are indicated as futile > 95% of the time with a type i error < 0.05.
 
 Average sample size at which futility is announced is 150. Venous sampling is stopped less than 5% of the time, but this needs to be considered in the context of the fact that most trials are already identified as futile.
 
-```{r, echo = F, eval = T}
+```{r, echo = F}
 digits <- c(2, 2, 0, 0, 0, 2,
             0, 0, 0, 0,
             0, 0, 0, 0)
 options(knitr.kable.NA = '-')
+```
+
+```{r, echo = F, eval = F}
+
 #stopifnot(nrow(df_0) == 24)
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "Null01") %>% dplyr::select(-fname, -idsim, -nsim) %>%
@@ -497,7 +501,7 @@ Table 3 shows the results from simulating zero difference in seroconversion rate
 Futility decision is still very likely (mean probability of futility equals 0.93) and power is very low (6%). Venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
 
 
-```{r, echo = F}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinTrt01") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(baseclin, trtclin),
@@ -520,7 +524,7 @@ Table 4 shows the results from simulating zero difference in seroconversion rate
 
 Futility decision is still very likely (mean probability of futility equals 0.9) and power is very low (mean is 9%). Again, venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
 
-```{r, echo = F}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinTrt02") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(baseclin, trtclin),
@@ -548,7 +552,7 @@ Table 5 shows the results from simulating a 25% increase in probability of seroc
 
 Power has increased but is still low (26%). Probability of a futile outcome is around 0.7. Mean sample size to declare superiority is 520, whereas futility is declared around ss of 281. Venous sampling is stopped more often than earlier scenarios with a mean probability of stopping equal to 0.37. Around 4% of trials are inconclusive.
 
-```{r, echo = F}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt01") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
@@ -573,7 +577,7 @@ Table 6 shows the results from simulating a 45% increase in probability of seroc
 Power has increased again but is still low (40%). Probability of a futile outcome is around 0.5. Mean sample size to declare superiority is 532, whereas futility is declared around ss of 419. Venous sampling is very likely to be stopped (mean probability of stopping 0.73). Around 7% of trials are inconclusive.
 
 
-```{r, echo = F}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt02") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
@@ -604,7 +608,7 @@ Table 7 shows the results from simulating a 25% increase in probability of seroc
 
 Power is still low (42%). Probability of a futile outcome is around 0.55. Mean sample size to declare superiority is 505, whereas futility is declared around ss of 207 Venous sampling is very likely to be stopped (mean probability of stopping 0.36). Around 4% of trials are inconclusive.
 
-```{r, echo = F}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt03") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
@@ -627,7 +631,7 @@ Table 8 shows the results from simulating a 45% increase in probability of seroc
 
 Power now reaches around 82%. Probability of a futile outcome is around 0.17. Mean sample size to declare superiority is 390, whereas futility is declared around ss of 183 Venous sampling is very likely to be stopped (mean probability of stopping 0.73). Around 1% of trials are inconclusive.
 
-```{r, echo = F}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt04") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),

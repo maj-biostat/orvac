@@ -110,8 +110,9 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$months_to_nstart <- l$months_per_person * l$nstart
   
   l$interimmnths <- seq(from = l$months_to_nstart , 
-                        to= length(l$looks) * l$interim_period, 
+                        to= ((length(l$looks)-1) * l$interim_period) + l$months_to_nstart, 
                         by = l$interim_period)
+  # unnecessary
   if(length(l$interimmnths) < length(l$looks)){
     l$interimmnths <- c(l$interimmnths, max(l$interimmnths)+l$interim_period)
   }
@@ -304,7 +305,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       flog.info("Updated months_to_nstart: %s.", l$months_to_nstart)
       
       l$interimmnths <- seq(from = l$months_to_nstart , 
-                            to= length(l$looks) * l$interim_period, 
+                            to= ((length(l$looks)-1) * l$interim_period) + l$months_to_nstart, 
                             by = l$interim_period)
       
       if(length(l$interimmnths) < length(l$looks)){
