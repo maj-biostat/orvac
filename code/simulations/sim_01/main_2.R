@@ -213,7 +213,9 @@ results <- foreach(i = 1:cfg$nsims,
         trial_state$stop_clin_fut <- 1
       }
 
-      if (m_clin_res["ppos_n"] > cfg$rule2_tte_pp_sup_thresh){
+      if (m_clin_res["ppos_n"] > cfg$rule2_tte_pp_sup_thresh[look]){
+        flog.info("Treatment superior: ppos_n = %s threshold %s, i = %s look = %s", 
+                  m_clin_res["ppos_n"], cfg$rule2_tte_pp_sup_thresh[look], i, look)
         stop_clin_sup <<- 1
         trial_state$stop_clin_sup <- 1
       }

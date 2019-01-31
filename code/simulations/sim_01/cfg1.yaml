@@ -123,7 +123,8 @@ rule1_sero_pp_fut_thresh: 0.05
 rule1_tte_pp_fut_thresh: 0.05
 
 # superiority test
-rule2_tte_pp_sup_thresh: 0.975
+rule2_tte_pp_sup_thresh_start: 0.999
+rule2_tte_pp_sup_thresh_end: 0.980
 
 # stop v sampling test
 rule3_sero_pp_sup_thresh: 0.975

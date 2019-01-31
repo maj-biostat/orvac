@@ -217,7 +217,27 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$rule1_tte_pp_fut_thresh <- tt$rule1_tte_pp_fut_thresh
   
   # superiority test
-  l$rule2_tte_pp_sup_thresh  <- tt$rule2_tte_pp_sup_thresh
+  l$rule2_tte_pp_sup_thresh_start  <- tt$rule2_tte_pp_sup_thresh_start
+  l$rule2_tte_pp_sup_thresh_end  <- tt$rule2_tte_pp_sup_thresh_end
+  
+  clin_looks <- l$looks[l$looks >= l$nstartclin]
+  tdivisor <- 1.5 
+  l$rule2_tte_pp_sup_thresh <- seq(from = l$rule2_tte_pp_sup_thresh_start,
+                                   to = l$rule2_tte_pp_sup_thresh_end,
+                                   length.out = ceiling(length(clin_looks)/tdivisor))
+  
+  l$rule2_tte_pp_sup_thresh <- c(rep(l$rule2_tte_pp_sup_thresh[1],
+                                     length(l$looks[l$looks < l$nstartclin])), 
+                                 
+                                 l$rule2_tte_pp_sup_thresh,
+                                 
+                                 rep(l$rule2_tte_pp_sup_thresh[ceiling(length(clin_looks)/tdivisor)],
+                                     length(l$looks) - 
+                                       length(l$looks[l$looks < l$nstartclin]) - 
+                                       ceiling(length(clin_looks)/tdivisor))
+                                 )
+  
+  stopifnot(length(l$rule2_tte_pp_sup_thresh) == length(l$looks))
   
   # stop v sampling test
   l$rule3_sero_pp_sup_thresh <- tt$rule3_sero_pp_sup_thresh
@@ -320,6 +340,30 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       
       
       flog.info("Updated interimmnths: %s.", paste0(l$interimmnths, collapse = ", "))
+      
+      
+      clin_looks <- l$looks[l$looks >= l$nstartclin]
+      
+      l$rule2_tte_pp_sup_thresh <- seq(from = l$rule2_tte_pp_sup_thresh_start,
+                                       to = l$rule2_tte_pp_sup_thresh_end,
+                                       length.out = ceiling(length(clin_looks)/tdivisor))
+      
+      l$rule2_tte_pp_sup_thresh <- c(rep(l$rule2_tte_pp_sup_thresh[1],
+                                         length(l$looks[l$looks < l$nstartclin])), 
+                                     
+                                     l$rule2_tte_pp_sup_thresh,
+                                     
+                                     rep(l$rule2_tte_pp_sup_thresh[ceiling(length(clin_looks)/tdivisor)],
+                                         length(l$looks) - 
+                                           length(l$looks[l$looks < l$nstartclin]) - 
+                                           ceiling(length(clin_looks)/tdivisor))
+      )
+      
+      stopifnot(length(l$rule2_tte_pp_sup_thresh) == length(l$looks))
+      
+      flog.info("Updated rule2_tte_pp_sup_thresh: %s.", paste0(l$rule2_tte_pp_sup_thresh, collapse = ", "))
+      
+      
     }
     
     if(!is.null(opt$delay)){
