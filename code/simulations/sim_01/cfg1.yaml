@@ -47,7 +47,7 @@ sero_info_delay: 0.75
 # max number of venous samp
 nmaxsero: 250
 # n when we start assessing the clinical endpoint
-nstartclin: 150
+nstartclin: 200
 
 
 
@@ -116,7 +116,10 @@ b3tte: 0 # baseline serot2 status
 # superiority/futility thresholds for futility checks
 
 post_sero_thresh: 0.975
-post_tte_thresh: 0.975
+
+post_tte_thresh: 0.985
+# post_tte_thresh_start: 0.999
+# post_tte_thresh_end: 0.975
 
 # futility test
 rule1_sero_pp_fut_thresh: 0.05
@@ -124,7 +127,8 @@ rule1_tte_pp_fut_thresh: 0.05
 
 # superiority test
 rule2_tte_pp_sup_thresh_start: 0.999
-rule2_tte_pp_sup_thresh_end: 0.980
+rule2_tte_pp_sup_thresh_end: 0.985
+# rule2_tte_pp_sup_thresh: 0.975
 
 # stop v sampling test
 rule3_sero_pp_sup_thresh: 0.975

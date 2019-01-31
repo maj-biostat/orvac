@@ -421,7 +421,14 @@ df_0 <- df_all %>%
 
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 
+df_0 %>%
+  dplyr::select(nsim, idsim, fname) %>%
+  dplyr::arrange(idsim, fname)
 
+digits <- c(2, 2, 0, 0, 0, 2,
+            0, 0, 0, 0,
+            0, 0, 0, 0)
+options(knitr.kable.NA = '-')
 ```
 
 ```{r, echo = F, eval = F}
@@ -436,12 +443,7 @@ Trials are indicated as futile > 95% of the time with a type i error < 0.05.
 
 Average sample size at which futility is announced is 150. Venous sampling is stopped less than 5% of the time, but this needs to be considered in the context of the fact that most trials are already identified as futile.
 
-```{r, echo = F}
-digits <- c(2, 2, 0, 0, 0, 2,
-            0, 0, 0, 0,
-            0, 0, 0, 0)
-options(knitr.kable.NA = '-')
-```
+
 
 ```{r, echo = F, eval = F}
 
@@ -577,7 +579,7 @@ Table 6 shows the results from simulating a 45% increase in probability of seroc
 Power has increased again but is still low (40%). Probability of a futile outcome is around 0.5. Mean sample size to declare superiority is 532, whereas futility is declared around ss of 419. Venous sampling is very likely to be stopped (mean probability of stopping 0.73). Around 7% of trials are inconclusive.
 
 
-```{r, echo = F, eval = F}
+```{r, echo = F, eval = T}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt02") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),

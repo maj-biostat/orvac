@@ -174,12 +174,15 @@ results <- foreach(i = 1:cfg$nsims,
       # rule 1 - "futility test"
       # at the nmaxsero (which I am assuming is the final analysis for this endpoint) ppos_max is NA
       if (!is.na(m_immu_res["ppos_max"]) && m_immu_res["ppos_max"] < cfg$rule1_sero_pp_fut_thresh){
+        flog.info("Treatment futile: ppos_max = %s threshold %s, i = %s look = %s", 
+                  m_immu_res["ppos_max"], cfg$rule1_sero_pp_fut_thresh, i, look)
         stop_immu_fut <<- 1
         trial_state$stop_immu_fut <- 1
       }
 
       # rule 3 - "stop venous sampling"
-      if (m_immu_res["ppos_n"] > cfg$rule3_sero_pp_sup_thresh){
+      if (m_immu_res["ppos_n"] > cfg$rule3_sero_pp_sup_thresh &&
+          !trial_state$stop_immu_fut){
         stop_ven_samp <<- 1
         trial_state$stop_ven_samp <- 1
       }
@@ -209,11 +212,14 @@ results <- foreach(i = 1:cfg$nsims,
       # ppos_max will be NA at max looks since that is the final analysis and we just
       # look at the posterior rather than the predictive probability
       if (!is.na(m_clin_res["ppos_max"]) && m_clin_res["ppos_max"] < cfg$rule1_tte_pp_fut_thresh){
+        flog.info("Treatment futile: ppos_max = %s threshold %s, i = %s look = %s", 
+                  m_clin_res["ppos_max"], cfg$rule1_tte_pp_fut_thresh, i, look)
         stop_clin_fut <<- 1
         trial_state$stop_clin_fut <- 1
       }
 
-      if (m_clin_res["ppos_n"] > cfg$rule2_tte_pp_sup_thresh[look]){
+      if (m_clin_res["ppos_n"] > cfg$rule2_tte_pp_sup_thresh[look] &&
+          !trial_state$stop_clin_fut){
         flog.info("Treatment superior: ppos_n = %s threshold %s, i = %s look = %s", 
                   m_clin_res["ppos_n"], cfg$rule2_tte_pp_sup_thresh[look], i, look)
         stop_clin_sup <<- 1

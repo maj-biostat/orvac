@@ -24,12 +24,12 @@
 #/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_03.log -n 1000 -s 2061 -a 50 -d 0.50 -b 0.3 -p 0.375 -m 35 -t 35
 #/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_04.log -n 1000 -s 1652 -a 50 -d 0.50 -b 0.5 -p 0.625 -m 35 -t 35
 #/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_05.log -n 1000 -s 3625 -a 50 -d 0.50 -b 0.3 -p 0.375 -m 40 -t 40
-#/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_06.log -n 1000 -s 6147 -a 50 -d 0.50 -b 0.5 -p 0.625 -m 40 -t 40
+/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_06.log -n 1000 -s 6147 -a 50 -d 0.50 -b 0.5 -p 0.625 -m 40 -t 40
 #/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_07.log -n 1000 -s 7850 -a 30 -d 0.50 -b 0.3 -p 0.375 -m 30 -t 30
 #/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_08.log -n 1000 -s 2414 -a 30 -d 0.50 -b 0.5 -p 0.625 -m 30 -t 30
 #/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_09.log -n 1000 -s 6037 -a 30 -d 0.50 -b 0.3 -p 0.375 -m 35 -t 35
-/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_10.log -n 1000 -s 8620 -a 30 -d 0.50 -b 0.5 -p 0.625 -m 35 -t 35
-/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_11.log -n 1000 -s 6809 -a 30 -d 0.50 -b 0.3 -p 0.375 -m 40 -t 40
+#/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_10.log -n 1000 -s 8620 -a 30 -d 0.50 -b 0.5 -p 0.625 -m 35 -t 35
+#/usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_11.log -n 1000 -s 6809 -a 30 -d 0.50 -b 0.3 -p 0.375 -m 40 -t 40
 /usr/bin/Rscript main_2.R -f cfg1.yaml -o T -i "SeroTrt01" -l sero_trt01_12.log -n 1000 -s 9951 -a 30 -d 0.50 -b 0.5 -p 0.625 -m 40 -t 40
 
 # 0% increase in prob of conversio, 5 month increase in tte
