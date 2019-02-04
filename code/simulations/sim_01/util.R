@@ -221,20 +221,19 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$rule2_tte_pp_sup_thresh_end  <- tt$rule2_tte_pp_sup_thresh_end
   
   clin_looks <- l$looks[l$looks >= l$nstartclin]
-  tdivisor <- 1.5 
   l$rule2_tte_pp_sup_thresh <- seq(from = l$rule2_tte_pp_sup_thresh_start,
                                    to = l$rule2_tte_pp_sup_thresh_end,
-                                   length.out = ceiling(length(clin_looks)/tdivisor))
+                                   length.out = ceiling(length(clin_looks)))
   
   l$rule2_tte_pp_sup_thresh <- c(rep(l$rule2_tte_pp_sup_thresh[1],
                                      length(l$looks[l$looks < l$nstartclin])), 
                                  
                                  l$rule2_tte_pp_sup_thresh,
                                  
-                                 rep(l$rule2_tte_pp_sup_thresh[ceiling(length(clin_looks)/tdivisor)],
+                                 rep(l$rule2_tte_pp_sup_thresh[ceiling(length(clin_looks))],
                                      length(l$looks) - 
                                        length(l$looks[l$looks < l$nstartclin]) - 
-                                       ceiling(length(clin_looks)/tdivisor))
+                                       ceiling(length(clin_looks)))
                                  )
   
   stopifnot(length(l$rule2_tte_pp_sup_thresh) == length(l$looks))
@@ -346,17 +345,17 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       
       l$rule2_tte_pp_sup_thresh <- seq(from = l$rule2_tte_pp_sup_thresh_start,
                                        to = l$rule2_tte_pp_sup_thresh_end,
-                                       length.out = ceiling(length(clin_looks)/tdivisor))
+                                       length.out = ceiling(length(clin_looks)))
       
       l$rule2_tte_pp_sup_thresh <- c(rep(l$rule2_tte_pp_sup_thresh[1],
                                          length(l$looks[l$looks < l$nstartclin])), 
                                      
                                      l$rule2_tte_pp_sup_thresh,
                                      
-                                     rep(l$rule2_tte_pp_sup_thresh[ceiling(length(clin_looks)/tdivisor)],
+                                     rep(l$rule2_tte_pp_sup_thresh[ceiling(length(clin_looks))],
                                          length(l$looks) - 
                                            length(l$looks[l$looks < l$nstartclin]) - 
-                                           ceiling(length(clin_looks)/tdivisor))
+                                           ceiling(length(clin_looks)))
       )
       
       stopifnot(length(l$rule2_tte_pp_sup_thresh) == length(l$looks))

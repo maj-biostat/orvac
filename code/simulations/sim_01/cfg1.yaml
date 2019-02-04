@@ -36,7 +36,7 @@ nsims: 1
 
 # interims
 # first look is always 50 thereafter n increases based on people_per_interim_period 
-nstart: 80
+nstart: 70
 nstop: 1000
 # max of 3 months between interims - don't change
 interim_period: 3 
@@ -117,7 +117,7 @@ b3tte: 0 # baseline serot2 status
 
 post_sero_thresh: 0.975
 
-post_tte_thresh: 0.985
+post_tte_thresh: 0.975
 # post_tte_thresh_start: 0.999
 # post_tte_thresh_end: 0.975
 
@@ -127,7 +127,7 @@ rule1_tte_pp_fut_thresh: 0.05
 
 # superiority test
 rule2_tte_pp_sup_thresh_start: 0.999
-rule2_tte_pp_sup_thresh_end: 0.985
+rule2_tte_pp_sup_thresh_end: 0.975
 # rule2_tte_pp_sup_thresh: 0.975
 
 # stop v sampling test

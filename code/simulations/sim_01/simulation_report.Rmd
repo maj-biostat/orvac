@@ -421,9 +421,9 @@ df_0 <- df_all %>%
 
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 
-df_0 %>%
-  dplyr::select(nsim, idsim, fname) %>%
-  dplyr::arrange(idsim, fname)
+# df_0 %>%
+#   dplyr::select(nsim, idsim, fname) %>%
+#   dplyr::arrange(idsim, fname)
 
 digits <- c(2, 2, 0, 0, 0, 2,
             0, 0, 0, 0,
@@ -445,7 +445,7 @@ Average sample size at which futility is announced is 150. Venous sampling is st
 
 
 
-```{r, echo = F, eval = F}
+```{r, echo = F, eval = T}
 
 #stopifnot(nrow(df_0) == 24)
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
@@ -503,7 +503,7 @@ Table 3 shows the results from simulating zero difference in seroconversion rate
 Futility decision is still very likely (mean probability of futility equals 0.93) and power is very low (6%). Venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
 
 
-```{r, echo = F, eval = F}
+```{r, echo = F, eval = T}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinTrt01") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(baseclin, trtclin),
@@ -526,7 +526,7 @@ Table 4 shows the results from simulating zero difference in seroconversion rate
 
 Futility decision is still very likely (mean probability of futility equals 0.9) and power is very low (mean is 9%). Again, venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
 
-```{r, echo = F, eval = F}
+```{r, echo = F, eval = T}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinTrt02") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(baseclin, trtclin),
@@ -554,7 +554,7 @@ Table 5 shows the results from simulating a 25% increase in probability of seroc
 
 Power has increased but is still low (26%). Probability of a futile outcome is around 0.7. Mean sample size to declare superiority is 520, whereas futility is declared around ss of 281. Venous sampling is stopped more often than earlier scenarios with a mean probability of stopping equal to 0.37. Around 4% of trials are inconclusive.
 
-```{r, echo = F, eval = F}
+```{r, echo = F, eval = T}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt01") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
@@ -610,7 +610,7 @@ Table 7 shows the results from simulating a 25% increase in probability of seroc
 
 Power is still low (42%). Probability of a futile outcome is around 0.55. Mean sample size to declare superiority is 505, whereas futility is declared around ss of 207 Venous sampling is very likely to be stopped (mean probability of stopping 0.36). Around 4% of trials are inconclusive.
 
-```{r, echo = F, eval = F}
+```{r, echo = F, eval = T}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt03") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
@@ -633,7 +633,7 @@ Table 8 shows the results from simulating a 45% increase in probability of seroc
 
 Power now reaches around 82%. Probability of a futile outcome is around 0.17. Mean sample size to declare superiority is 390, whereas futility is declared around ss of 183 Venous sampling is very likely to be stopped (mean probability of stopping 0.73). Around 1% of trials are inconclusive.
 
-```{r, echo = F, eval = F}
+```{r, echo = F, eval = T}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt04") %>% dplyr::select(-fname, -idsim, -nsim) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
