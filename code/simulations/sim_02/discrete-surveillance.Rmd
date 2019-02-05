@@ -165,6 +165,10 @@ What should be obvious is the disconnect between the interim analyses and the su
 
 This was a first pass through the gnarly problem of observing events at discrete timepoints when there are large gaps between surveillance visits and analyses occuring between the visit times. I simply wanted to visualise unusual scenarios that might occur in practice.
 
+Participants like ID 25, will be censored with censoring time equal to the last surveillance visit for this individual until their event is observed at a subsequent surveillance visit. 
+
+The impact is on the rate at which new information arises, which will be a multidimensional function of accrual, event and censoring rates. In turn, this plausibly impacts power.
+
 
 
 
