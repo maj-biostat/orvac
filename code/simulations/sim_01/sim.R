@@ -351,7 +351,7 @@ clin_dat <- function(d, cfg, look, trt_status = 0){
   stopifnot(2*(n_impute + n_obs_grp) <= cfg$nstop)
   
   # posterior for lambda
-  lambda <- rgamma(cfg$post_draw, shape = 1 + n_uncen, rate = 0.1 + sum_obst)
+  lambda <- rgamma(cfg$post_draw, shape = 1 + n_uncen, rate = 0.01 + sum_obst)
   
   dat_interims <- NULL
   if (look < length(cfg$looks)){
@@ -458,8 +458,8 @@ clin_pred_prob <- function(dat_trt, dat_ctl, cfg){
     sum_obst_ctl = dat_ctl$dat_interims[[x]]$sum_obst_x
     
     # futility
-    lamb_trt <- rgamma(cfg$post_draw, shape = 1 + n_uncen_trt, rate = 1 + sum_obst_trt)
-    lamb_ctl <- rgamma(cfg$post_draw, shape = 1 + n_uncen_ctl, rate = 1 + sum_obst_ctl)
+    lamb_trt <- rgamma(cfg$post_draw, shape = 1 + n_uncen_trt, rate = 0.01 + sum_obst_trt)
+    lamb_ctl <- rgamma(cfg$post_draw, shape = 1 + n_uncen_ctl, rate = 0.01 + sum_obst_ctl)
     
     # the distribution of the difference can be approximate as normal
     # see earlier narrative comment

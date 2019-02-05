@@ -174,10 +174,20 @@ results <- foreach(i = 1:cfg$nsims,
       # rule 1 - "futility test"
       # at the nmaxsero (which I am assuming is the final analysis for this endpoint) ppos_max is NA
       if (!is.na(m_immu_res["ppos_max"]) && m_immu_res["ppos_max"] < cfg$rule1_sero_pp_fut_thresh){
-        flog.info("Treatment futile: ppos_max = %s threshold %s, i = %s look = %s", 
-                  m_immu_res["ppos_max"], cfg$rule1_sero_pp_fut_thresh, i, look)
-        stop_immu_fut <<- 1
-        trial_state$stop_immu_fut <- 1
+        
+        if(look >= cfg$nstartclin && stop_clin_fut){
+          flog.info("Both immu and clin futile: ppos_max = %s threshold %s, i = %s look = %s", 
+                    m_immu_res["ppos_max"], cfg$rule1_sero_pp_fut_thresh, i, look)
+          stop_immu_fut <<- 1
+          trial_state$stop_immu_fut <- 1
+        } else {
+          flog.info("Immu futile: ppos_max = %s threshold %s, i = %s look = %s", 
+                    m_immu_res["ppos_max"], cfg$rule1_sero_pp_fut_thresh, i, look)
+          stop_immu_fut <<- 1
+          trial_state$stop_immu_fut <- 1
+        }
+        
+        
       }
 
       # rule 3 - "stop venous sampling"
