@@ -1,0 +1,99 @@
+---
+title: "Adjust for baseline"
+output:
+  html_document:
+    number_sections: yes
+    self_contained: yes
+    theme: united
+    toc: yes
+    toc_float: true
+    toc_depth: 3
+geometry: left=0.2cm,right=0.2cm,top=1cm,bottom=1cm
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Preamble
+
+The orvac trial has co-primary endpoints - probability of seroconversion and time to medical attendance. The intention is to model these separately but should they be linked as they do have a priori association?
+
+# Generate data
+
+# Seroconversion
+
+Seroconversion is recorded at time 2 and time 3. The time 2 status is observered at 
+
+# Time to event
+
+
+
+
+# Generate data
+
+```{r}
+library(data.table)
+library(truncnorm)
+
+n <- 300
+dt <- data.table(id = numeric(n),
+                 trt = numeric(n),
+                 accrt = numeric(n),      # time of randomisation
+                 age_months = numeric(n), # age at time of randomisation
+                 trial_months_at_max_age = numeric(n),
+                 serot2 = rep(NA, n),
+                 serot3 = rep(NA, n),
+                 probt3 = numeric(n),
+                 evtt = numeric(n),
+                 cent_at_interim = rep(NA, n),
+                 cent_at_max = rep(NA, n),
+                 obst = rep(NA, n),
+                 cen = rep(NA, n)) # censoring variable (0 = not censored, 1 = censored)
+
+dt[,id := 1:n]
+dt[,trt := rep(0:1, length.out = n)]
+
+
+
+# age is at time of randomisation, i.e. at their accrual time
+dt[,age_months := rtruncnorm(n,
+                               cfg$age_months_lwr,
+                               cfg$age_months_upr,
+                               cfg$age_months_mean,
+                               cfg$age_months_sd)]
+
+
+  dt[,accrt := (id - 1) * cfg$months_per_person]
+
+  dt[,trial_months_at_max_age := cfg$max_age_fu_months - age_months + accrt]
+
+  # seroconversion
+  dt$serot2[1:cfg$nmaxsero] = rbinom(cfg$nmaxsero, 1, prob = cfg$baselineprobsero)
+  dt$serot3[1:cfg$nmaxsero] = copy(dt$serot2[1:cfg$nmaxsero])
+
+  setkey(dt, id, trt, serot3)
+  dt[.(1:cfg$nmaxsero, 1, 0), probt3:= cfg$deltaserot3 * trt  ]
+  n_t3_no_sero <- nrow(dt[serot2 == 0 & !is.na(serot2) & trt == 1])
+```
+
+
+# Model survival with Cox PH
+
+## Not adjusted for seroconversion
+
+## Adjusted for seroconversion
+
+# Results
+
+
+# Conclusion
+
+
+
+
+
+
+

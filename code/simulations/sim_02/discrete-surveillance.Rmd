@@ -1,0 +1,171 @@
+---
+title: "Orvac - Discrete surveillance"
+output:
+  html_document:
+    number_sections: yes
+    self_contained: yes
+    theme: united
+    toc: yes
+    toc_float: true
+    toc_depth: 3
+geometry: left=0.2cm,right=0.2cm,top=1cm,bottom=1cm
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, echo = F}
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(truncnorm))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+
+ggplot2::theme_set(theme_bw())
+```
+
+# Preamble
+
+Observing hospitalisation events^[An event is the time from randomisation to first medical presentation with RV gastro.] is a discrete process. We will observe whether a participant has had an event at follow up 1, follow up 2 and every 6 months subsequent to randomisation with the event occuring at some point prior to our surveillance visit. However, after the first interim, the interim analyses happen at the latest of 3 months apart. This limits the extent to which we can see whether events have happened. The following figures provide a simplified example of what we might find in practice. 
+
+# Generating data
+
+Note - I have increased the rate for the events such that the median time to event is 10 months. This makes it a bit easier to see what is going on.
+
+```{r}
+
+day_to_month <- function(x){return(x / days_per_month)}
+# colourblind palette
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", 
+               "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+set.seed(2)
+n <- 1000
+interim_period <- 3
+people_per_interim_period <- 50
+months_per_person <- interim_period / people_per_interim_period
+max_age_fu_months <- 36
+median_time_to_event <- 20
+days_per_month <- 365.25/12
+
+dt <- data.table(id = numeric(n),
+                 accrt = numeric(n),      # time of randomisation
+                 age_months = numeric(n), # age at time of randomisation
+                 trial_months_at_max_age = numeric(n),
+                 evtt = numeric(n),
+                 cent_at_interim = rep(NA, n),
+                 cent_at_max = rep(NA, n),
+                 obst = rep(NA, n),
+                 cen = rep(NA, n)) # censoring variable (0 = not censored, 1 = censored)
+
+dt[,id := 1:n]
+
+# age is at time of randomisation, i.e. at their accrual time
+dt[,age_months := rtruncnorm(n,6,12,6.5,1)]
+# linear accrual (dream on)
+dt[,accrt := (id - 1) * months_per_person]
+# the limiting month of the trial at which fu ceases for each individual
+dt[,trial_months_at_max_age := max_age_fu_months - age_months + accrt]
+
+# generate events following exponential distribution
+mu <- log(2)/median_time_to_event 
+dt[, evtt := stats::rexp(n, rate = mu) + accrt]
+
+dt[, fu1 := accrt + day_to_month(14)]
+dt[, fu2 := accrt + day_to_month(28)]
+dt[, surveillance1 := accrt + 6]
+dt[, surveillance2 := accrt + 12]
+dt[, surveillance3 := accrt + 18]
+dt[, surveillance4 := accrt + 24]
+
+```
+
+# Visualisation
+
+Here is the whole data set with the horizontal lines showing the time to event (from randomisation) for each individual.
+
+```{r, echo = F, fig.height=10}
+ggplot(dt) +
+  geom_segment(aes(x = accrt, y = id, xend = evtt, yend = id)) +
+  scale_x_continuous("Months")+
+  scale_y_continuous("Participant ID")
+```
+
+Under the accrual rates assumed here, the 50th participant enters the study 2.94 months after the start. They happen to be around 6.4 months old. If we make the blanket assumption that follow up 1 happens 14 days after randomisation and follow up 2 happens at day 28 and then the blood tests for each participant are back 14 days later, then the first interim happens 42 days after randomisation of participant 50. So, the first interim happens around 4.32 months and subsequent interims occur every 3 months after that.
+
+The figure below shows the event data for the first 50 participants and the vertical dashed lines show when the interim analyses occur. The small black dots represent the time at which we observe the medical data for each participant, i.e. follow up 1, 2 and passive 6 monthly surveillance.
+
+```{r, echo = F, fig.height=6}
+person50accrt <- dt[50,accrt]
+timeinterim1 <- person50accrt + day_to_month(14+28)
+
+dt2 <- dt %>%
+  dplyr::filter(id <= 50) 
+
+ggplot(dt2) +
+  geom_segment(aes(x = accrt, y = id, xend = evtt, yend = id)) +
+  scale_x_continuous("Months")+
+  scale_y_continuous("Participant ID")+
+  geom_vline(xintercept = timeinterim1, colour = cbPalette[2], linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3, colour = cbPalette[2], linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 2, colour = cbPalette[2], linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 3, colour = cbPalette[2], linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 4, colour = cbPalette[2],  linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 5, colour = cbPalette[2],  linetype = 2)+
+  geom_point(aes(y = id, x = fu1), size = 1) +
+  geom_point(aes(y = id, x = fu2), size = 1) +
+  geom_point(aes(y = id, x = surveillance1), size = 1) +
+  geom_point(aes(y = id, x = surveillance2), size = 1) +
+  geom_point(aes(y = id, x = surveillance3), size = 1) +
+  geom_point(aes(y = id, x = surveillance4), size = 1) 
+```
+
+Now just focus on participants 20 to 30. What do you see?
+
+```{r, echo = F, fig.height=6}
+dt3 <- dt %>%
+  dplyr::filter(id >= 20 & id <= 30) 
+dftmp <- dt %>%
+  dplyr::filter(id == 25)
+ggplot(dt3) +
+  geom_segment(aes(x = accrt, y = id, xend = evtt, yend = id)) +
+  scale_x_continuous("Months", breaks = c(0, 5, 10, 15, 20, 25, 50, 100))+
+  scale_y_continuous("Participant ID", breaks = seq(from = 20, to = 30, by = 1))+
+  geom_vline(xintercept = timeinterim1, colour = cbPalette[2], linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3, colour = cbPalette[2], linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 2, colour = cbPalette[2], linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 3, colour = cbPalette[2], linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 4, colour = cbPalette[2],  linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 5, colour = cbPalette[2],  linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 6, colour = cbPalette[2],  linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 7, colour = cbPalette[2],  linetype = 2)+
+  geom_vline(xintercept = timeinterim1 + 3 * 8, colour = cbPalette[2],  linetype = 2)+
+  annotate("text", x = timeinterim1, y = 25.5, label = "1")+
+  annotate("text", x = timeinterim1 + 3 * 2, y = 25.5, label = "3")+
+  annotate("text", x = timeinterim1 + 3 * 4, y = 25.5, label = "5")+
+  annotate("text", x = timeinterim1 + 3 * 6, y = 25.5, label = "7")+
+  geom_point(aes(y = id, x = fu1), size = 1) +
+  geom_point(aes(y = id, x = fu2), size = 1) +
+  geom_point(data = dftmp, aes(y = id, x = surveillance2), 
+             colour = cbPalette[1], size = 5, alpha = 0.5)+
+  geom_point(aes(y = id, x = surveillance1), size = 1) +
+  geom_point(aes(y = id, x = surveillance2), size = 1) +
+  geom_point(aes(y = id, x = surveillance3), size = 1) +
+  geom_point(aes(y = id, x = surveillance4), size = 1) 
+  
+```
+
+What should be obvious is the disconnect between the interim analyses and the surveillance frequency. For example, look at participant 25 -- they enter the study at 1.44 months and have a medical presentation at 8.7 months, just before the third interim at 10.3 months. However, under the proposed surveillance frequency, we will not look at the medical records for this participant until 13.4 months (dot with the grey shading). Now, given that the fourth interim occurs at 13.3 we will not include this event until the 5th interim analysis -- up until that time, this participant will be censored.
+
+# Conclusion
+
+This was a first pass through the gnarly problem of observing events at discrete timepoints when there are large gaps between surveillance visits and analyses occuring between the visit times. I simply wanted to visualise unusual scenarios that might occur in practice.
+
+
+
+
+
