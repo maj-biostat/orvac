@@ -45,7 +45,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   if(whichappender == "console"){
     flog.appender(appender.console(), name='ROOT')
   }
-  flog.threshold(6)
+  flog.threshold(futile.logger::DEBUG)
 
 
 

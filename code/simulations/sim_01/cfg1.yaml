@@ -32,7 +32,7 @@ idsim: "NULL"
 outfile: "res_null.RDS"
 
 seed: 222
-nsims: 1
+nsims: 3
 
 # interims
 # first look is always 50 thereafter n increases based on people_per_interim_period 

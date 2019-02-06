@@ -126,7 +126,7 @@ results <- foreach(i = 1:cfg$nsims,
   # Precedence:
   # TRACE, DEBUG, INFO, WARN, ERROR, FATAL
   flog.appender(appender.file(file.path(getwd(), "logs", cfg$flog_logfile)), name='ROOT')
-  flog.threshold(INFO)
+  flog.threshold(DEBUG)
   
 
   # individual trial processing is 'embarrassingly parallel' hence the foreach dopar loop
