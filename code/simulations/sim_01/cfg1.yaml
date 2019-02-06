@@ -22,7 +22,7 @@
 logging:
     - appender: file
     - logfile: 'out_1.log'
-    - threshold: DEBUG
+    - threshold: INFO
     - profile: FALSE
 
 # Simulation config parameters - null case

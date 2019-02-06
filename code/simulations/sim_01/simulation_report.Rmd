@@ -710,6 +710,10 @@ We simulate 1000 trials by generating data as follows:
 + interim analyses are done on the basis of predictive probability
 + final analyses are complete after follow up. For the time to event analysis this means waiting until the youngest participant at the end of the enrollment period is 36 months old. For the immunological analysis this means we wait until all seroconversion results are obtained.
 
+# Accrual rates
+***
+The word on the ground is that 50 per three month period is not realistic. The accrual rate is likely to be blocky due to seasonal effects and the effects of visits to remote communities where several kids might be accrued on the same day. Additionally, there is the possibility of additional sites coming on line. While Katherine is probably no longer an option, Alice may come on line around July 2019. Conservatively Alice may add 40 participants per year. At the moment the 2019 intake target is about 120 (in 2018 around 60 were enrolled). Urban recruitment remains very slow.
+
 # Seroconversion modelling
 ***
 The seroconversion model uses a beta conjugate prior to the bernoulli likelihood. The prior is uniform, i.e. $Beta(1, 1)$, i.e. uninformative. We model an information delay such that, at any given interim, some individuals will have been randomised and treated but seroconversion will still be pending. 

@@ -24,11 +24,14 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
 
   l <- list()
   
+  # Precedence:
+  # TRACE, DEBUG, INFO, WARN, ERROR, FATAL
+  
   thres <- unlist(tt$logging[[3]][1])
-  tl <- list("WARN" = 4,
-             "TRACE" = 9,
+  tl <- list("TRACE" = 9,
              "DEBUG" = 8,
              "INFO" = 6,
+             "WARN" = 4,
              "FATAL" = 1)
   whichappender <- unlist(tt$logging[[1]][1])
   flog.info("  logging to: %s appender.", whichappender)
@@ -42,7 +45,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   if(whichappender == "console"){
     flog.appender(appender.console(), name='ROOT')
   }
-  flog.threshold(tt$logging[[3]][1])
+  flog.threshold(6)
 
 
 
@@ -150,13 +153,8 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   
   l$deltaserot3 <- compute_sero_delta(l$baselineprobsero, l$trtprobsero)
     
-    
-    
+
   # l$deltaremoteserot3 <- tt$deltaremoteserot3 
-
-
-  
-
 
 
   # time to event control variables
@@ -204,6 +202,13 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   
   l$ftte <- tt$ftte
   l$ttemodfile <- tt$ttemodfile
+  
+  # surveillance
+  l$fu1_lwr <- 14/(365.25/12)
+  l$fu1_upr <- 21/(365.25/12)
+  l$fu2_lwr <- 28/(365.25/12)
+  l$fu2_upr <- 35/(365.25/12)
+  l$surveillance_mnths <- 6
   
   
   # for significance testing of a win in the pp section 
@@ -416,14 +421,50 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
  
   }
   
-  
-  
-  
-  
+  # colourblind palette
+  l$cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", 
+                   "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
   return(l)
 }
 
+
+
+plot_tte <- function(dt1, cfg, idx = NULL){
+  
+  if(is.null(idx)){
+    idx <- nrow(dt1)
+  }
+  
+  maxmnths1 <-  dt1[idx, accrt] 
+  maxmnths2 <-  dt1[idx, accrt] + cfg$max_age_fu_months
+  
+  pctcen <- 100 * round(prop_censored(dt1, cfg, idx), 1)
+  xpctcen <- max(dt1[1:idx, evtt]) - 10
+  
+  ggplot(dt1[1:idx,]) +
+    geom_segment(aes(x = accrt, y = id, xend = evtt, yend = id)) +
+    scale_x_continuous("Months")+
+    scale_y_continuous("Participant ID")+
+    geom_vline(xintercept = maxmnths1 , colour = cfg$cbPalette[2])+
+    geom_vline(xintercept = maxmnths2, colour = cfg$cbPalette[2])+
+    annotate("text", x = maxmnths1-12, y = idx+25, label = "Last enrollment") +
+    annotate("text", x = maxmnths2-10, y = idx+25, label = "Last FU") +
+    annotate("text", x = xpctcen, y = 20, label = paste0(pctcen, "% censored")) 
+}
+
+# proportion of sample up to idx that will be censored assuming 
+# idx is the last participant randomised
+prop_censored <- function(dt1, cfg, idx = NULL){
+  
+  if(is.null(idx)){
+    idx <- nrow(dt1)
+  }
+  
+  cen <- ifelse(dt1[c(1:idx), evtt] > dt1[idx, accrt] + cfg$max_age_fu_months, 1, 0)
+  mean(cen)
+  
+}
 
 
 
