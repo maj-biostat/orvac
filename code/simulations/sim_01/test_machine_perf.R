@@ -14,7 +14,7 @@ test_func <- function(single_clust = T, nsim = 100){
     registerDoParallel(cl)
   }
  
-  n <- 1000
+  n <- 10000
   looks <- 10
   beta0 <- 10
   beta1 <- 5
@@ -80,7 +80,7 @@ cat(sprintf(" user time per sim   %s\n\n",
             round(duration[1], 2) / nsim))
 
 
-
+nsim <- 10000
 duration <- test_func(single_clust = F, nsim)
 
 cat(paste0("\nuser is the CPU time spent by the current process\nsystem CPU time” gives the CPU time spent by the kernel\nelapsed is the wall clock time taken to execute the function\n
