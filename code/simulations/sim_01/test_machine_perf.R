@@ -65,37 +65,33 @@ test_func <- function(single_clust = T, nsim = 100){
   return(duration)
 }
 
+nsim <- 1000
+duration <- test_func(single_clust = T, nsim)
 
-duration <- test_func(single_clust = T, 1000)
-
-cat(paste0("user is the CPU time spent by the current process\n
-system CPU time” gives the CPU time spent by the kernel\n
-elapsed is the wall clock time taken to execute the function\n
-============================================================"))
+cat(paste0("\nuser is the CPU time spent by the current process\nsystem CPU time” gives the CPU time spent by the kernel\nelapsed is the wall clock time taken to execute the function\n
+============================================================\n\n"))
 
 cat(sprintf(" user    %s\n system  %s\n elapsed %s\n", 
             round(duration[1], 2), 
             round(duration[2], 2), 
             round(duration[3], 2) ))
 
-cat(sprintf(" user time per sim   %s", 
+cat(sprintf(" user time per sim   %s\n\n", 
             round(duration[1], 2) / nsim))
 
 
 
-duration <- test_func(single_clust = F, 1000)
+duration <- test_func(single_clust = F, nsim)
 
-cat(paste0("user is the CPU time spent by the current process\n
-           system CPU time” gives the CPU time spent by the kernel\n
-           elapsed is the wall clock time taken to execute the function\n
-           ============================================================"))
+cat(paste0("\nuser is the CPU time spent by the current process\nsystem CPU time” gives the CPU time spent by the kernel\nelapsed is the wall clock time taken to execute the function\n
+============================================================\n\n"))
 
 cat(sprintf(" user    %s\n system  %s\n elapsed %s\n", 
             round(duration[1], 2), 
             round(duration[2], 2), 
             round(duration[3], 2) ))
 
-cat(sprintf(" user time per sim   %s", 
+cat(sprintf(" user time per sim   %s\n\n", 
             round(duration[1], 2) / nsim))
 
 
