@@ -9,6 +9,14 @@ rcpp_mod_immu <- function(d, cfg, look) {
     .Call(`_orvacsim_rcpp_mod_immu`, d, cfg, look)
 }
 
+rcpp_get_n <- function(d, look, looks, months, info_delay) {
+    .Call(`_orvacsim_rcpp_get_n`, d, look, looks, months, info_delay)
+}
+
+rcpp_get_immu_post <- function(d, nobs, post_draws) {
+    .Call(`_orvacsim_rcpp_get_immu_post`, d, nobs, post_draws)
+}
+
 rcpp_censoring <- function(d, look, trtstatus, iend, curmonth, surveillancemonths) {
     .Call(`_orvacsim_rcpp_censoring`, d, look, trtstatus, iend, curmonth, surveillancemonths)
 }

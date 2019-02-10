@@ -42,11 +42,21 @@
 #define DBGVAR( os, msg )
 #endif
 
-
+// function prototypes
+arma::mat rcpp_gen_dat(const Rcpp::List& cfg);
+arma::mat rcpp_mod_immu(const arma::mat& d, const Rcpp::List& cfg, const int look);
+int rcpp_get_n(const arma::mat& d,
+               const int look,
+               const Rcpp::NumericVector looks,
+               const Rcpp::NumericVector months,
+               const float info_delay);
+arma::mat rcpp_get_immu_post(const arma::mat& d,
+                             const int nobs,
+                             const int post_draws);
 
 
 // [[Rcpp::export]]
-arma::mat rcpp_gen_dat(const Rcpp::List cfg) {
+arma::mat rcpp_gen_dat(const Rcpp::List& cfg) {
 
   int n = cfg["nstop"];
   arma::mat d = arma::zeros(n, NCOL);
@@ -85,7 +95,7 @@ arma::mat rcpp_gen_dat(const Rcpp::List cfg) {
 
 
 // [[Rcpp::export]]
-arma::mat rcpp_mod_immu(const arma::mat d, const Rcpp::List cfg, const int look){
+arma::mat rcpp_mod_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
   int post_draws = (int)cfg["post_draw"];
   arma::mat m = arma::zeros(post_draws, 3);
@@ -93,52 +103,90 @@ arma::mat rcpp_mod_immu(const arma::mat d, const Rcpp::List cfg, const int look)
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
 
-  int n_sero_ctl = 0;
-  int n_sero_trt = 0;
   int nobs = 0;
-  int n_per_grp = 0;
 
-  // reset look to zero first element
   int mylook = look - 1;
-  float obs_to_month = months[mylook] - (float)cfg["sero_info_delay"];
 
-
-  DBGVAR(Rcpp::Rcout, "looks " << looks);
+  DBGVAR(Rcpp::Rcout, "mylook " << mylook);
 
   if(looks[mylook] <= (int)cfg["nmaxsero"]){
 
-    for(int i = 0; i < looks[mylook]; i++){
-
-      if(d(i, COL_ACCRT) > obs_to_month){
-        // no need to add 1 to this as we accrue
-        // ctl/trt pairs simultaneously.
-        nobs = i;
-        n_per_grp = nobs/2;
-        break;
-      }
-
-      if(d(i, COL_TRT) == 0){
-        n_sero_ctl = n_sero_ctl + d(i, COL_SEROT3);
-      } else {
-        n_sero_trt = n_sero_trt + d(i, COL_SEROT3);
-      }
-
-    }
-
-    for(int i = 0; i < post_draws; i++){
-
-      m(i, COL_THETA0) = R::rbeta(1 + n_sero_ctl, 1 + n_per_grp - n_sero_ctl);
-      m(i, COL_THETA1) = R::rbeta(1 + n_sero_trt, 1 + n_per_grp - n_sero_trt);
-      m(i, COL_DELTA) = m(i, COL_THETA1) - m(i, COL_THETA0);
-    }
-
+    nobs = rcpp_get_n(d, look, looks, months, (float)cfg["sero_info_delay"]);
+    m = rcpp_get_immu_post(d, nobs, post_draws);
 
   }
 
+  return m;
+}
+
+
+
+// [[Rcpp::export]]
+int rcpp_get_n(const arma::mat& d,
+               const int look,
+               const Rcpp::NumericVector looks,
+               const Rcpp::NumericVector months,
+               const float info_delay){
+
+  // reset look to zero first element
+  int mylook = look - 1;
+  float obs_to_month = months[mylook] - info_delay;
+  int nobs = 0;
+
+  for(int i = 0; i < looks[mylook]; i++){
+    if(d(i, COL_ACCRT) > obs_to_month){
+      // no need to add 1 to this as we accrue
+      // ctl/trt pairs simultaneously.
+      nobs = i;
+      break;
+    }
+  }
+  return nobs;
+}
+
+
+
+// [[Rcpp::export]]
+arma::mat rcpp_get_immu_post(const arma::mat& d,
+                             const int nobs,
+                             const int post_draws){
+
+
+  arma::mat m = arma::zeros(post_draws, 3);
+
+  int n_sero_ctl = 0;
+  int n_sero_trt = 0;
+
+  for(int i = 0; i < nobs; i++){
+
+    if(d(i, COL_TRT) == 0){
+      n_sero_ctl = n_sero_ctl + d(i, COL_SEROT3);
+    } else {
+      n_sero_trt = n_sero_trt + d(i, COL_SEROT3);
+    }
+
+  }
+
+  for(int i = 0; i < post_draws; i++){
+    m(i, COL_THETA0) = R::rbeta(1 + n_sero_ctl, 1 + (nobs/2) - n_sero_ctl);
+    m(i, COL_THETA1) = R::rbeta(1 + n_sero_trt, 1 + (nobs/2) - n_sero_trt);
+    m(i, COL_DELTA) = m(i, COL_THETA1) - m(i, COL_THETA0);
+  }
 
   return m;
 
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -237,3 +285,4 @@ arma::mat rcpp_censoring(const arma::mat d,
 //                    fu2 = d[d$trt == trt_status,fu2][1:(n_obs_grp + n_impute)],
 //                    age = d$age_months[d$trt == trt_status][1:(n_obs_grp + n_impute)],
 //                    look = length(cfg$looks))
+

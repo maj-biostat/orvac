@@ -7,26 +7,54 @@
 using namespace Rcpp;
 
 // rcpp_gen_dat
-arma::mat rcpp_gen_dat(const Rcpp::List cfg);
+arma::mat rcpp_gen_dat(const Rcpp::List& cfg);
 RcppExport SEXP _orvacsim_rcpp_gen_dat(SEXP cfgSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::List >::type cfg(cfgSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
     rcpp_result_gen = Rcpp::wrap(rcpp_gen_dat(cfg));
     return rcpp_result_gen;
 END_RCPP
 }
 // rcpp_mod_immu
-arma::mat rcpp_mod_immu(const arma::mat d, const Rcpp::List cfg, const int look);
+arma::mat rcpp_mod_immu(const arma::mat& d, const Rcpp::List& cfg, const int look);
 RcppExport SEXP _orvacsim_rcpp_mod_immu(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat >::type d(dSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List >::type cfg(cfgSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
     rcpp_result_gen = Rcpp::wrap(rcpp_mod_immu(d, cfg, look));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpp_get_n
+int rcpp_get_n(const arma::mat& d, const int look, const Rcpp::NumericVector looks, const Rcpp::NumericVector months, const float info_delay);
+RcppExport SEXP _orvacsim_rcpp_get_n(SEXP dSEXP, SEXP lookSEXP, SEXP looksSEXP, SEXP monthsSEXP, SEXP info_delaySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector >::type looks(looksSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector >::type months(monthsSEXP);
+    Rcpp::traits::input_parameter< const float >::type info_delay(info_delaySEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_get_n(d, look, looks, months, info_delay));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpp_get_immu_post
+arma::mat rcpp_get_immu_post(const arma::mat& d, const int nobs, const int post_draws);
+RcppExport SEXP _orvacsim_rcpp_get_immu_post(SEXP dSEXP, SEXP nobsSEXP, SEXP post_drawsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const int >::type nobs(nobsSEXP);
+    Rcpp::traits::input_parameter< const int >::type post_draws(post_drawsSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_get_immu_post(d, nobs, post_draws));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -50,6 +78,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_gen_dat", (DL_FUNC) &_orvacsim_rcpp_gen_dat, 1},
     {"_orvacsim_rcpp_mod_immu", (DL_FUNC) &_orvacsim_rcpp_mod_immu, 3},
+    {"_orvacsim_rcpp_get_n", (DL_FUNC) &_orvacsim_rcpp_get_n, 5},
+    {"_orvacsim_rcpp_get_immu_post", (DL_FUNC) &_orvacsim_rcpp_get_immu_post, 3},
     {"_orvacsim_rcpp_censoring", (DL_FUNC) &_orvacsim_rcpp_censoring, 6},
     {NULL, NULL, 0}
 };
