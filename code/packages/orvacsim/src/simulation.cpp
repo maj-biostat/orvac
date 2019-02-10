@@ -43,20 +43,33 @@
 #endif
 
 // function prototypes
-arma::mat rcpp_gen_dat(const Rcpp::List& cfg);
-arma::mat rcpp_mod_immu(const arma::mat& d, const Rcpp::List& cfg, const int look);
-int rcpp_get_n(const arma::mat& d,
+arma::mat rcpp_dat(const Rcpp::List& cfg);
+Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look);
+int rcpp_n_obs(const arma::mat& d,
                const int look,
                const Rcpp::NumericVector looks,
                const Rcpp::NumericVector months,
-               const float info_delay);
-arma::mat rcpp_get_immu_post(const arma::mat& d,
+               const double info_delay);
+Rcpp::List rcpp_lnsero(const arma::mat& d,
+                       const int nobs);
+arma::mat rcpp_immu_interim_post(const arma::mat& d,
                              const int nobs,
-                             const int post_draws);
+                             const int post_draw,
+                             const Rcpp::List& lnsero);
+float rcpp_immu_interim_pp(const arma::mat& d,
+                           const arma::mat& m,
+                           const int nobs,
+                           const int nimpute,
+                           const int post_draw,
+                           const Rcpp::List& lnsero,
+                           const Rcpp::List& cfg);
+
+// end function prototypes
+
 
 
 // [[Rcpp::export]]
-arma::mat rcpp_gen_dat(const Rcpp::List& cfg) {
+arma::mat rcpp_dat(const Rcpp::List& cfg) {
 
   int n = cfg["nstop"];
   arma::mat d = arma::zeros(n, NCOL);
@@ -93,83 +106,137 @@ arma::mat rcpp_gen_dat(const Rcpp::List& cfg) {
 }
 
 
-
 // [[Rcpp::export]]
-arma::mat rcpp_mod_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
-
-  int post_draws = (int)cfg["post_draw"];
-  arma::mat m = arma::zeros(post_draws, 3);
+Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
-
-  int nobs = 0;
-
+  arma::mat m = arma::zeros((int)cfg["post_draw"] , 3);
   int mylook = look - 1;
-
-  DBGVAR(Rcpp::Rcout, "mylook " << mylook);
+  int nimpute1 = 0;
+  int nimpute2 = 0;
+  double ppos_n = 0;
+  double ppos_max = 0;
+  Rcpp::List lnsero;
+  Rcpp::List ret;
 
   if(looks[mylook] <= (int)cfg["nmaxsero"]){
 
-    nobs = rcpp_get_n(d, look, looks, months, (float)cfg["sero_info_delay"]);
-    m = rcpp_get_immu_post(d, nobs, post_draws);
+    // how many records did we observe in total (assumes balance)
+    int nobs = rcpp_n_obs(d, look, looks, months, (float)cfg["sero_info_delay"]);
 
+    // how many successes in each arm?
+    lnsero = rcpp_lnsero(d, nobs);
+
+    // posterior at this interim
+    m = rcpp_immu_interim_post(d, nobs, (int)cfg["post_draw"], lnsero);
+
+    // therefore how many do we need to impute?
+    nimpute1 = looks[mylook] - nobs;
+
+    // predicted prob of success at interim
+    ppos_n = rcpp_immu_interim_pp(d, m,
+                                  nobs, nimpute1,
+                                  (int)cfg["post_draw"],
+                                  lnsero, cfg);
+
+    // predicted prob of success at nmaxsero
+    nimpute2 = (int)cfg["nmaxsero"] - nobs;
+    ppos_max = rcpp_immu_interim_pp(d, m, nobs, nimpute2,
+                                    (int)cfg["post_draw"],
+                                            lnsero, cfg);
+
+    ret = Rcpp::List::create(nobs, nimpute1, nimpute2,
+                             lnsero, m,
+                             ppos_n, ppos_max);
   }
 
-  return m;
+  return ret;
 }
 
 
-
 // [[Rcpp::export]]
-int rcpp_get_n(const arma::mat& d,
+int rcpp_n_obs(const arma::mat& d,
                const int look,
                const Rcpp::NumericVector looks,
                const Rcpp::NumericVector months,
-               const float info_delay){
+               const double info_delay){
 
   // reset look to zero first element
   int mylook = look - 1;
-  float obs_to_month = months[mylook] - info_delay;
+  double obs_to_month = months[mylook] - info_delay;
   int nobs = 0;
+  int flooraccrt = 0;
+  float fudge = 0.0001;
 
-  for(int i = 0; i < looks[mylook]; i++){
-    if(d(i, COL_ACCRT) > obs_to_month){
-      // no need to add 1 to this as we accrue
-      // ctl/trt pairs simultaneously.
-      nobs = i;
+  DBGVAR(Rcpp::Rcout, "obs_to_month " << obs_to_month);
+  DBGVAR(Rcpp::Rcout, "info_delay " << info_delay);
+
+  for(int i = 0; i < d.n_rows; i++){
+
+    // have to fudge to work around inexact numeric representation :(
+    flooraccrt = floor(d(i, COL_ACCRT) + info_delay);
+    if(flooraccrt == months[mylook] && i%2 == 1){
+      // we accrue ctl/trt pairs simultaneously.
+      nobs = i + 1 ;
+      DBGVAR(Rcpp::Rcout, "(Equal to) ID " << d(i, COL_ID) << " ACCRT "
+                                << d(i, COL_ACCRT) << " at i = "
+                                << i << " nobs = " << nobs);
       break;
     }
+
+
+    if(d(i, COL_ACCRT) + info_delay > months[mylook] + fudge  && i%2 == 0){
+      // we accrue ctl/trt pairs simultaneously.
+      nobs = i ;
+      DBGVAR(Rcpp::Rcout, "(Greater than) ID " << d(i, COL_ID) << " ACCRT "
+                                               << d(i, COL_ACCRT) << " at i = "
+                                               << i << " nobs = " << nobs);
+      break;
+    }
+
   }
   return nobs;
 }
 
 
-
 // [[Rcpp::export]]
-arma::mat rcpp_get_immu_post(const arma::mat& d,
-                             const int nobs,
-                             const int post_draws){
-
-
-  arma::mat m = arma::zeros(post_draws, 3);
+Rcpp::List rcpp_lnsero(const arma::mat& d,
+                       const int nobs){
 
   int n_sero_ctl = 0;
   int n_sero_trt = 0;
 
-  for(int i = 0; i < nobs; i++){
+  // the nobs - 1 is to adjust for the fact that we start at 0
+  for(int i = 0; i < nobs - 1; i++){
 
     if(d(i, COL_TRT) == 0){
       n_sero_ctl = n_sero_ctl + d(i, COL_SEROT3);
     } else {
       n_sero_trt = n_sero_trt + d(i, COL_SEROT3);
     }
-
   }
 
-  for(int i = 0; i < post_draws; i++){
-    m(i, COL_THETA0) = R::rbeta(1 + n_sero_ctl, 1 + (nobs/2) - n_sero_ctl);
-    m(i, COL_THETA1) = R::rbeta(1 + n_sero_trt, 1 + (nobs/2) - n_sero_trt);
+  DBGVAR(Rcpp::Rcout, "nobs " << nobs);
+  DBGVAR(Rcpp::Rcout, "n_sero_ctl " << n_sero_ctl);
+  DBGVAR(Rcpp::Rcout, "n_sero_trt " << n_sero_trt);
+
+  Rcpp::List l = Rcpp::List::create(n_sero_ctl, n_sero_trt);
+  return l;
+}
+
+
+// [[Rcpp::export]]
+arma::mat rcpp_immu_interim_post(const arma::mat& d,
+                             const int nobs,
+                             const int post_draw,
+                             const Rcpp::List& lnsero){
+
+  arma::mat m = arma::zeros(post_draw, 3);
+
+  for(int i = 0; i < post_draw; i++){
+    m(i, COL_THETA0) = R::rbeta(1 + (int)lnsero["n_sero_ctl"], 1 + (nobs/2) - (int)lnsero["n_sero_ctl"]);
+    m(i, COL_THETA1) = R::rbeta(1 + (int)lnsero["n_sero_trt"], 1 + (nobs/2) - (int)lnsero["n_sero_trt"]);
     m(i, COL_DELTA) = m(i, COL_THETA1) - m(i, COL_THETA0);
   }
 
@@ -178,10 +245,59 @@ arma::mat rcpp_get_immu_post(const arma::mat& d,
 }
 
 
+// [[Rcpp::export]]
+float rcpp_immu_interim_pp(const arma::mat& d,
+                            const arma::mat& m,
+                            const int nobs,
+                            const int nimpute,
+                            const int post_draw,
+                            const Rcpp::List& lnsero,
+                            const Rcpp::List& cfg){
 
 
+  int n_sero_ctl = 0;
+  int n_sero_trt = 0;
 
+  int win = 0;
 
+  arma::vec t0 = arma::zeros(post_draw);
+  arma::vec t1 = arma::zeros(post_draw);
+
+  arma::vec win_draw = arma::zeros(post_draw);
+
+  int ntarget = nobs + nimpute;
+  float probsuccess = 0;
+
+  // create 1000 phony interims conditional on our current understanding of theta0
+  // and theta1.
+  for(int i = 0; i < post_draw; i++){
+
+    // This is a view of the total draws at a sample size of nobs + nimpute
+    n_sero_ctl = lnsero["n_sero_ctl"] + R::rbinom((nimpute/2), m(i, COL_THETA0));
+    n_sero_trt = lnsero["n_sero_trt"] + R::rbinom((nimpute/2), m(i, COL_THETA1));
+
+    // update the posteriors
+    for(int j = 0; j < post_draw; j++){
+
+      t0(j) = R::rbeta(1 + n_sero_ctl, 1 + (ntarget/2) - n_sero_trt);
+      t1(j) = R::rbeta(1 + n_sero_trt, 1 + (ntarget/2) - n_sero_trt);
+
+      if(t1(j) - t0(j) > 0){
+        win_draw(j) = 1;
+      }
+    }
+
+    probsuccess = arma::mean(win_draw);
+
+    if(probsuccess > (float)cfg["post_sero_thresh"]){
+      win++;
+    }
+
+  }
+
+  return (float)arma::mean(win);
+
+}
 
 
 
