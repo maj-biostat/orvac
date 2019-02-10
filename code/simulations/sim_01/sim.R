@@ -12,7 +12,8 @@ gen_dat <- function(cfg, n_override = NULL){
                    trt = numeric(n),
                    remote = numeric(n),
                    accrt = numeric(n),      # time of randomisation
-                   age_months = numeric(n), # age at time of randomisation
+                   age = numeric(n), # age at time of randomisation
+                   current_age = numeric(n), # age at look
                    trial_months_at_max_age = numeric(n),
                    serot2 = rep(NA, n),
                    serot3 = rep(NA, n),
@@ -31,7 +32,7 @@ gen_dat <- function(cfg, n_override = NULL){
   dt[,remote := rbinom(n, 1, prob = cfg$remoteprob)]
 
   # age is at time of randomisation, i.e. at their accrual time
-  dt[,age_months := rtruncnorm(n,
+  dt[,age := rtruncnorm(n,
                                cfg$age_months_lwr,
                                cfg$age_months_upr,
                                cfg$age_months_mean,
@@ -40,7 +41,7 @@ gen_dat <- function(cfg, n_override = NULL){
 
   dt[,accrt := (id - 1) * cfg$months_per_person]
 
-  dt[,trial_months_at_max_age := cfg$max_age_fu_months - age_months + accrt]
+  dt[,trial_months_at_max_age := cfg$max_age_fu_months - age + accrt]
 
   # seroconversion
   dt$serot2[1:cfg$nmaxsero] = rbinom(cfg$nmaxsero, 1, prob = cfg$baselineprobsero)
@@ -61,7 +62,6 @@ gen_dat <- function(cfg, n_override = NULL){
   # censoring time at interim are all different so not set here.
   # for convenience/consistency, censoring at max also set at time of interim
 
-  
   # fu & surveillance 
   
   dt[,fu1:= runif(n, cfg$fu1_lwr, cfg$fu1_upr)]
@@ -70,6 +70,7 @@ gen_dat <- function(cfg, n_override = NULL){
   
   dt
 }
+
 
 
 censoring <- function(accrt, evtt, fu1, fu2, age, look){
@@ -440,79 +441,17 @@ clin_dat <- function(d, cfg, look, trt_status = 0){
   # age of child is 9 - 6 + 7 = 10 months of age
   age_at_interim <- interim_month - 
     d$accrt[d$trt == trt_status][1:n_obs_grp] +
-    d[d$trt == trt_status,age_months][1:n_obs_grp]
+    d[d$trt == trt_status,age][1:n_obs_grp]
     
   # 
   mcens <- censoring(accrt = d[d$trt == trt_status,accrt][1:n_obs_grp],
                      evtt = d[d$trt == trt_status,evtt][1:n_obs_grp],
                      fu1 = d[d$trt == trt_status,fu1][1:n_obs_grp],
                      fu2 = d[d$trt == trt_status,fu2][1:n_obs_grp],
-                     age = d$age_months[d$trt == trt_status][1:n_obs_grp],
+                     age = d$age[d$trt == trt_status][1:n_obs_grp],
                      look = look)
   
-  # accrt = d[d$trt == trt_status,accrt][1:n_obs_grp]
-  # evtt = d[d$trt == trt_status,evtt][1:n_obs_grp]
-  # fu1 = d[d$trt == trt_status,fu1][1:n_obs_grp]
-  # fu2 = d[d$trt == trt_status,fu2][1:n_obs_grp]
-  # age = d$age_months[d$trt == trt_status][1:n_obs_grp]
-  # look = look
-  
-  # 
-  # 
-  # # AGE BASED CENSORING
-  # # if event time + age_at_rand > 36 then censor because we only follow to 36 months
-  # cen_current <- ifelse(d$evtt[d$trt == trt_status][1:n_obs_grp] - 
-  #                         d$accrt[d$trt == trt_status][1:n_obs_grp] +
-  #                         d$age_months[d$trt == trt_status][1:n_obs_grp] >
-  #                         cfg$max_age_fu_months , 1, 0)
-  # 
-  # 
-  # 
-  # if (look < length(cfg$looks)){
-  #   
-  #   # EVENT TIME BASED CENSORING
-  #   # if the evtt + time_of_rand > month of interim then censor because the event
-  #   # happens some after this interim
-  #   cen_current <- ifelse(d$evtt[d$trt == trt_status][1:n_obs_grp] >
-  #                           interim_month , 1, cen_current)
-  #   
-  #   # SURVEILLANCE VISIT BASED CENSORING 
-  #   # did we observe the event at a surveillance vist prior to this interim?
-  #   
-  #  
-  #   
-  #   
-  #   # what is their censoring time?
-  #   cent_current <- pmin(cfg$max_age_fu,
-  #                        cfg$interimmnths[look] - d$accrt[d$trt == trt_status][1:n_obs_grp])
-  # } else {
-  #   # EVENT TIME BASED CENSORING
-  #   # and now use the final_analysis_month as the reference point for censoring
-  #   cen_current <- ifelse(d$evtt[d$trt == trt_status][1:n_obs_grp] >
-  #                           cfg$final_analysis_month , 1, cen_current)
-  #   # assuming that individual i was censored, what is their censoring time?
-  #   cent_current <- pmin(cfg$max_age_fu,
-  #                        cfg$final_analysis_month - d$accrt[d$trt == trt_status][1:n_obs_grp])
-  # }
 
-  # consolidate the evtt and the censoring time at interim into obst_current
-  # obst_current <- mcens[,1]
-  # 
-  # 
-  # ifelse(mcens[,2] == 1, mcens[,1], 
-  #                        d$evtt[d$trt == trt_status][1:n_obs_grp] - 
-  #                          d$accrt[d$trt == trt_status][1:n_obs_grp])
-  
-  # this is the data we currently see in this trt_status group
-  # d_current <- cbind(idx = 1:n_obs_grp,
-  #                    interim_month = interim_month,
-  #                    age_at_rand = d$age_months[d$trt == trt_status][1:n_obs_grp],
-  #                    age_at_interim = age_at_interim,
-  #                    accrt = accrualtimes,
-  #                    evtt = d$evtt[d$trt == trt_status][1:n_obs_grp],
-  #                    cen_current = cen_current,
-  #                    cent_current = cent_current,
-  #                    obst_current = obst_current)
   
   # number of uncensored obs and total of time to events
   n_uncen <- sum(1 - mcens[,2])
@@ -575,21 +514,21 @@ clin_impute <- function(d, lambda, trt_status, n_impute, n_obs_grp,
     # evtt_rep_x <- evtt_rep[[x]]
     # 
     # cen_x <- ifelse(evtt_rep_x +
-    #                   d$age_months[d$trt == trt_status][1:(n_obs_grp + n_impute)] >
+    #                   d$age[d$trt == trt_status][1:(n_obs_grp + n_impute)] >
     #                   cfg$max_age_fu_months , 1, 0)
     
     mcens <- censoring(accrt = d$accrt[d$trt == trt_status][1:(n_obs_grp + n_impute)],
                        evtt = evtt_rep[[x]],
                        fu1 = d[d$trt == trt_status,fu1][1:(n_obs_grp + n_impute)],
                        fu2 = d[d$trt == trt_status,fu2][1:(n_obs_grp + n_impute)],
-                       age = d$age_months[d$trt == trt_status][1:(n_obs_grp + n_impute)],
+                       age = d$age[d$trt == trt_status][1:(n_obs_grp + n_impute)],
                        look = length(cfg$looks))
     
     # accrt = d$accrt[d$trt == trt_status][1:(n_obs_grp + n_impute)]
     # evtt = evtt_rep[[x]]
     # fu1 = d[d$trt == trt_status,fu1][1:(n_obs_grp + n_impute)]
     # fu2 = d[d$trt == trt_status,fu2][1:(n_obs_grp + n_impute)]
-    # age = d$age_months[d$trt == trt_status][1:(n_obs_grp + n_impute)]
+    # age = d$age[d$trt == trt_status][1:(n_obs_grp + n_impute)]
 
     
 

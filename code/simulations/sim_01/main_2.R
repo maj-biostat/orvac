@@ -12,6 +12,8 @@ library(truncnorm)
 library(beepr)
 library(optparse)
 
+library(orvacsim)
+
 source("util.R")
 source("sim.R")
 
@@ -69,7 +71,6 @@ if(!debug){
   cfg <- sim_cfg(opt$cfgfile, opt)
   
 } else {
-  
   cfgfile = "cfg1.yaml"
   cfg <- sim_cfg("cfg1.yaml", opt)
 }
@@ -83,7 +84,8 @@ dt1 <- gen_dat(cfg)
 # Initiate cluster
 cl <- NA
 if(!debug){
-  cl <- makeCluster(parallel::detectCores() - 2, outfile="")
+  # cl <- makeCluster(parallel::detectCores() - 2, outfile="")
+  cl <- makeCluster(3, outfile="")
   registerDoParallel(cl)
 } else {
   registerDoSEQ()
@@ -94,7 +96,9 @@ flog.info("number of workers %s", nworkers)
 
 # start the clock
 start <- proc.time()
-packs <- c("data.table", "futile.logger", "configr", "survival", "foreach", "truncnorm", "beepr")
+packs <- c("data.table", "futile.logger", "configr", "survival", 
+           "foreach", "truncnorm", "beepr", "orvacsim", 
+           "Rcpp", "RcppParallel", "RcppDist")
 
 
 # demon seed
@@ -135,7 +139,7 @@ results <- foreach(i = 1:cfg$nsims,
     # idx = i = look = 1
     # idx = i = 2; look = look + 1; look
     # idx = i = look = 5
-    # idx = i = look = 8
+    # idx = i = look = 10
     # idx = i = 1; look = 28
     # idx = i = 1; look = 33
 

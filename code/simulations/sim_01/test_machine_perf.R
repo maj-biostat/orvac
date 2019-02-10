@@ -91,7 +91,7 @@ cat(sprintf(" user    %s\n system  %s\n elapsed %s\n",
             round(duration[2], 2), 
             round(duration[3], 2) ))
 
-cat(sprintf(" user time per sim   %s\n\n", 
-            round(duration[1], 2) / nsim))
+cat(sprintf(" elapsed time per sim   %s\n\n", 
+            round(duration[3], 2) / nsim))
 
 

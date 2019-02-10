@@ -1,5 +1,36 @@
 
 
+
+COL_ID        <-    0 + 1
+COL_TRT       <-    1 + 1
+COL_ACCRT     <-    2 + 1
+COL_AGE       <-    3 + 1
+
+COL_SEROT2    <-    4 + 1
+COL_SEROT3    <-    5 + 1
+COL_PROBT3    <-    6 + 1
+
+COL_EVTT      <-    7 + 1
+
+COL_FU1       <-    8 + 1
+COL_FU2       <-    9 + 1
+
+COL_CURAGE    <-    10 + 1
+COL_CENT      <-    11 + 1
+COL_OBST      <-    12 + 1
+COL_CEN       <-    13 + 1
+
+
+COL_THETA0    <-   0 +1
+COL_THETA1    <-    1+1
+COL_DELTA     <-    2+1
+
+dnames <- c("id", "trt", "accrt", "age", 
+            "serot2", "serot3", "probt3", 
+            "evtt", "fu1", "fu2", "curage", "cent", "obst", "cen")
+
+
+
 # To test, type test_file('util.R')
 
 
@@ -511,6 +542,38 @@ print_clin_res <- function(m){
   
   df
 }
+
+
+
+
+print_cens_warning <- function(desc, current_interim_mnth, accrt, evtt, age, obs_mnths){
+  paste0("Warning 1: unhandled censoring case \n ",
+         "(", desc, ")\n",
+         "interim month ", current_interim_mnth, "\n",
+         "accrual time ", accrt, "\n",
+         "event time ", evtt, "\n",
+         "age at event time ", evtt + age, "\n",
+         "surveillance months \n", paste0(obs_mnths, collapse = ", "))
+}
+
+print_cens_help <- function(x, ss, cenx, tx, current_interim_mnth, accrtx, evttx, agex, obs_mnthsx){
+  paste0("x...............................", x, "\n",
+         "ss..............................", ss, "\n",
+         "cen.............................", cenx, "\n",
+         "t...............................", tx, "\n",
+         "interim month...................", current_interim_mnth, "\n",
+         "accrual time....................", accrtx, "\n",
+         # months from randomisation to the event
+         "evt time........................", evttx , "\n", 
+         # evt time plus accrual - 
+         "evt time plus accrual...........", evttx + accrtx, "\n",
+         # age at randomisation 
+         "age at randomisation............", agex, "\n", 
+         # age at randomisation plus the duration of time to the event
+         "age at event time...............", evttx + agex, "\n", 
+         "surveillance months (time relative to start of trial)\n", paste0(obs_mnthsx, collapse = ", "))
+}
+
 
 
 stop_immu <- function(stop_ven_samp,
