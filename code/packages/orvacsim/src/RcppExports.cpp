@@ -17,6 +17,32 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rcpp_clin
+arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look);
+RcppExport SEXP _orvacsim_rcpp_clin(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_clin(d, cfg, look));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpp_censoring
+arma::mat rcpp_censoring(const arma::mat& d_new, const int look, const Rcpp::List& cfg);
+RcppExport SEXP _orvacsim_rcpp_censoring(SEXP d_newSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type d_new(d_newSEXP);
+    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_censoring(d_new, look, cfg));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rcpp_immu
 Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look);
 RcppExport SEXP _orvacsim_rcpp_immu(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP) {
@@ -88,31 +114,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpp_censoring
-arma::mat rcpp_censoring(const arma::mat d, const int look, const int trtstatus, const int iend, const float curmonth, const float surveillancemonths);
-RcppExport SEXP _orvacsim_rcpp_censoring(SEXP dSEXP, SEXP lookSEXP, SEXP trtstatusSEXP, SEXP iendSEXP, SEXP curmonthSEXP, SEXP surveillancemonthsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat >::type d(dSEXP);
-    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
-    Rcpp::traits::input_parameter< const int >::type trtstatus(trtstatusSEXP);
-    Rcpp::traits::input_parameter< const int >::type iend(iendSEXP);
-    Rcpp::traits::input_parameter< const float >::type curmonth(curmonthSEXP);
-    Rcpp::traits::input_parameter< const float >::type surveillancemonths(surveillancemonthsSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_censoring(d, look, trtstatus, iend, curmonth, surveillancemonths));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_dat", (DL_FUNC) &_orvacsim_rcpp_dat, 1},
+    {"_orvacsim_rcpp_clin", (DL_FUNC) &_orvacsim_rcpp_clin, 3},
+    {"_orvacsim_rcpp_censoring", (DL_FUNC) &_orvacsim_rcpp_censoring, 3},
     {"_orvacsim_rcpp_immu", (DL_FUNC) &_orvacsim_rcpp_immu, 3},
     {"_orvacsim_rcpp_n_obs", (DL_FUNC) &_orvacsim_rcpp_n_obs, 5},
     {"_orvacsim_rcpp_lnsero", (DL_FUNC) &_orvacsim_rcpp_lnsero, 2},
     {"_orvacsim_rcpp_immu_interim_post", (DL_FUNC) &_orvacsim_rcpp_immu_interim_post, 4},
     {"_orvacsim_rcpp_immu_interim_ppos", (DL_FUNC) &_orvacsim_rcpp_immu_interim_ppos, 7},
-    {"_orvacsim_rcpp_censoring", (DL_FUNC) &_orvacsim_rcpp_censoring, 6},
     {NULL, NULL, 0}
 };
 

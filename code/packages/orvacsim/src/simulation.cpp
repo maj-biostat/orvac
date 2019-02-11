@@ -32,7 +32,7 @@
 #define COL_THETA1        1
 #define COL_DELTA         2
 
-#define _DEBUG  0
+#define _DEBUG  1
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -42,7 +42,7 @@
 #define DBG( os, msg )
 #endif
 
-#define _INFO  0
+#define _INFO  1
 
 #if _INFO
 #define INFO( os, msg )                                \
@@ -73,7 +73,25 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
                              const int post_draw,
                              const Rcpp::List& lnsero,
                              const Rcpp::List& cfg);
+arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look);
+arma::mat rcpp_censoring(const arma::mat& d_new,
+                         const int look,
+                         const Rcpp::List& cfg);
 // end function prototypes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -106,7 +124,7 @@ arma::mat rcpp_dat(const Rcpp::List& cfg) {
     // tte - the paramaterisation of rexp uses SCALE NOTE RATE!!!!!!!!!!!
     // tte - the paramaterisation of rexp uses SCALE NOTE RATE!!!!!!!!!!!
     // tte - the paramaterisation of rexp uses SCALE NOTE RATE!!!!!!!!!!!
-    d(i, COL_EVTT) = R::rexp((float)cfg["b0tte"] + d(i, COL_TRT) * (float)cfg["b1tte"]);
+    d(i, COL_EVTT) = R::rexp(1/((float)cfg["b0tte"] + d(i, COL_TRT) * (float)cfg["b1tte"]));
 
     // fu 1 and 2 times
     d(i, COL_FU1) = R::runif((float)cfg["fu1_lwr"], (float)cfg["fu1_upr"]);
@@ -115,6 +133,175 @@ arma::mat rcpp_dat(const Rcpp::List& cfg) {
 
   return d;
 }
+
+
+// [[Rcpp::export]]
+arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
+
+
+  arma::mat d_new = arma::mat(d);
+
+  Rcpp::NumericVector looks = cfg["looks"];
+  Rcpp::NumericVector months = cfg["interimmnths"];
+
+  arma::mat m = arma::zeros((int)cfg["post_draw"] , 3);
+  int mylook = look - 1;
+  int nimpute1 = 0;
+  int nimpute2 = 0;
+  double ppos_n = 0;
+  double ppos_max = 0;
+  Rcpp::List lnsero;
+  Rcpp::List pp1;
+  Rcpp::List pp2;
+  Rcpp::List ret = Rcpp::List::create(0);
+  arma::mat surveill_res = arma::zeros(d.n_rows, 3);
+
+  int nmaxvisit = std::floor((float)months[mylook]/(float)cfg["surveillance_mnths"]);
+  arma::vec obs_mnths = arma::zeros(nmaxvisit);
+
+  if(looks[mylook] < Rcpp::max(looks)){
+
+    //DBG(Rcpp::Rcout, "clin interim analysis ");
+
+    for(int i = 0; i < d_new.n_rows; i++){
+
+      int cen = 0;
+      double tte = 0;
+
+      // if the current interim is prior to the enrollment of the individual then their
+      // current age is set to NA
+      d_new(i, COL_CURAGE) = months[mylook] - d_new(i, COL_ACCRT) + d_new(i, COL_AGE);
+      d_new(i, COL_CURAGE) = d_new(i, COL_CURAGE) < 0 ? NA_REAL : d_new(i, COL_CURAGE);
+
+      // We will observe participant x at these surveillance visits.
+      // Note that these are adjusted by accrual time to give times from the start of the trial.
+      obs_mnths(0) = d_new(i, COL_ACCRT) + d_new(i, COL_FU1);
+      obs_mnths(1) = d_new(i, COL_ACCRT) + d_new(i, COL_FU2);
+
+      for(int j = 2; j < nmaxvisit; j++){
+
+        obs_mnths(j) = d_new(i, COL_ACCRT) + ((j-1) * (double)cfg["surveillance_mnths"]);
+      }
+
+      DBG(Rcpp::Rcout, "obs_mnths " << std::endl << obs_mnths);
+
+      if(months[mylook] < (double)arma::min(obs_mnths)){
+        d_new(i, COL_CEN) = 1;
+        d_new(i, COL_OBST) = (double)arma::min(obs_mnths) - d_new(i, COL_ACCRT);
+        continue;
+      }
+
+
+
+      // NEXT - FILL IN THE BLANKS FOR THE REMAINDER OF THIS CENSORING LOOP.
+
+
+      // d_new(i, COL_CENT) = surveill_res(i, 1);
+      // d_new(i, COL_OBST) = surveill_res(i, 2);
+      // d_new(i, COL_CEN) = surveill_res(i, 3);
+
+    }
+
+    // ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
+    //                          Rcpp::Named("nimpute1") = nimpute1,
+    //                          Rcpp::Named("nimpute2") = nimpute2,
+    //                          Rcpp::Named("lnsero") = lnsero,
+    //                          Rcpp::Named("posterior") = m,
+    //                          Rcpp::Named("ppn") = pp1,
+    //                          Rcpp::Named("ppmax") = pp2);
+
+  }
+
+  return d_new;
+}
+
+
+// [[Rcpp::export]]
+arma::mat rcpp_censoring(const arma::mat& d_new,
+                         const int look,
+                         const Rcpp::List& cfg) {
+
+  arma::mat res = arma::zeros(1, 3);
+  arma::vec currentage = arma::zeros(d_new.n_rows);
+  arma::vec obsmnths = arma::zeros(d_new.n_rows);
+
+  Rcpp::NumericVector looks = cfg["looks"];
+  Rcpp::NumericVector months = cfg["interimmnths"];
+
+  int mylook = look - 1;
+  int curmonth = months[mylook];
+  // number of surveillance visits are per individual (excludes fu1 and fu2)
+  // this is the maximum possile number of surveillance visits to date
+
+
+  //DBG(Rcpp::Rcout, "curmonth " << curmonth);
+  //DBG(Rcpp::Rcout, "nmaxvisit " << nmaxvisit);
+
+  // int j = 0;
+  // for(int i = 0; i < iend; i++){
+  //
+  //   Rcpp::Rcout << "test " << d_new(i, 0) << d_new(i, 1) << std::endl;
+  //
+  //   if(d_new(i, COL_TRT) == trtstatus){
+  //
+  //
+  //     //d["current_age"] = d["age"] - d["accrt"] + curmonth;
+  //
+  //     currentage[j] = 3;
+  //
+  //
+  //
+  //   }
+  //
+  //
+  //
+  // }
+
+
+  //d2 <-
+  //
+  //
+  //NumericVector ageataccr = d["age"];
+  //NumericVector accrt = d["accrt"];
+  //NumericVector fu1 = d["fu1"];
+  //NumericVector fu2 = d["fu2"];
+  //NumericVector currentage = d["current_age"];
+  //
+  //
+  //for(int i = istart-1; i < iend-1; i++){
+  //
+  //  //d["current_age"] = d["age"] - d["accrt"] + curmonth;
+  //  currentage[i] = 3;
+  //}
+
+
+  //d["current_age"] = d["age"] - d["accrt"] + curmonth;
+
+  //n_max_vis = std::floor(curmonth/surveillancemonths);
+
+  //Rcpp::Rcout << "test" << d << std::endl;
+
+  // allocate the output matrix
+  //Rcpp::NumericMatrix output(x.nrow(), x.ncol());
+
+  // SquareRoot functor (pass input and output matrixes)
+  //SquareRoot squareRoot(x, output);
+
+  // call parallelFor to do the work
+  //parallelFor(0, x.length(), squareRoot);
+
+  // return the output matrix
+
+  //res = arma::join_rows(d, currentage);
+
+
+  return res;
+}
+
+
+
+
+
 
 
 // [[Rcpp::export]]
@@ -350,80 +537,7 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
 
 
 
-// [[Rcpp::export]]
-arma::mat rcpp_censoring(const arma::mat d,
-                                   const int look,
-                                   const int trtstatus,
-                                   const int iend,
-                                   const float curmonth,
-                                   const float surveillancemonths) {
 
-  arma::mat res = arma::zeros(d.n_rows, d.n_cols + 1);
-  arma::vec currentage = arma::zeros(d.n_rows);
-  arma::vec obsmnths = arma::zeros(d.n_rows);
-
-  int nmaxvisit = std::floor(curmonth/surveillancemonths);
-
-  int j = 0;
-  for(int i = 0; i < iend; i++){
-
-    Rcpp::Rcout << "test " << d(i, 0) << d(i, 1) << std::endl;
-
-    if(d(i, COL_TRT) == trtstatus){
-
-
-      //d["current_age"] = d["age"] - d["accrt"] + curmonth;
-
-      currentage[j] = 3;
-
-
-
-    }
-
-
-
-  }
-
-
-  //d2 <-
-  //
-  //
-  //NumericVector ageataccr = d["age"];
-  //NumericVector accrt = d["accrt"];
-  //NumericVector fu1 = d["fu1"];
-  //NumericVector fu2 = d["fu2"];
-  //NumericVector currentage = d["current_age"];
-//
-//
-  //for(int i = istart-1; i < iend-1; i++){
-//
-  //  //d["current_age"] = d["age"] - d["accrt"] + curmonth;
-  //  currentage[i] = 3;
-  //}
-
-
-  //d["current_age"] = d["age"] - d["accrt"] + curmonth;
-
-  //n_max_vis = std::floor(curmonth/surveillancemonths);
-
-  //Rcpp::Rcout << "test" << d << std::endl;
-
-  // allocate the output matrix
-  //Rcpp::NumericMatrix output(x.nrow(), x.ncol());
-
-  // SquareRoot functor (pass input and output matrixes)
-  //SquareRoot squareRoot(x, output);
-
-  // call parallelFor to do the work
-  //parallelFor(0, x.length(), squareRoot);
-
-  // return the output matrix
-
-  res = arma::join_rows(d, currentage);
-
-
-  return res;
-}
 
 
 

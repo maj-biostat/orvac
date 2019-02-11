@@ -5,6 +5,14 @@ rcpp_dat <- function(cfg) {
     .Call(`_orvacsim_rcpp_dat`, cfg)
 }
 
+rcpp_clin <- function(d, cfg, look) {
+    .Call(`_orvacsim_rcpp_clin`, d, cfg, look)
+}
+
+rcpp_censoring <- function(d_new, look, cfg) {
+    .Call(`_orvacsim_rcpp_censoring`, d_new, look, cfg)
+}
+
 rcpp_immu <- function(d, cfg, look) {
     .Call(`_orvacsim_rcpp_immu`, d, cfg, look)
 }
@@ -23,9 +31,5 @@ rcpp_immu_interim_post <- function(d, nobs, post_draw, lnsero) {
 
 rcpp_immu_interim_ppos <- function(d, m, nobs, nimpute, post_draw, lnsero, cfg) {
     .Call(`_orvacsim_rcpp_immu_interim_ppos`, d, m, nobs, nimpute, post_draw, lnsero, cfg)
-}
-
-rcpp_censoring <- function(d, look, trtstatus, iend, curmonth, surveillancemonths) {
-    .Call(`_orvacsim_rcpp_censoring`, d, look, trtstatus, iend, curmonth, surveillancemonths)
 }
 

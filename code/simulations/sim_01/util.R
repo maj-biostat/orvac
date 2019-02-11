@@ -42,6 +42,13 @@ compute_sero_delta <- function(p_ctl, p_trt){
 }
 
 
+convert_to_df <- function(m){
+  
+  d2 <- as.data.frame(m)
+  names(d2) <- dnames
+  return(d2)
+}
+
 sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   
   tt <- tryCatch(configtmp <- read.config(file = cfgfile),
