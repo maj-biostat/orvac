@@ -265,8 +265,15 @@ test_that("immu model - estimated post and diff", {
   
   for(i in 1:1000){
     d <- rcpp_dat(cfg)
-    m <- rcpp_immu(d, cfg, look)
     
+    info_delay <- 0
+    look <- 32
+    nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
+    lnsero <- rcpp_lnsero(d, nobs)
+
+    # call this instead.
+    m <- rcpp_immu_interim_post(d, nobs, cfg$post_draw, lnsero)
+
     res[i,1] <- mean(m[, COL_THETA0 ])
     res[i,2] <- mean(m[, COL_THETA1 ])
     res[i,3] <- mean(m[, COL_DELTA ])
@@ -298,3 +305,147 @@ test_that("immu model - estimated post and diff", {
 
 
 
+test_that("immu model - posterior predictive", {
+  
+
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  
+  d <- readRDS("tests/dat-example.RDS")
+  cfg <- readRDS("tests/cfg-example.RDS")
+
+  run_loop <- function(cfg){
+    v1 <- numeric(1000)
+    v2 <- numeric(1000)
+    for(i in 1:1000){
+      
+      d <- rcpp_dat(cfg)
+      info_delay <- 2
+      look <- 6
+      nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
+      lnsero <- rcpp_lnsero(d, nobs)
+      m <- rcpp_immu_interim_post(d, nobs, cfg$post_draw, lnsero)
+      nimpute1 <- cfg$looks[look] - nobs
+      ppos_n = rcpp_immu_interim_ppos(d, m, nobs, nimpute1, cfg$post_draw, lnsero, cfg)
+      v1[i] <- ppos_n[[1]]
+      v2[i] <- ppos_n[[2]]
+    }
+    return(list(v1, v2))
+  }
+  
+    
+  # ensure setup is as expected
+  expect_equal(cfg$looks, c(70L, 100L, 130L, 160L, 190L, 220L, 250L, 280L, 310L, 340L, 
+                            370L, 400L, 430L, 460L, 490L, 520L, 550L, 580L, 610L, 640L, 670L, 
+                            700L, 730L, 760L, 790L, 820L, 850L, 880L, 910L, 940L, 970L, 1000L))
+  
+  expect_equal(cfg$interimmnths, c(7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 
+                                   52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 
+                                   100))
+  
+  expect_equal(cfg$months_per_person, 0.1)
+  
+  cfg$baselineprobsero <- 0.4
+  cfg$trtprobsero <- 0.5
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+  cfg$deltaserot3
+  v <- run_loop(cfg)
+  hist(v[[1]])
+  hist(v[[2]])
+  # got to be within 1%
+  true_diff <- cfg$trtprobsero - cfg$baselineprobsero
+  expect_lt(abs(mean(v[[2]]) - true_diff),  1/100)
+  
+ 
+  cfg$baselineprobsero <- 0.4
+  cfg$trtprobsero <- 0.4
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+  cfg$deltaserot3
+  v <- run_loop(cfg)
+  hist(v[[1]])
+  hist(v[[2]])
+  true_diff <- cfg$trtprobsero - cfg$baselineprobsero
+  expect_lt(abs(mean(v[[2]]) - true_diff),  1/100)
+  mean(v[[1]])
+  
+  cfg$baselineprobsero <- 0.4
+  cfg$trtprobsero <- 0.6
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+  cfg$deltaserot3
+  vnew <- run_loop(cfg)
+  hist(vnew[[1]])
+  hist(vnew[[2]])
+  true_diff <- cfg$trtprobsero - cfg$baselineprobsero
+  expect_lt(abs(mean(vnew[[2]]) - true_diff),  1/100)
+  mean(vnew[[1]])
+  
+  
+  
+})
+
+
+test_that("immu model - rcpp_immu call", {
+  
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  
+  d <- readRDS("tests/dat-example.RDS")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  # ensure setup is as expected
+  #                            1   2    3     4      5     6     7
+  expect_equal(cfg$looks, c(70L, 100L, 130L, 160L, 190L, 220L, 250L, 280L, 310L, 340L, 
+                            370L, 400L, 430L, 460L, 490L, 520L, 550L, 580L, 610L, 640L, 670L, 
+                            700L, 730L, 760L, 790L, 820L, 850L, 880L, 910L, 940L, 970L, 1000L))
+  
+  expect_equal(cfg$interimmnths, c(7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 
+                                   52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 
+                                   100))
+  
+  expect_equal(cfg$months_per_person, 0.1)
+  
+  cfg$baselineprobsero <- 0.4
+  cfg$trtprobsero <- 0.5
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+  cfg$deltaserot3
+  cfg$sero_info_delay
+
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d)
+  names(d2) <- dnames
+  look <- 6
+  l <- rcpp_immu(d, cfg, look)
+  expect_equal(length(l), 0)
+  
+  hist(l$posterior[, COL_DELTA])
+  abline(v = 0.1, col = "red")
+ 
+  str(l)  
+  
+  
+  
+  
+  
+  
+  # test for zero length when beyond nmaxsero
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d)
+  names(d2) <- dnames
+  look <- 7
+  l <- rcpp_immu(d, cfg, look)
+  expect_equal(length(l), 0)
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d)
+  names(d2) <- dnames
+  look <- 8
+  l <- rcpp_immu(d, cfg, look)
+  expect_equal(length(l), 0)
+  
+})
