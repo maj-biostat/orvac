@@ -21,8 +21,8 @@ rcpp_immu_interim_post <- function(d, nobs, post_draw, lnsero) {
     .Call(`_orvacsim_rcpp_immu_interim_post`, d, nobs, post_draw, lnsero)
 }
 
-rcpp_immu_interim_pp <- function(d, m, nobs, nimpute, post_draw, lnsero, cfg) {
-    .Call(`_orvacsim_rcpp_immu_interim_pp`, d, m, nobs, nimpute, post_draw, lnsero, cfg)
+rcpp_immu_interim_ppos <- function(d, m, nobs, nimpute, post_draw, lnsero, cfg) {
+    .Call(`_orvacsim_rcpp_immu_interim_ppos`, d, m, nobs, nimpute, post_draw, lnsero, cfg)
 }
 
 rcpp_censoring <- function(d, look, trtstatus, iend, curmonth, surveillancemonths) {

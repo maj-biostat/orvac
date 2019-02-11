@@ -35,11 +35,21 @@
 #define _DEBUG  1
 
 #if _DEBUG
-#define DBGVAR( os, msg )                             \
+#define DBG( os, msg )                             \
 (os) << "DBG: " << __FILE__ << "(" << __LINE__ << ") "\
      << msg << std::endl
 #else
-#define DBGVAR( os, msg )
+#define DBG( os, msg )
+#endif
+
+#define _INFO  1
+
+#if _INFO
+#define INFO( os, msg )                                \
+   (os) << "INFO: " << __FILE__ << "(" << __LINE__ << ") "\
+        << msg << std::endl
+#else
+#define INFO( os, msg )
 #endif
 
 // function prototypes
@@ -56,14 +66,13 @@ arma::mat rcpp_immu_interim_post(const arma::mat& d,
                              const int nobs,
                              const int post_draw,
                              const Rcpp::List& lnsero);
-float rcpp_immu_interim_pp(const arma::mat& d,
-                           const arma::mat& m,
-                           const int nobs,
-                           const int nimpute,
-                           const int post_draw,
-                           const Rcpp::List& lnsero,
-                           const Rcpp::List& cfg);
-
+Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
+                             const arma::mat& m,
+                             const int nobs,
+                             const int nimpute,
+                             const int post_draw,
+                             const Rcpp::List& lnsero,
+                             const Rcpp::List& cfg);
 // end function prototypes
 
 
@@ -94,7 +103,9 @@ arma::mat rcpp_dat(const Rcpp::List& cfg) {
       d(i, COL_SEROT3) = R::rbinom(1, d(i, COL_PROBT3));
     }
 
-    // tte
+    // tte - the paramaterisation of rexp uses SCALE NOTE RATE!!!!!!!!!!!
+    // tte - the paramaterisation of rexp uses SCALE NOTE RATE!!!!!!!!!!!
+    // tte - the paramaterisation of rexp uses SCALE NOTE RATE!!!!!!!!!!!
     d(i, COL_EVTT) = R::rexp((float)cfg["b0tte"] + d(i, COL_TRT) * (float)cfg["b1tte"]);
 
     // fu 1 and 2 times
@@ -118,9 +129,13 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
   double ppos_n = 0;
   double ppos_max = 0;
   Rcpp::List lnsero;
+  Rcpp::List pp1;
+  Rcpp::List pp2;
   Rcpp::List ret;
 
-  if(looks[mylook] <= (int)cfg["nmaxsero"]){
+  if(looks[mylook] < (int)cfg["nmaxsero"]){
+
+    DBG(Rcpp::Rcout, "immu interim analysis ");
 
     // how many records did we observe in total (assumes balance)
     int nobs = rcpp_n_obs(d, look, looks, months, (float)cfg["sero_info_delay"]);
@@ -133,22 +148,40 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
     // therefore how many do we need to impute?
     nimpute1 = looks[mylook] - nobs;
-
     // predicted prob of success at interim
-    ppos_n = rcpp_immu_interim_pp(d, m,
+    pp1 = rcpp_immu_interim_ppos(d, m,
                                   nobs, nimpute1,
                                   (int)cfg["post_draw"],
                                   lnsero, cfg);
 
     // predicted prob of success at nmaxsero
     nimpute2 = (int)cfg["nmaxsero"] - nobs;
-    ppos_max = rcpp_immu_interim_pp(d, m, nobs, nimpute2,
+    pp2 = rcpp_immu_interim_ppos(d, m, nobs, nimpute2,
                                     (int)cfg["post_draw"],
                                             lnsero, cfg);
 
-    ret = Rcpp::List::create(nobs, nimpute1, nimpute2,
-                             lnsero, m,
-                             ppos_n, ppos_max);
+    ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
+                             Rcpp::Named("nimpute1") = nimpute1,
+                             Rcpp::Named("nimpute2") = nimpute2,
+                             Rcpp::Named("lnsero") = lnsero,
+                             Rcpp::Named("posterior") = m,
+                             Rcpp::Named("ppn") = pp1,
+                             Rcpp::Named("ppmax") = pp2);
+
+  } else if (looks[mylook] == (int)cfg["nmaxsero"]){
+
+    DBG(Rcpp::Rcout, "immu final analysis ");
+
+    // we assume that the final analysis delays until all results are back
+    int nobs = (int)cfg["nmaxsero"];
+    // how many successes in each arm?
+    lnsero = rcpp_lnsero(d, nobs);
+    // posterior at this interim
+    m = rcpp_immu_interim_post(d, nobs, (int)cfg["post_draw"], lnsero);
+
+    ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
+                             Rcpp::Named("lnsero") = lnsero,
+                             Rcpp::Named("posterior") = m);
   }
 
   return ret;
@@ -169,8 +202,8 @@ int rcpp_n_obs(const arma::mat& d,
   int flooraccrt = 0;
   float fudge = 0.0001;
 
-  DBGVAR(Rcpp::Rcout, "obs_to_month " << obs_to_month);
-  DBGVAR(Rcpp::Rcout, "info_delay " << info_delay);
+  DBG(Rcpp::Rcout, "obs_to_month " << obs_to_month);
+  DBG(Rcpp::Rcout, "info_delay " << info_delay);
 
   for(int i = 0; i < d.n_rows; i++){
 
@@ -179,7 +212,7 @@ int rcpp_n_obs(const arma::mat& d,
     if(flooraccrt == months[mylook] && i%2 == 1){
       // we accrue ctl/trt pairs simultaneously.
       nobs = i + 1 ;
-      DBGVAR(Rcpp::Rcout, "(Equal to) ID " << d(i, COL_ID) << " ACCRT "
+      DBG(Rcpp::Rcout, "(Equal to) ID " << d(i, COL_ID) << " ACCRT "
                                 << d(i, COL_ACCRT) << " at i = "
                                 << i << " nobs = " << nobs);
       break;
@@ -189,7 +222,7 @@ int rcpp_n_obs(const arma::mat& d,
     if(d(i, COL_ACCRT) + info_delay > months[mylook] + fudge  && i%2 == 0){
       // we accrue ctl/trt pairs simultaneously.
       nobs = i ;
-      DBGVAR(Rcpp::Rcout, "(Greater than) ID " << d(i, COL_ID) << " ACCRT "
+      DBG(Rcpp::Rcout, "(Greater than) ID " << d(i, COL_ID) << " ACCRT "
                                                << d(i, COL_ACCRT) << " at i = "
                                                << i << " nobs = " << nobs);
       break;
@@ -217,11 +250,17 @@ Rcpp::List rcpp_lnsero(const arma::mat& d,
     }
   }
 
-  DBGVAR(Rcpp::Rcout, "nobs " << nobs);
-  DBGVAR(Rcpp::Rcout, "n_sero_ctl " << n_sero_ctl);
-  DBGVAR(Rcpp::Rcout, "n_sero_trt " << n_sero_trt);
+  //DBG(Rcpp::Rcout, "nobs " << nobs);
+  //DBG(Rcpp::Rcout, "n_sero_ctl " << n_sero_ctl);
+  //DBG(Rcpp::Rcout, "n_sero_trt " << n_sero_trt);
 
-  Rcpp::List l = Rcpp::List::create(n_sero_ctl, n_sero_trt);
+  Rcpp::List l = Rcpp::List::create(Rcpp::Named("n_sero_ctl") = n_sero_ctl,
+                                    Rcpp::Named("n_sero_trt") = n_sero_trt);
+
+  //Rcpp::List l = Rcpp::List::create(n_sero_ctl, n_sero_trt);
+
+  //DBG(Rcpp::Rcout, "lnsero " << l);
+
   return l;
 }
 
@@ -246,7 +285,7 @@ arma::mat rcpp_immu_interim_post(const arma::mat& d,
 
 
 // [[Rcpp::export]]
-float rcpp_immu_interim_pp(const arma::mat& d,
+Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
                             const arma::mat& m,
                             const int nobs,
                             const int nimpute,
@@ -254,22 +293,19 @@ float rcpp_immu_interim_pp(const arma::mat& d,
                             const Rcpp::List& lnsero,
                             const Rcpp::List& cfg){
 
-
   int n_sero_ctl = 0;
   int n_sero_trt = 0;
-
   int win = 0;
-
   arma::vec t0 = arma::zeros(post_draw);
   arma::vec t1 = arma::zeros(post_draw);
-
-  arma::vec win_draw = arma::zeros(post_draw);
-
+  arma::vec delta_gt0 = arma::zeros(post_draw);
+  arma::vec postprobdelta_gt0 = arma::zeros(post_draw);
+  arma::mat delta1 = arma::zeros(post_draw, post_draw);
+  double mean_delta = 0;
   int ntarget = nobs + nimpute;
-  float probsuccess = 0;
 
-  // create 1000 phony interims conditional on our current understanding of theta0
-  // and theta1.
+  // create 1000 phony interims conditional on our current understanding
+  // of theta0 and theta1.
   for(int i = 0; i < post_draw; i++){
 
     // This is a view of the total draws at a sample size of nobs + nimpute
@@ -279,23 +315,44 @@ float rcpp_immu_interim_pp(const arma::mat& d,
     // update the posteriors
     for(int j = 0; j < post_draw; j++){
 
-      t0(j) = R::rbeta(1 + n_sero_ctl, 1 + (ntarget/2) - n_sero_trt);
+      t0(j) = R::rbeta(1 + n_sero_ctl, 1 + (ntarget/2) - n_sero_ctl);
       t1(j) = R::rbeta(1 + n_sero_trt, 1 + (ntarget/2) - n_sero_trt);
 
-      if(t1(j) - t0(j) > 0){
-        win_draw(j) = 1;
+      delta1(j, i) = t1(j) - t0(j);
+      mean_delta = mean_delta + delta1(j, i);
+
+      if(delta1(j, i) > 0){
+        delta_gt0(j) = 1;
       }
     }
 
-    probsuccess = arma::mean(win_draw);
-
-    if(probsuccess > (float)cfg["post_sero_thresh"]){
+    // empirical posterior probability that delta > 0
+    postprobdelta_gt0(i) = arma::mean(delta_gt0);
+    if(postprobdelta_gt0(i) > (float)cfg["post_sero_thresh"]){
       win++;
     }
 
+    //reset to zeros
+    delta_gt0 = arma::zeros(post_draw);
   }
 
-  return (float)arma::mean(win);
+  //DBG(Rcpp::Rcout, "pow " << std::pow((float)post_draw, 2.0) );
+
+  mean_delta = mean_delta / std::pow((float)post_draw, 2.0);
+
+  //DBG(Rcpp::Rcout, "mean difference mean_delta " << mean_delta );
+  //DBG(Rcpp::Rcout, "mean   postprobdelta_gt0 " << (double)arma::mean(postprobdelta_gt0) );
+  //DBG(Rcpp::Rcout, "median postprobdelta_gt0 " << (double)arma::median(postprobdelta_gt0) );
+  //DBG(Rcpp::Rcout, "min    postprobdelta_gt0 " << (double)arma::min(postprobdelta_gt0) );
+  //DBG(Rcpp::Rcout, "max    postprobdelta_gt0 " << (double)arma::max(postprobdelta_gt0) );
+  //DBG(Rcpp::Rcout, "win " << (double)win );
+  //DBG(Rcpp::Rcout, "post_draw " << (double)post_draw);
+  //DBG(Rcpp::Rcout, "mean wins " << (double)win / (double)post_draw );
+
+  Rcpp::List res = Rcpp::List::create(Rcpp::Named("ppos") = (double)win / (double)post_draw,
+                                      Rcpp::Named("delta") = mean_delta);
+
+  return res;
 
 }
 
