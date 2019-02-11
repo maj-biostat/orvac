@@ -105,7 +105,11 @@ results <- foreach(i = 1:cfg$nsims,
                    .combine = 'rbind'
                    ) %dopar%{
 
+                     
+                     
+                     
   # i = 1
+  #flog.info("Starting trial: i = %s", i)
   set.seed(cfg$seed + i)
   # sample size and venous sampling status
   ss_clin <- 0
@@ -128,6 +132,8 @@ results <- foreach(i = 1:cfg$nsims,
 
   # individual trial processing is 'embarrassingly parallel' hence the foreach dopar loop
   dotrial <- function(look){
+    
+    #flog.info("Started look, trial i = %s, look = %s", i, look)
 
     # idx = i = look = 1
     # idx = i = 2; look = look + 1; look
@@ -156,14 +162,10 @@ results <- foreach(i = 1:cfg$nsims,
                   stop_clin_sup,
                   cfg$looks[look],
                   cfg$nmaxsero)){
-      
-      cat("Running immu analysis.\n")
+
       m_immu_res <- tryCatch({
-        
         rcpp_immu(dt1, cfg, look)
-        
         # m_immu_res <- rcpp_immu(dt1, cfg, look)
-        
         # model_immu(d, cfg, look, i)
       }, error = function(err) {
         flog.fatal("CATCH ERROR model_immu_2 err = %s \n i = %s look = %s", err, i, look)
@@ -274,14 +276,15 @@ results <- foreach(i = 1:cfg$nsims,
         lrerr <- rep(NA, length(cfg$field_names))
         return(lrerr)
       })
+    
+    flog.info("Completed look, trial: i = %s, look = %s", i, look)
 
     return(lr)
   }
-  
-  
 
   res <- do.call(rbind, lapply(1:cfg$nlooks, dotrial))
-
+  
+  # flog.info("Finished trial: i = %s", i)
   return(res)
 }
 

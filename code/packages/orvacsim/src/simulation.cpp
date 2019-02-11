@@ -32,7 +32,7 @@
 #define COL_THETA1        1
 #define COL_DELTA         2
 
-#define _DEBUG  1
+#define _DEBUG  0
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -42,7 +42,7 @@
 #define DBG( os, msg )
 #endif
 
-#define _INFO  1
+#define _INFO  0
 
 #if _INFO
 #define INFO( os, msg )                                \
@@ -133,7 +133,7 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
   Rcpp::List pp2;
   Rcpp::List ret;
 
-  if(looks[mylook] < (int)cfg["nmaxsero"]){
+  if(looks[mylook] <= (int)cfg["nmaxsero"]){
 
     DBG(Rcpp::Rcout, "immu interim analysis ");
 
@@ -168,20 +168,6 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
                              Rcpp::Named("ppn") = pp1,
                              Rcpp::Named("ppmax") = pp2);
 
-  } else if (looks[mylook] == (int)cfg["nmaxsero"]){
-
-    DBG(Rcpp::Rcout, "immu final analysis ");
-
-    // we assume that the final analysis delays until all results are back
-    int nobs = (int)cfg["nmaxsero"];
-    // how many successes in each arm?
-    lnsero = rcpp_lnsero(d, nobs);
-    // posterior at this interim
-    m = rcpp_immu_interim_post(d, nobs, (int)cfg["post_draw"], lnsero);
-
-    ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
-                             Rcpp::Named("lnsero") = lnsero,
-                             Rcpp::Named("posterior") = m);
   }
 
   return ret;
