@@ -21,7 +21,7 @@ ggplot2::theme_set(theme_bw())
 
 # parse command line args
 option_list <- list(
-  make_option(c("-f", "--cfgfile"), type = "character", default = NULL,
+  make_option(c("-f", "--cfgfile"), type = "character", default = "cfg1.yaml",
               help = "config file name", metavar = "character"),
   make_option(c("-o", "--use"), type = "logical", default = FALSE,
               help = "override config file with command line settings",
@@ -60,13 +60,12 @@ if (length(opt) < 3){
   stop("At a minimum you need to specify the config file.\n", call. = FALSE)
 }
 
-debug = T
+debug = F
 if(!debug){
   
   if (opt$use == T && length(opt) <= 3){
     print_help(opt_parser)
-    stop("If you are going to override you need to specify further
-  command line args.\n", call.=FALSE)
+    stop("If you are going to override you need to specify further command line args.\n", call.=FALSE)
   }
   cfg <- sim_cfg(opt$cfgfile, opt)
   
@@ -79,8 +78,8 @@ if(!debug){
 # Initiate cluster
 cl <- NA
 if(!debug){
-  # cl <- makeCluster(parallel::detectCores() - 2, outfile="")
-  cl <- makeCluster(3, outfile="")
+  cl <- makeCluster(parallel::detectCores() - 2, outfile="")
+  # cl <- makeCluster(3, outfile="")
   registerDoParallel(cl)
 } else {
   registerDoSEQ()
@@ -136,6 +135,7 @@ results <- foreach(i = 1:cfg$nsims,
     # idx = i = look = 10
     # idx = i = 1; look = 28
     # idx = i = 1; look = 33
+    # look = look + 1
 
     m_immu_res <- NULL
     m_clin_res <- NULL
@@ -149,20 +149,6 @@ results <- foreach(i = 1:cfg$nsims,
                         stop_clin_sup = 0,
                         inconclusive = 0)
 
-
-    # Take a copy of the trial data so that we can fiddle with it.
-    # d <- copy(dt1)
-
-    # how many observations can we see? this is conditional on the accural rate
-    # interim_month <- cfg$interimmnths[look]
-    # n_obs <- cfg$looks[look]
-    # n_max <- cfg$nstop
-
-
-    look = 1
-    
-    
-    
     # immunological model
     if (!stop_immu(stop_ven_samp,
                   stop_immu_fut,
@@ -170,6 +156,8 @@ results <- foreach(i = 1:cfg$nsims,
                   stop_clin_sup,
                   cfg$looks[look],
                   cfg$nmaxsero)){
+      
+      cat("Running immu analysis.\n")
       m_immu_res <- tryCatch({
         
         rcpp_immu(dt1, cfg, look)
@@ -188,9 +176,6 @@ results <- foreach(i = 1:cfg$nsims,
       })
 
       # rule 1 - "futility test"
-      # at the nmaxsero (which I am assuming is the final analysis for this endpoint) ppos_max is NA
-      # if(cfg$looks[look] < cfg$nmaxsero){
-      
       # we do not make superiority assessments based on the immu endpoint. 
       # analysis for making decision is the same in the interim and at max sero
       # namely we look at the ppos based on simulated trials. 
@@ -200,45 +185,19 @@ results <- foreach(i = 1:cfg$nsims,
         stop_immu_fut <<- 1
         trial_state$stop_immu_fut <- 1
       }
-      # } 
-      # was the immunological arm successful at max sero n
-      # if (cfg$looks[look] == cfg$nmaxsero) {
-      #   
-      #   # cfg$baselineprobsero
-      #   # cfg$trtprobsero
-      #   if (mean(m_immu_res$posterior[,COL_DELTA]>0) < cfg$rule1_sero_pp_fut_thresh){
-      #     flog.info("Immu futile: ppos_max = %s threshold %s, i = %s look = %s", 
-      #               m_immu_res["ppos_max"], cfg$rule1_sero_pp_fut_thresh, i, look)
-      #     stop_immu_fut <<- 1
-      #     trial_state$stop_immu_fut <- 1
-      #   }
-      # }
-      
 
       # rule 3 - "stop venous sampling"
-      # if (m_immu_res$p > cfg$rule3_sero_pp_sup_thresh &&
-      #     !trial_state$stop_immu_fut){
-      #   stop_ven_samp <<- 1
-      #   trial_state$stop_ven_samp <- 1
-      # }
+      if (m_immu_res$ppn > cfg$rule3_sero_pp_sup_thresh && !trial_state$stop_immu_fut){
+        stop_ven_samp <<- 1
+        trial_state$stop_ven_samp <- 1
+      }
       
-      ss_immu <- n_obs
+      ss_immu <- cfg$looks[look]
     }
 
     
-
-
-    # do various tests on contents of m_immu_res  m_clin_res
-
-    # to ensure that we can populate the return list with something
-    if (exists("m_immu_res") & !is.null(m_immu_res)){
-      immu_res = m_immu_res
-    } else {
-      immu_res = rep(NA, length(cfg$immu_rtn_names))
-      names(immu_res) <- cfg$immu_rtn_names
-    }
     
-    
+    # cat(paste0("/n", m_immu_res,"/n"))
     
     
 
@@ -251,23 +210,58 @@ results <- foreach(i = 1:cfg$nsims,
     # update control variables
 
     lr <- tryCatch({
-      lr <- c(idxsim = i,
-            look = look,
-            n_obs = n_obs,
-            ss_immu = ss_immu,
-            ss_clin = ss_clin,
-            n_max = n_max,
-            n_max_sero = cfg$nmaxsero,
-            immu_res = immu_res,
-            clin_res = clin_res,
-            stop_v_samp = trial_state$stop_ven_samp,
-            stop_i_fut = trial_state$stop_immu_fut,
-            stop_c_fut = trial_state$stop_clin_fut,
-            stop_c_sup = trial_state$stop_clin_sup,
-            inconclusive = trial_state$inconclusive)
-
-        names(lr) <- cfg$field_names
-        lr
+      
+      # ensures all columns always present
+      lr <- list(idxsim = i,
+                 look = look,
+                 n_obs = cfg$looks[look],
+                 ss_immu = ss_immu,
+                 n_max = cfg$nstop,
+                 n_max_sero = cfg$nmaxsero,
+                 stop_v_samp = trial_state$stop_ven_samp,
+                 stop_i_fut = trial_state$stop_immu_fut,
+                 stop_c_fut = trial_state$stop_clin_fut,
+                 stop_c_sup = trial_state$stop_clin_sup,
+                 inconclusive = trial_state$inconclusive,
+                 i_nobs = NA,
+                 i_nimpute1 = NA,
+                 i_nimpute2 =  NA,
+                 i_n_sero_ctl = NA,
+                 i_n_sero_trt = NA,
+                 i_t0_mean = NA,
+                 i_t0_lwr = NA,
+                 i_t0_upr = NA,
+                 i_t1_mean = NA,
+                 i_t1_lwr = NA,
+                 i_t1_upr = NA,
+                 i_del_mean = NA,
+                 i_del_lwr = NA,
+                 i_del_upr = NA,
+                 i_pposn = NA,
+                 i_pposmax = NA
+                 
+                 )
+      
+      if (exists("m_immu_res") && !is.null(m_immu_res)){
+        lr$i_nobs <- m_immu_res$nobs
+        lr$i_nimpute1 <- m_immu_res$nimpute1
+        lr$i_nimpute2 <-  m_immu_res$nimpute2
+        lr$i_n_sero_ctl <- m_immu_res$lnsero$n_sero_ctl
+        lr$i_n_sero_trt <- m_immu_res$lnsero$n_sero_trt
+        lr$i_t0_mean <- mean(m_immu_res$posterior[,COL_THETA0])
+        lr$i_t0_lwr <- as.numeric(quantile(m_immu_res$posterior[,COL_THETA0], probs = 0.025))
+        lr$i_t0_upr <- as.numeric(quantile(m_immu_res$posterior[,COL_THETA0], probs = 0.975))
+        lr$i_t1_mean <- mean(m_immu_res$posterior[,COL_THETA1])
+        lr$i_t1_lwr <- as.numeric(quantile(m_immu_res$posterior[,COL_THETA1], probs = 0.025))
+        lr$i_t1_upr <- as.numeric(quantile(m_immu_res$posterior[,COL_THETA1], probs = 0.975))
+        lr$i_del_mean <- mean(m_immu_res$posterior[,COL_DELTA])
+        lr$i_del_lwr <- as.numeric(quantile(m_immu_res$posterior[,COL_DELTA], probs = 0.025))
+        lr$i_del_upr <- as.numeric(quantile(m_immu_res$posterior[,COL_DELTA], probs = 0.975))
+        lr$i_pposn <- m_immu_res$ppn$ppos
+        lr$i_pposmax <- m_immu_res$ppmax$ppos
+      }
+      
+      lr
 
       }, error = function(err) {
         flog.fatal("CATCH ERROR err = %s", err)
@@ -283,13 +277,15 @@ results <- foreach(i = 1:cfg$nsims,
 
     return(lr)
   }
+  
+  
 
   res <- do.call(rbind, lapply(1:cfg$nlooks, dotrial))
 
   return(res)
 }
 
-
+results <- as.data.frame(results)
 end <- proc.time()
 
 duration <- end - start

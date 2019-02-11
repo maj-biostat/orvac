@@ -110,6 +110,57 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
                    "inconclusive")
   
   
+  # l$field_names3 <- c("idxsim",
+  #                    "look",
+  #                    "n_obs",
+  #                    "ss_immu",
+  #                    "ss_clin",
+  #                    "n_max",
+  #                    "n_max_sero",
+  #                    
+  #                    "i_ppos_n", "i_ppos_max", "i_post_prop_ctl", "i_post_prop_trt",  # immunological
+  #                    "i_delta_mean", "i_delta_lwr_95", "i_delta_upr_95",          # immunological
+  #                    
+  #                    "c_ppos_n","c_ppos_max","c_post_lambda_ctl","c_post_lambda_trt", # clinical
+  #                    "c_lambda_mean", "c_lambda_lwr_95", "c_lambda_upr_95",       # clinical
+  #                    
+  #                    "stop_v_samp",
+  #                    "stop_i_fut",
+  #                    "stop_c_fut",
+  #                    "stop_c_sup",
+  #                    "inconclusive")
+  
+  l$simret <- list(idxsim = numeric(),
+             look = numeric(),
+             n_obs = numeric(),
+             ss_immu = numeric(),
+             n_max = numeric(),
+             n_max_sero = numeric(),
+             
+             i_nobs = numeric(),
+             i_nimpute1 = numeric(),
+             i_nimpute2  = numeric(),
+             i_n_sero_ctl = numeric(),
+             i_n_sero_trt = numeric(),
+             i_t0_mean = numeric(),
+             i_t0_lwr = numeric(),
+             i_t0_upr = numeric(),
+             i_t1_mean = numeric(),
+             i_t1_lwr = numeric(),
+             i_t1_upr = numeric(),
+             i_del_mean = numeric(),
+             i_del_lwr = numeric(),
+             i_del_upr = numeric(),
+             i_pposn  = numeric(),
+             i_pposmax = numeric(),
+             
+             stop_v_samp = numeric(),
+             stop_i_fut = numeric(),
+             stop_c_fut = numeric(),
+             stop_c_sup = numeric(),
+             inconclusive = numeric())
+  
+  
   # "stop_i_sup",
   
   l$immu_rtn_names <- c("ppos_n", "ppos_max", "mean_post_prop_ctl", "mean_post_prop_trt",
