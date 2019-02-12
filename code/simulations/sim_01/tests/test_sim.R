@@ -529,6 +529,13 @@ test_that("immu model - ", {
   library(orvacsim)
   library(data.table)
   source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  d <- readRDS("tests/tmp.RDS")
+  d2 <- rcpp_clin(d, cfg, 1)
+  
+  
+  
+  
   
   d <- readRDS("tests/dat-example.RDS")
   
@@ -556,7 +563,7 @@ test_that("immu model - ", {
     # saveRDS(d, "tests/tmp.RDS")
     d <- readRDS("tests/tmp.RDS")
     
-    d2 <- rcpp_clin(d, cfg, cfg$nlooks)
+    d2 <- rcpp_clin(d, cfg, 1)
   
     d2 <- as.data.frame(d2)
     names(d2) <- dnames

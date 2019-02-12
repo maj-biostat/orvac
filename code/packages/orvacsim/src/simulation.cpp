@@ -77,6 +77,10 @@ arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look);
 arma::mat rcpp_censoring(const arma::mat& d_new,
                          const int look,
                          const Rcpp::List& cfg);
+arma::vec rcpp_visits(const arma::mat& d_new,
+                      const int i,
+                      const int look,
+                      const Rcpp::List& cfg);
 // end function prototypes
 
 
@@ -153,106 +157,30 @@ arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
   int nimpute2 = 0;
   double ppos_n = 0;
   double ppos_max = 0;
+  double fudge = 0.0001;
   Rcpp::List lnsero;
   Rcpp::List pp1;
   Rcpp::List pp2;
   Rcpp::List ret = Rcpp::List::create(0);
   arma::vec visits;
-  int nvisits = 0;
-  arma::mat surveill_res = arma::zeros(d.n_rows, 3);
-  double tmpage = 0;
-  double csum_visit_time = 0;
-  int stop = 0;
-  double fu_36months = 0;
-  double fudge = 0.0001;
-
 
 
 
   for(int i = 0; i < d_new.n_rows; i++){
   //for(int i = 0; i < 100; i++){
 
-    DBG(Rcpp::Rcout, std::endl << "i " << i << " starting analysis for month " << months[mylook] );
-    visits = arma::vec();
-    nvisits = 0;
-    stop = 0;
-
+    DBG(Rcpp::Rcout, "i " << i << " starting analysis for month " << months[mylook] );
 
     if(d_new(i, COL_ACCRT) > months[mylook] + fudge){
       d_new(i, COL_CEN) = NA_REAL;
       d_new(i, COL_OBST) = NA_REAL;
 
-      DBG(Rcpp::Rcout, "i " << i << " accrual " << d_new(i, COL_ACCRT)
-            << "occurs after current anlaysis month" << months[mylook]);
+      DBG(Rcpp::Rcout, "i " << i << " accrual time " << d_new(i, COL_ACCRT)
+                            << " occurs after current anlaysis month" << months[mylook]);
       continue;
     }
 
-    if(months[mylook] >= d_new(i, COL_ACCRT) + d_new(i, COL_FU1)  ||
-       looks[mylook] == Rcpp::max(looks) ){
-      nvisits++;
-      visits.resize(nvisits);
-      visits(nvisits - 1) = d_new(i, COL_ACCRT) + d_new(i, COL_FU1);
-    }
-
-    if(months[mylook] >= d_new(i, COL_ACCRT) + d_new(i, COL_FU2)  ||
-       looks[mylook] == Rcpp::max(looks)){
-      nvisits++;
-      visits.resize(nvisits);
-      visits(nvisits - 1) = d_new(i, COL_ACCRT) + d_new(i, COL_FU2);
-    }
-
-    csum_visit_time = R::runif((float)cfg["visit_lwr"], (float)cfg["visit_upr"]);
-
-    while(d_new(i, COL_AGE) + csum_visit_time < (double)cfg["max_age_fu_months"] &&
-          d_new(i, COL_ACCRT) + csum_visit_time < months[mylook]){
-
-      nvisits++;
-      visits.resize(nvisits);
-      visits(nvisits - 1) = d_new(i, COL_ACCRT) + csum_visit_time;
-
-      DBG(Rcpp::Rcout, "" );
-      DBG(Rcpp::Rcout, "i " << i << " nvisits                     " << nvisits );
-      DBG(Rcpp::Rcout, "i " << i << " COL_AGE                     " << d_new(i, COL_AGE)  );
-      DBG(Rcpp::Rcout, "i " << i << " COL_ACCRT                   " << d_new(i, COL_ACCRT)  );
-      DBG(Rcpp::Rcout, "i " << i << " csum_visit_time             " << csum_visit_time  );
-      DBG(Rcpp::Rcout, "i " << i << " age at visit                " << d_new(i, COL_AGE) + csum_visit_time );
-
-      csum_visit_time += R::runif((float)cfg["visit_lwr"], (float)cfg["visit_upr"]);
-    }
-
-    if(visits.n_elem > 0 &&
-       d_new(i, COL_AGE) + arma::max(visits) - d_new(i, COL_ACCRT) < (double)cfg["max_age_fu_months"] - 1){
-
-      // make a draw from 36 months +/- 4 weeks
-      // if this is greater than the max visit then add otherwise the last follow up visit
-      // is already generated
-      fu_36months = R::runif((double)cfg["max_age_fu_months"] - 1,
-                             (double)cfg["max_age_fu_months"] + 1);
-
-      DBG(Rcpp::Rcout, "i " << i << " fu_36months                 " << fu_36months  );
-      DBG(Rcpp::Rcout, "i " << i << " occurs at                   " << d_new(i, COL_ACCRT) +
-        fu_36months - d_new(i, COL_AGE) << " months"  );
-
-      if(d_new(i, COL_ACCRT) + fu_36months - d_new(i, COL_AGE) <= months[mylook] ||
-         looks[mylook] == Rcpp::max(looks)){
-
-        DBG(Rcpp::Rcout, "i " << i << " adding fu_36months          " << fu_36months );
-        nvisits++;
-        visits.resize(nvisits);
-        visits(nvisits - 1) = d_new(i, COL_ACCRT) + fu_36months - d_new(i, COL_AGE);
-      }
-    }
-
-    DBG(Rcpp::Rcout, "i " << i << " has had " << visits.n_elem << " visits " );
-    DBG(Rcpp::Rcout, "time from start,   time from accrual,     age " );
-
-    for(int l = 0; l < visits.n_elem; l++){
-      DBG(Rcpp::Rcout, visits(l) << ",         "
-            << visits(l) - d_new(i, COL_ACCRT) <<  ",         "
-            << d_new(i, COL_AGE) + visits(l) - d_new(i, COL_ACCRT)  );
-    }
-    DBG(Rcpp::Rcout, std::endl );
-
+    visits = rcpp_visits(d_new, i, look, cfg);
 
     // ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
     //                          Rcpp::Named("nimpute1") = nimpute1,
@@ -262,10 +190,112 @@ arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
     //                          Rcpp::Named("ppn") = pp1,
     //                          Rcpp::Named("ppmax") = pp2);
 
+    DBG(Rcpp::Rcout, "");
+
   }
+
 
   return d_new;
 }
+
+
+
+
+
+
+// [[Rcpp::export]]
+arma::vec rcpp_visits(const arma::mat& d_new,
+                      const int i,
+                      const int look,
+                      const Rcpp::List& cfg) {
+
+  Rcpp::NumericVector looks = cfg["looks"];
+  Rcpp::NumericVector months = cfg["interimmnths"];
+
+  int mylook = look - 1;
+  int nvisits = 0;
+
+  double csum_visit_time = 0;
+  double fu_36months = 0;
+  arma::vec visits = arma::vec();
+
+
+  if(months[mylook] >= d_new(i, COL_ACCRT) + d_new(i, COL_FU1)  ||
+     looks[mylook] == Rcpp::max(looks) ){
+    nvisits++;
+    visits.resize(nvisits);
+    visits(nvisits - 1) = d_new(i, COL_ACCRT) + d_new(i, COL_FU1);
+  }
+
+  if(months[mylook] >= d_new(i, COL_ACCRT) + d_new(i, COL_FU2)  ||
+     looks[mylook] == Rcpp::max(looks)){
+    nvisits++;
+    visits.resize(nvisits);
+    visits(nvisits - 1) = d_new(i, COL_ACCRT) + d_new(i, COL_FU2);
+  }
+
+  csum_visit_time = R::runif((float)cfg["visit_lwr"], (float)cfg["visit_upr"]);
+
+  while(d_new(i, COL_AGE) + csum_visit_time < (double)cfg["max_age_fu_months"] &&
+        d_new(i, COL_ACCRT) + csum_visit_time < months[mylook]){
+
+    nvisits++;
+    visits.resize(nvisits);
+    visits(nvisits - 1) = d_new(i, COL_ACCRT) + csum_visit_time;
+
+    //DBG(Rcpp::Rcout, "i " << i << " nvisits                     " << nvisits );
+    //DBG(Rcpp::Rcout, "i " << i << " COL_AGE                     " << d_new(i, COL_AGE)  );
+    //DBG(Rcpp::Rcout, "i " << i << " COL_ACCRT                   " << d_new(i, COL_ACCRT)  );
+    //DBG(Rcpp::Rcout, "i " << i << " csum_visit_time             " << csum_visit_time  );
+    //DBG(Rcpp::Rcout, "i " << i << " age at visit                " << d_new(i, COL_AGE) + csum_visit_time );
+
+    csum_visit_time += R::runif((float)cfg["visit_lwr"], (float)cfg["visit_upr"]);
+  }
+
+  if(visits.n_elem > 0 &&
+     d_new(i, COL_AGE) + arma::max(visits) - d_new(i, COL_ACCRT) < (double)cfg["max_age_fu_months"] - 1){
+
+    // make a draw from 36 months +/- 4 weeks
+    // if this is greater than the max visit then add otherwise the last follow up visit
+    // is already generated
+    fu_36months = R::runif((double)cfg["max_age_fu_months"] - 1,
+                           (double)cfg["max_age_fu_months"] + 1);
+
+
+    if(d_new(i, COL_ACCRT) + fu_36months - d_new(i, COL_AGE) <= months[mylook] ||
+       looks[mylook] == Rcpp::max(looks)){
+
+      DBG(Rcpp::Rcout, "i " << i << " adding fu_36months          " << fu_36months );
+      nvisits++;
+      visits.resize(nvisits);
+      visits(nvisits - 1) = d_new(i, COL_ACCRT) + fu_36months - d_new(i, COL_AGE);
+    }
+  }
+
+  DBG(Rcpp::Rcout, "i " << i << " nvisits                     " << nvisits );
+  DBG(Rcpp::Rcout, "i " << i << " COL_AGE                     " << d_new(i, COL_AGE)  );
+  DBG(Rcpp::Rcout, "i " << i << " COL_ACCRT                   " << d_new(i, COL_ACCRT)  );
+
+
+  DBG(Rcpp::Rcout, "i " << i << " has had " << visits.n_elem << " visits " );
+  DBG(Rcpp::Rcout, "time from start,   time from accrual,     age " );
+
+  for(int l = 0; l < visits.n_elem; l++){
+    DBG(Rcpp::Rcout, visits(l) << ",         "
+                               << visits(l) - d_new(i, COL_ACCRT) <<  ",         "
+                               << d_new(i, COL_AGE) + visits(l) - d_new(i, COL_ACCRT)  );
+  }
+  DBG(Rcpp::Rcout, std::endl );
+
+
+  return visits;
+}
+
+
+
+
+
+
 
 
 // [[Rcpp::export]]
