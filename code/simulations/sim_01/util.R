@@ -293,10 +293,17 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$ttemodfile <- tt$ttemodfile
   
   # surveillance
+  # fu 1 is between 14 and 21 days from accrual
+  # fu 2 is between 28 and 55 days from accrual
   l$fu1_lwr <- 14/(365.25/12)
   l$fu1_upr <- 21/(365.25/12)
   l$fu2_lwr <- 28/(365.25/12)
-  l$fu2_upr <- 35/(365.25/12)
+  l$fu2_upr <- 55/(365.25/12)
+  
+  # 6 months plus or minus two week
+  l$visit_lwr <- 5.5
+  l$visit_upr <- 6.5
+  
   l$surveillance_mnths <- 6
   
   

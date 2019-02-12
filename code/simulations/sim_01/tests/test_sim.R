@@ -531,38 +531,36 @@ test_that("immu model - ", {
   source("util.R")
   
   d <- readRDS("tests/dat-example.RDS")
+  
+  
   cfg <- readRDS("tests/cfg-example.RDS")
   
   # n_obs_grp <- 170
   # look <- 10
   
-  look = 7
   
-  # ensure setup is as expected
-  expect_equal(cfg$looks, c(70L, 100L, 130L, 160L, 190L, 220L, 250L, 280L, 310L, 340L, 
-                            370L, 400L, 430L, 460L, 490L, 520L, 550L, 580L, 610L, 640L, 670L, 
-                            700L, 730L, 760L, 790L, 820L, 850L, 880L, 910L, 940L, 970L, 1000L))
   
-  expect_equal(cfg$interimmnths, c(7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 
-                                   52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 
-                                   100))
+  # look = 2
+  # # ensure setup is as expected
+  # cfg$looks <- c(70L, 100L, 130L)
+  # cfg$interimmnths <- c(7, 10, 13)
   
-  expect_equal(cfg$interimmnths[look], 25)
-  expect_equal(cfg$months_per_person, 0.1)
   
   # look at average results.
   res <- matrix(0, nrow = 1000, ncol = 3)
   
-  for(i in 1:1000){
-    d <- rcpp_dat(cfg)
-    dnew <- rcpp_clin(d, cfg, look)
+  #for(i in 1:1000){
+    # d <- rcpp_dat(cfg)
+    # d <- d[1:130,]
     
-    d <- convert_to_df(d)
-    dnew <- convert_to_df(dnew)
+    # saveRDS(d, "tests/tmp.RDS")
+    d <- readRDS("tests/tmp.RDS")
     
+    d2 <- rcpp_clin(d, cfg, cfg$nlooks)
   
-    
-  }
+    d2 <- as.data.frame(d2)
+    names(d2) <- dnames
+  #}
   
   
   
