@@ -373,6 +373,10 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$mcmciterfin <- c(l$mcmciter - l$mcmcburnin) / l$mcmcthin
   
   
+  l$prior_gamma_a <- 1
+  l$prior_gamma_b <- 1/10
+  
+  
   if(opt$use){
     
     cat("Updating config.\n")

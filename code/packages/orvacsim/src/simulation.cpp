@@ -236,14 +236,23 @@ Rcpp::List rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
   // compute posterior
   // note the parameterisation of the gamma distribution is not the same as R
-  // if the conjugate prior is gamma(k, q) then the posterior is
-  // gamma(k + sum(uncensored obs), q / (1 + q * total obs time))
+  // if the conjugate prior is gamma(k, q) then the posterior is:
+  //
+  // ~ gamma(k + sum(uncensored obs), q / (1 + q * total obs time))
+  //
   // se ibrahim bayesian surv analysis and
   // https://cdn2.hubspot.net/hubfs/310840/VWO_SmartStats_technical_whitepaper.pdf
+
+  double a = (double)cfg["prior_gamma_a"];
+  double b = (double)cfg["prior_gamma_b"];
+
   for(int j = 0; j < post_draw; j++){
-    m(j, COL_LAMB0) = R::rgamma(1 + n_uncen_0, 30 / (1 + 30 * tot_obst_0));
-    m(j, COL_LAMB1) = R::rgamma(1 + n_uncen_1, 30 / (1 + 30 * tot_obst_1));
+
+    m(j, COL_LAMB0) = R::rgamma(a + n_uncen_0, b / (1 + b * tot_obst_0));
+    m(j, COL_LAMB1) = R::rgamma(a + n_uncen_1, b / (1 + b * tot_obst_1));
     m(j, COL_RATIO) = m(j, COL_LAMB0) / m(j, COL_LAMB1);
+
+    DBG(Rcpp::Rcout, "i " << i << " post " << m.row(j) );
   }
 
 
