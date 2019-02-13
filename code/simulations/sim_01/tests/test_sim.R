@@ -726,20 +726,77 @@ test_that("clin tte data - all", {
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(d)
   names(d2) <- dnames
-  look <- 5
+  look <- 32
   cfg$interimmnths[look]
+  
+  cfg$post_draw <- 10000
   # saveRDS(d, "tests\tmp2.RDS")
   
-  l <- rcpp_clin(d, cfg, look)
+  nsim <- 1000
+  m <- matrix(0, ncol = 3, nrow = nsim)
+  
+  for(i in 1:nsim){
+    l <- rcpp_clin(d, cfg, look)
+    
+    m[i, 1] <- mean(l$posterior[,1])
+    m[i, 2] <- mean(l$posterior[,2])
+    m[i, 3] <- mean(l$posterior[,3])
+    
+  }
+  
+  (mymed <- apply(m, 2, median))
+  c(cfg$b0tte, (cfg$b0tte + cfg$b1tte), cfg$b0tte/ (cfg$b0tte + cfg$b1tte))
+  
+  
+  expect_lt(abs(mymed[1] - cfg$b0tte), cfg$b0tte * 0.04)
+  expect_lt(abs(mymed[2] - cfg$b0tte + cfg$b1tte), (cfg$b0tte + cfg$b1tte) * 0.05)
+  expect_lt(abs(mymed[3] - cfg$ctl_med_tte), cfg$ctl_med_tte * 0.02)
+  
+  hist(m[, 2])
   
   d3 <- as.data.frame(l$d)
   names(d3) <- dnames
   
+  sum(d3$obst[d3$trt == 0], na.rm = T)
+  sum(d3$obst[d3$trt == 1], na.rm = T)
+  
+  # rcpp_visits(d, 1, look = 32, cfg)
+  
+  # tte for second record doesn't look right.
   
   addmargins(table(d3$trt, d3$cen, useNA = "always"))
-  
+  l$n_uncen_0
+  l$n_uncen_1
   hist(log(2)/l$posterior[,1])
+  hist(log(2)/l$posterior[,2])
 
+  
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  set.seed(4343)
+  n <- 1000
+  a <- 1
+  b <- 0.03
+  
+  x <- seq(from = 0.1, to = 200, length.out = 1000)
+  y <- dgamma(x, shape = 1, rate = b)
+  plot(x, y, ylim = c(0, 0.05), type = "l")
+  
+  
+  test <- rgamma(1000, 1, b)
+  mean(test)
+  hist(test)
+  
+  
+  y2 <- rcpp_gamma(n, a, 1/b)
+  
+  hist(y2, probability = T)
+  lines(x, y)
   
 })
 
@@ -752,7 +809,64 @@ test_that("clin tte data - all", {
 
 
 
-
+test_that("clin tte data - tmp", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  set.seed(4343)
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d)
+  names(d2) <- dnames
+  look <- 32
+  cfg$interimmnths[look]
+  # saveRDS(d, "tests\tmp2.RDS")
+  
+  l <- rcpp_clin(d, cfg, look)
+  
+  d3 <- as.data.frame(l$d)
+  names(d3) <- dnames
+  
+  sum(d3$obst[d3$trt == 0], na.rm = T)
+  sum(d3$obst[d3$trt == 1], na.rm = T)
+  
+  # rcpp_visits(d, 1, look = 32, cfg)
+  
+  # tte for second record doesn't look right.
+  
+  addmargins(table(d3$trt, d3$cen, useNA = "always"))
+  l$n_uncen_0
+  l$n_uncen_1
+  hist(log(2)/l$posterior[,1])
+  hist(log(2)/l$posterior[,2])
+  
+  
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  set.seed(4343)
+  n <- 1000
+  a <- 9
+  b <- 1/0.5
+  
+  
+  x <- seq(from =0.1, to = 16, length.out = 100)
+  y <- dgamma(x, a, b)
+  
+  
+  y2 <- rcpp_gamma(n, a, 1/b)
+  
+  hist(y2, probability = T)
+  lines(x, y)
+  
+})
 
 
 

@@ -40,7 +40,7 @@
 
 
 
-#define _DEBUG  1
+#define _DEBUG  0
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -91,6 +91,7 @@ arma::vec rcpp_visits(const arma::mat& d_new,
                       const int i,
                       const int look,
                       const Rcpp::List& cfg);
+arma::vec rcpp_gamma(const int n, const double a, const double b);
 // end function prototypes
 
 
@@ -115,7 +116,7 @@ arma::mat rcpp_dat(const Rcpp::List& cfg) {
   int n = cfg["nstop"];
   arma::mat d = arma::zeros(n, NCOL);
   float mu = 0;
-  double tpp = (float)cfg["months_per_person"];
+  double tpp = (double)cfg["months_per_person"];
 
   for(int i = 0; i < n; i++){
 
@@ -129,7 +130,7 @@ arma::mat rcpp_dat(const Rcpp::List& cfg) {
 
     d(i, COL_SEROT2) = R::rbinom(1, cfg["baselineprobsero"]);
     d(i, COL_SEROT3) = d(i, COL_SEROT2);
-    d(i, COL_PROBT3) = d(i, COL_TRT) * (float)cfg["deltaserot3"];
+    d(i, COL_PROBT3) = d(i, COL_TRT) * (double)cfg["deltaserot3"];
 
     if(d(i, COL_SEROT2) == 0 && d(i, COL_TRT) == 1){
       d(i, COL_SEROT3) = R::rbinom(1, d(i, COL_PROBT3));
@@ -138,13 +139,13 @@ arma::mat rcpp_dat(const Rcpp::List& cfg) {
     // tte - the paramaterisation of rexp uses SCALE NOTE RATE!!!!!!!!!!!
     // tte - the paramaterisation of rexp uses SCALE NOTE RATE!!!!!!!!!!!
     // tte - the paramaterisation of rexp uses SCALE NOTE RATE!!!!!!!!!!!
-    d(i, COL_EVTT) = R::rexp(1/((float)cfg["b0tte"] + d(i, COL_TRT) * (float)cfg["b1tte"]));
+    d(i, COL_EVTT) = R::rexp(1/((double)cfg["b0tte"] + d(i, COL_TRT) * (double)cfg["b1tte"]));
 
     // fu 1 and 2 times from time of accrual
     // fu 1 is between 14 and 21 days from accrual
     // fu 2 is between 28 and 55 days from accrual
-    d(i, COL_FU1) = R::runif((float)cfg["fu1_lwr"], (float)cfg["fu1_upr"]);
-    d(i, COL_FU2) = R::runif((float)cfg["fu2_lwr"], (float)cfg["fu2_upr"]);
+    d(i, COL_FU1) = R::runif((double)cfg["fu1_lwr"], (double)cfg["fu1_upr"]);
+    d(i, COL_FU2) = R::runif((double)cfg["fu2_lwr"], (double)cfg["fu2_upr"]);
 
     d(i, COL_CEN) = 0;
     d(i, COL_OBST) = 0;
@@ -185,8 +186,8 @@ Rcpp::List rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
   int i = 0;
 
-  for(i = 0; i < d_new.n_rows; i++){
-  //for(int i = 0; i < 200; i++){
+  //for(i = 0; i < d_new.n_rows; i++){
+  for(int i = 0; i < 200; i++){
 
     DBG(Rcpp::Rcout, "i " << i << " starting analysis for month " << months[mylook] );
 
@@ -234,9 +235,14 @@ Rcpp::List rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
 
   // compute posterior
+  // note the parameterisation of the gamma distribution is not the same as R
+  // if the conjugate prior is gamma(k, q) then the posterior is
+  // gamma(k + sum(uncensored obs), q / (1 + q * total obs time))
+  // se ibrahim bayesian surv analysis and
+  // https://cdn2.hubspot.net/hubfs/310840/VWO_SmartStats_technical_whitepaper.pdf
   for(int j = 0; j < post_draw; j++){
-    m(j, COL_LAMB0) = R::rgamma(1 + n_uncen_0, 0.01 + tot_obst_0);
-    m(j, COL_LAMB1) = R::rgamma(1 + n_uncen_1, 0.01 + tot_obst_1);
+    m(j, COL_LAMB0) = R::rgamma(1 + n_uncen_0, 30 / (1 + 30 * tot_obst_0));
+    m(j, COL_LAMB1) = R::rgamma(1 + n_uncen_1, 30 / (1 + 30 * tot_obst_1));
     m(j, COL_RATIO) = m(j, COL_LAMB0) / m(j, COL_LAMB1);
   }
 
@@ -257,6 +263,22 @@ Rcpp::List rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
   return ret;
 }
+
+
+
+
+// [[Rcpp::export]]
+arma::vec rcpp_gamma(const int n, const double a, const double b) {
+
+  arma::vec v = arma::zeros(n);
+
+  for(int i = 0; i < n; i++){
+    v(i) = R::rgamma(a, b);
+  }
+
+  return v;
+}
+
 
 
 
@@ -452,21 +474,25 @@ arma::vec rcpp_visits(const arma::mat& d_new,
 
 
   DBG(Rcpp::Rcout, "i " << i << " has had " << visits.n_elem << " visits " );
-  Rprintf("      time from start    time from accrual    age\n" );
+
+  if(_DEBUG == 1){
+    Rprintf("      time from start    time from accrual    age\n" );
+
+    for(int l = 0; l < visits.n_elem; l++){
+      // DBG(Rcpp::Rcout, visits(l) << ",         "
+      //                            << visits(l) - d_new(i, COL_ACCRT) <<  ",         "
+      //                            << d_new(i, COL_AGE) + visits(l) - d_new(i, COL_ACCRT)  );
+
+      Rprintf("         %6.3f               %6.3f        %6.3f\n",
+              visits(l),
+              visits(l) - d_new(i, COL_ACCRT),
+              d_new(i, COL_AGE) + visits(l) - d_new(i, COL_ACCRT));
 
 
-  for(int l = 0; l < visits.n_elem; l++){
-    // DBG(Rcpp::Rcout, visits(l) << ",         "
-    //                            << visits(l) - d_new(i, COL_ACCRT) <<  ",         "
-    //                            << d_new(i, COL_AGE) + visits(l) - d_new(i, COL_ACCRT)  );
-
-    Rprintf("         %6.3f               %6.3f        %6.3f\n",
-                     visits(l),
-                     visits(l) - d_new(i, COL_ACCRT),
-                     d_new(i, COL_AGE) + visits(l) - d_new(i, COL_ACCRT));
-
-
+    }
   }
+
+
   DBG(Rcpp::Rcout, std::endl );
 
 
