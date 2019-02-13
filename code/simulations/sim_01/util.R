@@ -27,7 +27,7 @@ COL_DELTA     <-    2+1
 
 dnames <- c("id", "trt", "accrt", "age", 
             "serot2", "serot3", "probt3", 
-            "evtt", "fu1", "fu2", "curage", "cent", "obst", "cen")
+            "evtt", "fu1", "fu2", "obst", "cen")
 
 
 

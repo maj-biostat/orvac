@@ -521,8 +521,157 @@ test_that("immu model - rcpp_immu call", {
 })
 
 
+test_that("clin tte data - visit times", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+
+  set.seed(4343)
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d[1:5,])
+  names(d2) <- dnames
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 4
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  # correct length
+  expect_equal(length(visits), 3)
+  # correct values
+  expect_equal(visits[1], d2[1, "accrt"] + d2[1, "fu1"])
+  expect_equal(visits[2], d2[1, "accrt"] + d2[1, "fu2"])
+  expect_lt(max(visits), cfg$interimmnths[1])
+  
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 4
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 32
+  
+  cfg$interimmnths[look]
+  visits2 <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  # correct length - maximum visits is the number of visits
+  # such that (cfg$visit_lwr * 5 ) + 6 < 36 and then add two for fu1 and fu2
+  # add one to do a lt check
+  expect_lt(length(visits2), 8)
+  # correct values
+  expect_equal(visits2[1], d2[1, "accrt"] + d2[1, "fu1"])
+  expect_equal(visits2[2], d2[1, "accrt"] + d2[1, "fu2"])
+  expect_lt(max(visits2) + d2[1, "age"], cfg$max_age_fu_months + 0.000001)
+  
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 4
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 7
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  # correct length - maximum visits is the number of visits
+  # such that (cfg$visit_lwr * 5 ) + 6 < 36 and then add two for fu1 and fu2
+  # add one to do a lt check
+  expect_lt(length(visits), length(visits2))
+  # correct values
+  expect_equal(visits[1], d2[1, "accrt"] + d2[1, "fu1"])
+  expect_equal(visits[2], d2[1, "accrt"] + d2[1, "fu2"])
+  expect_lt(max(visits) + d2[1, "age"], cfg$max_age_fu_months + 0.000001)
+  expect_lt(max(visits), cfg$interimmnths[look] + 0.000001)
+  
+  
+})
 
 
+
+test_that("clin tte data - censoring", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  set.seed(4343)
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d[1:5,])
+  names(d2) <- dnames
+  
+  # test 1 - not censored
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 4
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  
+  expect_equal(cens$cen, 0)
+  expect_equal(cens$obst, d2[1, "evtt"])
+  
+  
+  
+  # test 2 - censored due to evtt being after interim look
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 8
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  cens
+
+  expect_equal(cens$cen, 1)
+  expect_equal(cens$obst, max(visits) - d2[1, "accrt"])
+  
+  
+  
+  # test 3 - censored due to evtt being after age
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 1000
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- length(cfg$looks)
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  cens
+
+  expect_equal(cens$cen, 1)
+  expect_equal(cens$obst, cfg$max_age_fu_months - d2[1, "age"])
+  
+})
 test_that("immu model - ", {
   
   library(testthat)
@@ -531,7 +680,7 @@ test_that("immu model - ", {
   source("util.R")
   cfg <- readRDS("tests/cfg-example.RDS")
   d <- readRDS("tests/tmp.RDS")
-  d2 <- rcpp_clin(d, cfg, 1)
+  d2 <- rcpp_clin(d, cfg, cfg$nlooks)
   
   
   
@@ -572,5 +721,22 @@ test_that("immu model - ", {
   
   
 })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

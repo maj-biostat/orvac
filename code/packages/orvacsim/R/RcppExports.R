@@ -9,12 +9,12 @@ rcpp_clin <- function(d, cfg, look) {
     .Call(`_orvacsim_rcpp_clin`, d, cfg, look)
 }
 
-rcpp_visits <- function(d_new, i, look, cfg) {
-    .Call(`_orvacsim_rcpp_visits`, d_new, i, look, cfg)
+rcpp_cens <- function(d_new, visits, i, look, cfg) {
+    .Call(`_orvacsim_rcpp_cens`, d_new, visits, i, look, cfg)
 }
 
-rcpp_censoring <- function(d_new, look, cfg) {
-    .Call(`_orvacsim_rcpp_censoring`, d_new, look, cfg)
+rcpp_visits <- function(d_new, i, look, cfg) {
+    .Call(`_orvacsim_rcpp_visits`, d_new, i, look, cfg)
 }
 
 rcpp_immu <- function(d, cfg, look) {

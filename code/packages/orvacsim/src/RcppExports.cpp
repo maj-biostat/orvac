@@ -30,6 +30,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rcpp_cens
+Rcpp::List rcpp_cens(const arma::mat& d_new, const arma::vec& visits, const int i, const int look, const Rcpp::List& cfg);
+RcppExport SEXP _orvacsim_rcpp_cens(SEXP d_newSEXP, SEXP visitsSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type d_new(d_newSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type visits(visitsSEXP);
+    Rcpp::traits::input_parameter< const int >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_cens(d_new, visits, i, look, cfg));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rcpp_visits
 arma::vec rcpp_visits(const arma::mat& d_new, const int i, const int look, const Rcpp::List& cfg);
 RcppExport SEXP _orvacsim_rcpp_visits(SEXP d_newSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
@@ -41,19 +56,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
     rcpp_result_gen = Rcpp::wrap(rcpp_visits(d_new, i, look, cfg));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpp_censoring
-arma::mat rcpp_censoring(const arma::mat& d_new, const int look, const Rcpp::List& cfg);
-RcppExport SEXP _orvacsim_rcpp_censoring(SEXP d_newSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type d_new(d_newSEXP);
-    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_censoring(d_new, look, cfg));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -132,8 +134,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_dat", (DL_FUNC) &_orvacsim_rcpp_dat, 1},
     {"_orvacsim_rcpp_clin", (DL_FUNC) &_orvacsim_rcpp_clin, 3},
+    {"_orvacsim_rcpp_cens", (DL_FUNC) &_orvacsim_rcpp_cens, 5},
     {"_orvacsim_rcpp_visits", (DL_FUNC) &_orvacsim_rcpp_visits, 4},
-    {"_orvacsim_rcpp_censoring", (DL_FUNC) &_orvacsim_rcpp_censoring, 3},
     {"_orvacsim_rcpp_immu", (DL_FUNC) &_orvacsim_rcpp_immu, 3},
     {"_orvacsim_rcpp_n_obs", (DL_FUNC) &_orvacsim_rcpp_n_obs, 5},
     {"_orvacsim_rcpp_lnsero", (DL_FUNC) &_orvacsim_rcpp_lnsero, 2},
