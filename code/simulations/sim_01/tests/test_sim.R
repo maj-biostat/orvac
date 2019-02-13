@@ -8,6 +8,56 @@ library(data.table)
 context("data generation")
 
 
+test_that("data creation - by reference, by value", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  
+  mydim <- 1000
+  nsim <- 1000
+  start <- proc.time()
+  for(i in 1:nsim){
+    m1 <- matrix(0, ncol = mydim, nrow = mydim)
+    rcpp_test_1(m1)
+  }
+  end <- proc.time()
+  duration1 <- end - start
+  
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  mydim <- 1000
+  nsim <- 1000
+  start <- proc.time()
+  for(i in 1:nsim){
+    m1 <- matrix(0, ncol = mydim, nrow = mydim)
+    m2 <- rcpp_test_2(m1)
+  }
+  end <- proc.time()
+  duration2 <- end - start
+  
+  
+  summary(duration1)
+  summary(duration2)
+  
+  
+  # By reference is MUCH quicker!!!
+  #
+  # >   summary(duration1)
+  # user  system elapsed 
+  # 2.556   0.681   3.239 
+  # >   summary(duration2)
+  # user  system elapsed 
+  # 13.974   1.792  15.791 
+  
+})
+
+
+
 
 test_that("data creation - cpp quicker than data.table", {
   
@@ -59,6 +109,31 @@ test_that("data creation - cpp quicker than data.table", {
   summary(duration2)
   
   expect_lt(duration2[3],  duration1[3])
+  
+  
+})
+
+
+test_that("data creation - all datas big and small", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  source("sim.R")
+
+  cfg <- readRDS("tests/cfg-example.RDS")
+  d <- rcpp_dat(cfg)
+  
+  # assignment is otherwise by reference.
+  d2 <- copy(d)
+
+  # this updates the evtt, fu1, fu2, cen and obst from observations 
+  # on or after look
+  rcpp_dat_small(d, cfg, look = 1, l0 = 0.02, l1 = 0.015)
+  expect_false(isTRUE(all.equal(d2, d)))
+  
+  
   
   
 })
