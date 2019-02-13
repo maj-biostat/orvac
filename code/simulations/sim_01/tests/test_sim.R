@@ -594,6 +594,21 @@ test_that("clin tte data - visit times", {
   expect_lt(max(visits), cfg$interimmnths[look] + 0.000001)
   
   
+  
+  # test 4 - zero visits
+  
+  d2[1, "accrt"] = 6.9
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 1000
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  expect_equal(length(visits), 0)
 })
 
 
@@ -669,59 +684,64 @@ test_that("clin tte data - censoring", {
   cens
 
   expect_equal(cens$cen, 1)
-  expect_equal(cens$obst, cfg$max_age_fu_months - d2[1, "age"])
+  expect_lt(max(visits) - d2[1, "accrt"] + d2[1, "age"], cfg$max_age_fu_months)
+  
+  
+  
+  
+  
+  
+  
+  # test 4 - zero visits
+  
+  d2[1, "accrt"] = 6.9
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 1000
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  expect_equal(length(visits), 0)
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  cens
+  
   
 })
-test_that("immu model - ", {
+
+
+test_that("clin tte data - all", {
   
   library(testthat)
   library(orvacsim)
   library(data.table)
   source("util.R")
   cfg <- readRDS("tests/cfg-example.RDS")
-  d <- readRDS("tests/tmp.RDS")
-  d2 <- rcpp_clin(d, cfg, cfg$nlooks)
+  
+  set.seed(4343)
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d)
+  names(d2) <- dnames
+  look <- 5
+  cfg$interimmnths[look]
+  # saveRDS(d, "tests\tmp2.RDS")
+  
+  l <- rcpp_clin(d, cfg, look)
+  
+  d3 <- as.data.frame(l$d)
+  names(d3) <- dnames
   
   
+  addmargins(table(d3$trt, d3$cen, useNA = "always"))
   
-  
-  
-  d <- readRDS("tests/dat-example.RDS")
-  
-  
-  cfg <- readRDS("tests/cfg-example.RDS")
-  
-  # n_obs_grp <- 170
-  # look <- 10
-  
-  
-  
-  # look = 2
-  # # ensure setup is as expected
-  # cfg$looks <- c(70L, 100L, 130L)
-  # cfg$interimmnths <- c(7, 10, 13)
-  
-  
-  # look at average results.
-  res <- matrix(0, nrow = 1000, ncol = 3)
-  
-  #for(i in 1:1000){
-    # d <- rcpp_dat(cfg)
-    # d <- d[1:130,]
-    
-    # saveRDS(d, "tests/tmp.RDS")
-    d <- readRDS("tests/tmp.RDS")
-    
-    d2 <- rcpp_clin(d, cfg, 1)
-  
-    d2 <- as.data.frame(d2)
-    names(d2) <- dnames
-  #}
-  
-  
+  hist(log(2)/l$posterior[,1])
+
   
 })
-
 
 
 

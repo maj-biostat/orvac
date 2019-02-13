@@ -9,6 +9,10 @@ rcpp_clin <- function(d, cfg, look) {
     .Call(`_orvacsim_rcpp_clin`, d, cfg, look)
 }
 
+rcpp_clin_post <- function(d, i, cfg, look) {
+    .Call(`_orvacsim_rcpp_clin_post`, d, i, cfg, look)
+}
+
 rcpp_cens <- function(d_new, visits, i, look, cfg) {
     .Call(`_orvacsim_rcpp_cens`, d_new, visits, i, look, cfg)
 }

@@ -33,6 +33,13 @@
 #define COL_THETA1        1
 #define COL_DELTA         2
 
+
+#define COL_LAMB0         0
+#define COL_LAMB1         1
+#define COL_RATIO         2
+
+
+
 #define _DEBUG  1
 
 #if _DEBUG
@@ -74,7 +81,7 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
                              const int post_draw,
                              const Rcpp::List& lnsero,
                              const Rcpp::List& cfg);
-arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look);
+Rcpp::List rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look);
 Rcpp::List rcpp_cens(const arma::mat& d_new,
                      const arma::vec& visits,
                      const int i,
@@ -148,16 +155,16 @@ arma::mat rcpp_dat(const Rcpp::List& cfg) {
 
 
 // [[Rcpp::export]]
-arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
+Rcpp::List rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
   arma::mat d_new = arma::mat(d);
+  int post_draw = (int)cfg["post_draw"];
 
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
 
-  //DBG(Rcpp::Rcout, "len looks " << looks.size());
+  arma::mat m = arma::zeros(post_draw , 3);
 
-  arma::mat m = arma::zeros((int)cfg["post_draw"] , 3);
   int mylook = look - 1;
   int nimpute1 = 0;
   int nimpute2 = 0;
@@ -171,8 +178,15 @@ arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
   Rcpp::List ret = Rcpp::List::create(0);
   arma::vec visits;
 
-  for(int i = 0; i < d_new.n_rows; i++){
-  //for(int i = 0; i < 100; i++){
+  int n_uncen_0 = 0;
+  double tot_obst_0 = 0;
+  int n_uncen_1 = 0;
+  double tot_obst_1 = 0;
+
+  int i = 0;
+
+  for(i = 0; i < d_new.n_rows; i++){
+  //for(int i = 0; i < 200; i++){
 
     DBG(Rcpp::Rcout, "i " << i << " starting analysis for month " << months[mylook] );
 
@@ -185,28 +199,83 @@ arma::mat rcpp_clin(const arma::mat& d, const Rcpp::List& cfg, const int look){
       continue;
     }
 
+    // work out visits and censoring conditional on visit times
     visits = rcpp_visits(d_new, i, look, cfg);
-
     cens = rcpp_cens(d_new, visits, i, look, cfg);
 
     d_new(i, COL_CEN) = (double)cens["cen"];
     d_new(i, COL_OBST) = (double)cens["obst"];
 
+    // this is an NA check in CPP
+    // see https://stackoverflow.com/questions/570669/checking-if-a-double-or-float-is-nan-in-c
+    if(d_new(i, COL_OBST) != d_new(i, COL_OBST)){
+      DBG(Rcpp::Rcout, "i " << i << " tot_obst_0 " << d_new(i, COL_OBST) << " skipping to next iteration.");
+      continue;
+    }
 
+    // sufficient stats for comp posterior
+    if(d_new(i, COL_CEN) == 0){
+      if(d_new(i, COL_TRT) == 0) {
+        n_uncen_0 += 1;
+      } else {
+        n_uncen_1 += 1;
+      }
+    }
 
+    if(d_new(i, COL_TRT) == 0) {
+      DBG(Rcpp::Rcout, "i " << i << " tot_obst_0 " << tot_obst_0 << " adding " << d_new(i, COL_OBST));
+      tot_obst_0 = tot_obst_0 + d_new(i, COL_OBST);
+    } else {
+      DBG(Rcpp::Rcout, "i " << i << " tot_obst_1 " << tot_obst_1 << " adding " << d_new(i, COL_OBST));
+      tot_obst_1 = tot_obst_1 + d_new(i, COL_OBST);
+    }
 
   }
 
-  // ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
-  //                          Rcpp::Named("nimpute1") = nimpute1,
-  //                          Rcpp::Named("nimpute2") = nimpute2,
-  //                          Rcpp::Named("lnsero") = lnsero,
-  //                          Rcpp::Named("posterior") = m,
-  //                          Rcpp::Named("ppn") = pp1,
-  //                          Rcpp::Named("ppmax") = pp2);
 
-  return d_new;
+  // compute posterior
+  for(int j = 0; j < post_draw; j++){
+    m(j, COL_LAMB0) = R::rgamma(1 + n_uncen_0, 0.01 + tot_obst_0);
+    m(j, COL_LAMB1) = R::rgamma(1 + n_uncen_1, 0.01 + tot_obst_1);
+    m(j, COL_RATIO) = m(j, COL_LAMB0) / m(j, COL_LAMB1);
+  }
+
+
+  // use posterior to do pp at final analysis
+  // this involves simulating multiple datasets conditional on the
+  // posterior and therefore requires multiple to the censoring funct
+
+
+
+
+  ret = Rcpp::List::create(Rcpp::Named("d") = d_new,
+                           Rcpp::Named("posterior") = m,
+                           Rcpp::Named("n_uncen_0") = n_uncen_0,
+                           Rcpp::Named("tot_obst_0") = tot_obst_0,
+                           Rcpp::Named("n_uncen_1") = n_uncen_1,
+                           Rcpp::Named("tot_obst_1") = tot_obst_1);
+
+  return ret;
 }
+
+
+
+// TODO TEST OUT RETURNING POINTER RATHER THAN MATRIX
+
+// [[Rcpp::export]]
+arma::mat rcpp_clin_post(const arma::mat& d,
+                         const int i,
+                         const Rcpp::List& cfg,
+                         const int look){
+
+
+  arma::mat m = arma::zeros(1000 , 3);
+  return m;
+
+
+}
+
+
 
 
 // [[Rcpp::export]]
@@ -228,27 +297,37 @@ Rcpp::List rcpp_cens(const arma::mat& d_new,
   double cen = 0;
   double obst = 0;
 
+  // if there are no visits we cannot have seen
+  if(cen == 0 && obst == 0 && visits.n_elem == 0) {
+
+    DBG(Rcpp::Rcout, "i " << i << " no visits yet " );
+    DBG(Rcpp::Rcout, "i " << i << " months[mylook] " << months[mylook] );
+    if(d_new(i, COL_ACCRT) <= months[mylook]){
+      cen = 1;
+      // ensure non-negative (arises because of limits of precision representation)
+      obst =  months[mylook] - d_new(i, COL_ACCRT) > 0 ? months[mylook] - d_new(i, COL_ACCRT) : 0;
+    } else {
+      cen = NA_REAL;
+      obst =  NA_REAL;
+    }
+  }
+
   // if the event for this participant occurs after the last surveillance visit (excl
   // final age = 36 month) then it is not possible for us to have seen the event yet
   if(cen == 0 && obst == 0 &&
      d_new(i, COL_EVTT) + d_new(i, COL_ACCRT) > (double)arma::max(visits)) {
 
-    cen = 1;
-
-    // TODO CHANGE REF TO MAX VISITS?????
-
-    //if((double)cfg["max_age_fu_months"] - d_new(i, COL_AGE) <
-    //  (double)arma::max(visits) - d_new(i, COL_ACCRT)){
-    //  obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
-    //
-    //} else {
+    if(visits.n_elem == 0){
+      cen = 1;
+      obst =  months[mylook] - d_new(i, COL_ACCRT);
+    } else {
+      cen = 1;
       obst = (double)arma::max(visits) - d_new(i, COL_ACCRT);
-    //}
+    }
 
     DBG(Rcpp::Rcout, "i " << i << " cen test 1 max obs: " << (double)arma::max(visits) );
     DBG(Rcpp::Rcout, "i " << i << " cen test 1 acc    : " << d_new(i, COL_ACCRT) );
     DBG(Rcpp::Rcout, "i " << i << " cen test 1 at     : " << obst);
-
   }
 
   // happy path
@@ -267,10 +346,18 @@ Rcpp::List rcpp_cens(const arma::mat& d_new,
     d_new(i, COL_EVTT) + d_new(i, COL_AGE) > (double)cfg["max_age_fu_months"]){
 
     // the event hasn't happened and the participant is now older than max fu age
-
-    // TODO CHANGE TO MAX VISITS?
-    cen = 1;
-    obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE) ;
+    // or, more specifically, the last visit minus accrual which gives you the
+    // max fu age observed
+    if(visits.n_elem == 0){
+      // ensure non-negative (arises because of limits of precision representation)
+      // if they have enrolled with accrt exactly equal to the current look then do not
+      // count them, i.e. set cen and obst to NA
+      cen = months[mylook] - d_new(i, COL_ACCRT) > 0 ? 1 : NA_REAL;
+      obst =  months[mylook] - d_new(i, COL_ACCRT) > 0 ? months[mylook] - d_new(i, COL_ACCRT) : NA_REAL;
+    } else {
+      cen = 1;
+      obst = (double)arma::max(visits) - d_new(i, COL_ACCRT);
+    }
 
     DBG(Rcpp::Rcout, "i " << i << " cen test 2     : ");
 
@@ -536,9 +623,9 @@ Rcpp::List rcpp_lnsero(const arma::mat& d,
 
 // [[Rcpp::export]]
 arma::mat rcpp_immu_interim_post(const arma::mat& d,
-                             const int nobs,
-                             const int post_draw,
-                             const Rcpp::List& lnsero){
+                                 const int nobs,
+                                 const int post_draw,
+                                 const Rcpp::List& lnsero){
 
   arma::mat m = arma::zeros(post_draw, 3);
 
@@ -638,20 +725,5 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
 
 
 
-// mcens <- censoring(accrt = d[d$trt == trt_status,accrt][1:n_obs_grp],
-//                    evtt = d[d$trt == trt_status,evtt][1:n_obs_grp],
-//                    fu1 = d[d$trt == trt_status,fu1][1:n_obs_grp],
-//                    fu2 = d[d$trt == trt_status,fu2][1:n_obs_grp],
-//                    age = d$age_months[d$trt == trt_status][1:n_obs_grp],
-//                    look = look)
-//
-//
-//
-//
-// mcens <- censoring(accrt = d$accrt[d$trt == trt_status][1:(n_obs_grp + n_impute)],
-//                    evtt = evtt_rep[[x]],
-//                    fu1 = d[d$trt == trt_status,fu1][1:(n_obs_grp + n_impute)],
-//                    fu2 = d[d$trt == trt_status,fu2][1:(n_obs_grp + n_impute)],
-//                    age = d$age_months[d$trt == trt_status][1:(n_obs_grp + n_impute)],
-//                    look = length(cfg$looks))
+
 
