@@ -572,7 +572,6 @@ arma::vec rcpp_visits(const arma::mat& d_new,
   // we are going to look at the records for an individual for the last time
   // when they are 36 months (+/- 4 weeks ~= 1 month).
 
-
   // if the last visit of those that have already been computed does not meet
   // the criteria for the last follow up then add another surveillance visit.
   if(visits.n_elem > 0 &&
@@ -586,6 +585,7 @@ arma::vec rcpp_visits(const arma::mat& d_new,
                            (double)cfg["max_age_fu_months"] + 1);
 
     if(looks[mylook] == Rcpp::max(looks)){
+
       DBG(Rcpp::Rcout, "i " << i << " adding fu_36months at max(looks)" << fu_36months );
       nvisits++;
       visits.resize(nvisits);
