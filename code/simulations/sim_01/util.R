@@ -940,3 +940,75 @@ jags_init <- function(d, omit_const = T){
               dat = dat))
 }
 
+
+
+
+
+
+plot_tte_hist <- function(m){
+  
+  par(mfrow = c(2, 2))
+  
+  med0 <- log(2)/m[, 1]
+  med1 <- log(2)/m[, 2]
+  
+  hist(med0, probability = T, main = "")
+  abline(v = 30, col = "red", lwd = 2)
+  abline(v = median(med0), col = "blue", lwd = 2)
+  hist(med1, probability = T, main = "")
+  abline(v = 35, col = "red", lwd = 2)
+  abline(v = median(med1), col = "blue", lwd = 2)
+  hist(m[, 3], probability = T, main = "")
+  abline(v = 35/30, col = "red", lwd = 2)
+  abline(v = median(med1/med0) , col = "blue", lwd = 2)
+  
+  par(mfrow = c(1, 1))
+}
+
+test_gammy <- function(){
+  set.seed(4343)
+  n <- 1000
+  a <- 1
+  b <- 10
+  
+  hist(rgamma(n, a, b))
+  
+  
+  x <- seq(from = 0.0, to = 1.5, length.out = 1000)
+  y <- dgamma(x, shape = a, rate = b)
+  
+  
+  plot(x, y, type = "l")
+  
+  # 0.009902103
+  
+  test <- rgamma(1000, a, b)
+  mean(test)
+  hist(test)
+  
+  
+  y2 <- rcpp_gamma(n, a, 1/b)
+  
+  hist(y2, probability = T)
+  lines(x, y, col = "red", lwd = 3)
+  
+  # 48 36 
+  # 2070 2400
+  
+  c <- 1/b
+  y2 <- rcpp_gamma(n, a, c)
+  
+  hist(y2, probability = T)  
+  
+  
+  y3 <- rcpp_gamma(n, a + 48, c / (1 + c * 2000))
+  hist(y3, probability = T)  
+  
+  y3 <- rcpp_gamma(n, a + 36, c / (1 + c * 2400))
+  hist(y3, probability = T)   
+  
+  
+  hist(rcpp_gamma(1000, 1 + 48, (1/20) / (1 + (1/20) * 2000)))
+  
+}
+
