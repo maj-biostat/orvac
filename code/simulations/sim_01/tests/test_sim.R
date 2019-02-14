@@ -439,7 +439,6 @@ test_that("visit times", {
 
   d2[1, "accrt"] = 0.2
   d2[1, "age"] = 6
-  d2[1, "evtt"] = 4
   d2[1, "fu1"] = 0.5
   d2[1, "fu2"] = 2
   look <- 1
@@ -459,7 +458,6 @@ test_that("visit times", {
   
   d2[1, "accrt"] = 0.2
   d2[1, "age"] = 6
-  d2[1, "evtt"] = 4
   d2[1, "fu1"] = 0.5
   d2[1, "fu2"] = 2
   look <- 32
@@ -467,20 +465,11 @@ test_that("visit times", {
   cfg$interimmnths[look]
   visits2 <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
   
-  # correct length - maximum visits is the number of visits
-  # such that (cfg$visit_lwr * 5 ) + 6 < 36 and then add two for fu1 and fu2
-  # add one to do a lt check
-  expect_lt(length(visits2), 8)
-  # correct values
-  expect_equal(visits2[1], d2[1, "accrt"] + d2[1, "fu1"])
-  expect_equal(visits2[2], d2[1, "accrt"] + d2[1, "fu2"])
-  expect_lt(max(visits2) + d2[1, "age"], cfg$max_age_fu_months + 0.000001)
-  
+
   # test assuming at mid interim analysis (look = 7)
   
   d2[1, "accrt"] = 0.2
   d2[1, "age"] = 6
-  d2[1, "evtt"] = 4
   d2[1, "fu1"] = 0.5
   d2[1, "fu2"] = 2
   look <- 7
@@ -495,8 +484,8 @@ test_that("visit times", {
   # correct values
   expect_equal(visits[1], d2[1, "accrt"] + d2[1, "fu1"])
   expect_equal(visits[2], d2[1, "accrt"] + d2[1, "fu2"])
-  expect_lt(max(visits) + d2[1, "age"], cfg$max_age_fu_months + 0.000001)
-  expect_lt(max(visits), cfg$interimmnths[look] + 0.000001)
+  expect_lt(max(visits) + d2[1, "age"], cfg$max_age_fu_months + 0.0001)
+  expect_lt(max(visits), cfg$interimmnths[look] + 0.0001)
   
   
   
@@ -504,7 +493,6 @@ test_that("visit times", {
   
   d2[1, "accrt"] = 6.9
   d2[1, "age"] = 6
-  d2[1, "evtt"] = 1000
   d2[1, "fu1"] = 0.5
   d2[1, "fu2"] = 2
   look <- 1
@@ -514,6 +502,37 @@ test_that("visit times", {
   visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
   
   expect_equal(length(visits), 0)
+  
+  
+  # retest at max visit - late enrollers
+  
+  set.seed(4343)
+  d <- rcpp_dat(cfg)
+  startidx <- nrow(d) - 5
+  endidx <- nrow(d)
+  idx <- endidx - startidx + 1
+  d2 <- as.data.frame(d[startidx:endidx,])
+  names(d2) <- dnames
+  d2$age[idx] = 6
+  d2[idx, "fu1"] = 0.5
+  d2[idx, "fu2"] = 2
+  d2[idx, "evtt"] = 3
+  look <- 32
+  
+  
+  cfg$interimmnths[look]
+  visits2 <- rcpp_visits(as.matrix(d2), idx - 1, look, cfg)
+  visits2
+  
+  # correct length - maximum visits is the number of visits
+  # such that (cfg$visit_lwr * 5 ) + 6 < 36 and then add two for fu1 and fu2
+  # add one to do a lt check
+  expect_equal(length(visits2), 3)
+  # correct values
+  expect_equal(visits2[1], d2[idx, "accrt"] + d2[idx, "fu1"])
+  expect_equal(visits2[2], d2[idx, "accrt"] + d2[idx, "fu2"])
+  expect_lte(max(visits2) + d2[idx, "age"] - d2[idx, "accrt"], cfg$max_age_fu_months + 1)
+  
   
   
   # odd visit
@@ -560,7 +579,7 @@ test_that("censoring", {
   cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
   
   expect_equal(cens$cen, 0)
-  expect_equal(cens$obst, d2[1, "evtt"])
+  expect_equal(cens$obst, d2[1, "evtt"] + d2[1, "age"], tolerance = 0.001)
   
   
   
