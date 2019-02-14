@@ -8,7 +8,7 @@ library(data.table)
 context("data generation")
 
 
-test_that("data creation - by reference, by value", {
+test_that("use pass by reference if possible", {
   
   library(testthat)
   library(orvacsim)
@@ -44,7 +44,7 @@ test_that("data creation - by reference, by value", {
   summary(duration1)
   summary(duration2)
   
-  
+  expect_lt(duration1[3],  duration2[3])
   # By reference is MUCH quicker!!!
   #
   # >   summary(duration1)
@@ -57,9 +57,7 @@ test_that("data creation - by reference, by value", {
 })
 
 
-
-
-test_that("data creation - cpp quicker than data.table", {
+test_that("cpp quicker than data.table", {
   
   library(testthat)
   library(orvacsim)
@@ -114,7 +112,7 @@ test_that("data creation - cpp quicker than data.table", {
 })
 
 
-test_that("data creation - all datas big and small", {
+test_that("all datas big and small", {
   
   library(testthat)
   library(orvacsim)
@@ -122,24 +120,65 @@ test_that("data creation - all datas big and small", {
   source("util.R")
   source("sim.R")
 
+  look <- 1
+  
   cfg <- readRDS("tests/cfg-example.RDS")
   d <- rcpp_dat(cfg)
   
   # assignment is otherwise by reference.
-  d2 <- copy(d)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  # this updates the age, evtt, fu1, fu2, cen and obst from observations 
+  # that come after the current look. rcpp_dat_small is used in generating
+  # simulated datasets based on the posterior estimates for lamb0 and lamb1
+  rcpp_dat_small(d, cfg, look, l0 = cfg$b0tte, l1 = cfg$b0tte + cfg$b1tte)
+  
+  d3 <- as.data.frame(copy(d))
+  colnames(d3) <- dnames
+  
+  cfg$looks[look]
+  
+  # the records should stay the same up to cfg$looks[look]
+  expect_equal(d2$evtt[1:cfg$looks[look]], d3$evtt[1:cfg$looks[look]], tolerance = 0.1)
+  
+  startidx <- cfg$looks[look]+1
+  endidx <- max(cfg$looks)
+  v2 <- d2$evtt[startidx:endidx]
+  v3 <- d3$evtt[startidx:endidx]
+  
+  # and the event times after  cfg$looks[look] should all be different 
+  expect_false(isTRUE(all.equal(v2, v3)))
+  
+  # summary statistics of the new evtt should be similar to old
+  nsim <- 100
+  mymeds <- matrix(0, nrow = nsim, ncol = 2)
+  myvars <- matrix(0, nrow = nsim, ncol = 2)
+  for(i in 1:nsim){
+    d <- rcpp_dat(cfg)
+    d2 <- as.data.frame(copy(d))
+    colnames(d2) <- dnames
+    rcpp_dat_small(d, cfg, look, l0 = cfg$b0tte, l1 = cfg$b0tte + cfg$b1tte)
+    d3 <- as.data.frame(copy(d))
+    colnames(d3) <- dnames
+    startidx <- cfg$looks[look]+1
+    endidx <- max(cfg$looks)
+    v2 <- d2$evtt[startidx:endidx] + d2$age[startidx:endidx]
+    v3 <- d3$evtt[startidx:endidx] + d3$age[startidx:endidx]
+    mymeds[i, ] <- c(median(v2), median(v3))
+    myvars[i, ] <- c(var(v2), var(v3))
+  }
+  
+  hist(mymeds[,1]-mymeds[,2])
+  hist(myvars[,1]-myvars[,2])
+  
+  expect_equal(mean(mymeds[,1] - mymeds[,2]), 0, tolerance = 3)
+  expect_equal(mean(myvars[,1]-myvars[,2]), 0, tolerance = 20)
 
-  # this updates the evtt, fu1, fu2, cen and obst from observations 
-  # on or after look
-  rcpp_dat_small(d, cfg, look = 1, l0 = 0.02, l1 = 0.015)
-  expect_false(isTRUE(all.equal(d2, d)))
-  
-  
-  
-  
 })
 
 
-test_that("data creation - dgp for sero looks correct", {
+test_that("dgp for sero correct", {
   
   library(testthat)
   library(orvacsim)
@@ -176,14 +215,13 @@ test_that("data creation - dgp for sero looks correct", {
     
     m[i,1] <- mean(d[d[,COL_TRT] == 0, COL_SEROT3])
     m[i,2] <- mean(d[d[,COL_TRT] == 1, COL_SEROT3])
+    
   }
   
-  expect_lt(abs(cfg$baselineprobsero - mean(m[,1])),  0.001)
-  expect_lt(abs(cfg$trtprobsero - mean(m[,2])),  0.001)
+  expect_equal(abs(cfg$baselineprobsero - mean(m[,1])), 0,  tolerance = cfg$baselineprobsero * 0.01)
+  expect_equal(abs(cfg$trtprobsero - mean(m[,2])), 0,  tolerance = cfg$trtprobsero * 0.01)
   
-  expect_lt(abs(cfg$baselineprobsero - median(m[,1])),  0.001)
-  expect_lt(abs(cfg$trtprobsero - median(m[,2])),  0.001)
-
+  
 
   # tests 
   # - repeat sampling of stochastic elements with summary stats
@@ -195,7 +233,7 @@ test_that("data creation - dgp for sero looks correct", {
 })
 
 
-test_that("data creation - dgp for tte looks correct", {
+test_that("dgp for tte correct", {
   
   # note that cpp version of rexp uses the scale parameterisation for 
   # the exponential distribution
@@ -233,26 +271,26 @@ test_that("data creation - dgp for tte looks correct", {
   lamb0 <- log(2)/cfg$ctl_med_tte
   lamb1 <- log(2)/cfg$trt_med_tte
   
-  m <- matrix(0, nrow = 1000, ncol = 2)
-  v <- matrix(0, nrow = 1000, ncol = 2)
+  nsim <- 1000
+  m <- matrix(0, nrow = nsim, ncol = 2)
+  v <- matrix(0, nrow = nsim, ncol = 2)
   
-  for(i in 1:1000){
+  for(i in 1:nsim){
     d <- rcpp_dat(cfg)
     
-    m[i,1] <- mean(d[d[,COL_TRT] == 0, COL_EVTT])
-    m[i,2] <- mean(d[d[,COL_TRT] == 1, COL_EVTT])
+    m[i,1] <- median(d[d[,COL_TRT] == 0, COL_EVTT] + d[d[,COL_TRT] == 0, COL_AGE])
+    m[i,2] <- median(d[d[,COL_TRT] == 1, COL_EVTT] + d[d[,COL_TRT] == 1, COL_AGE])
     
-    v[i,1] <- var(d[d[,COL_TRT] == 0, COL_EVTT])
-    v[i,2] <- var(d[d[,COL_TRT] == 1, COL_EVTT])
+    v[i,1] <- var(d[d[,COL_TRT] == 0, COL_EVTT] + d[d[,COL_TRT] == 0, COL_AGE])
+    v[i,2] <- var(d[d[,COL_TRT] == 1, COL_EVTT] + d[d[,COL_TRT] == 1, COL_AGE])
   }
   
-  expect_lt(abs(1/lamb0 - mean(m[,1])),    mean(m[,1]) * 0.01)
-  expect_lt(abs(1/lamb1 - mean(m[,2])),    mean(m[,2]) * 0.01)
-  
-  expect_lt(abs(1/(lamb0^2) - mean(v[,1])),    mean(v[,1]) * 0.01)
-  expect_lt(abs(1/(lamb1^2) - mean(v[,2])),    mean(v[,2]) * 0.01)
+  expect_equal(cfg$ctl_med_tte,  median(m[,1]), tolerance = 0.3)
+  expect_equal(cfg$trt_med_tte,  median(m[,2]), tolerance = 0.3)
   
   
+  expect_equal(1/(lamb0^2), mean(v[,1]),  tolerance = 10)
+  expect_equal(1/(lamb1^2), mean(v[,2]),  tolerance = 10)
   
   
   # tests 
@@ -265,7 +303,7 @@ test_that("data creation - dgp for tte looks correct", {
 })
 
 
-test_that("data creation - retrieves correct number obs", {
+test_that("retrieves correct number obs", {
   
   library(testthat)
   library(orvacsim)
@@ -317,7 +355,7 @@ test_that("data creation - retrieves correct number obs", {
 })
 
 
-test_that("data creation - correct sero counts", {
+test_that("correct sero counts", {
   
   
   library(testthat)
@@ -346,36 +384,626 @@ test_that("data creation - correct sero counts", {
   
   
   d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(d)
+  d2 <- as.data.frame(copy(d))
   names(d2) <- dnames
   # View(d2)
   look <- 1
   info_delay <- 0
   nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
   
-  stopifnot(nobs == 70)
+  expect_equal(nobs, 70)
+  
   d3 <- d2[1:nobs,]
   
   nseroctl <- sum(d3$serot3[d3$trt == 0])
   nserotrt <- sum(d3$serot3[d3$trt == 1])
 
-  expect_equal(rcpp_lnsero(d, nobs), list(nseroctl, nserotrt))
+  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
   
   # inexact match
   info_delay <- 0.5
   look <- 1
   nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
   
-  stopifnot(nobs == 64)
+  expect_equal(nobs, 64)
   d3 <- d2[1:nobs,]
   
   nseroctl <- sum(d3$serot3[d3$trt == 0])
   nserotrt <- sum(d3$serot3[d3$trt == 1])
   
-  expect_equal(rcpp_lnsero(d, nobs), list(nseroctl, nserotrt))
+  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
   
   
 })
+
+
+
+
+context("clinical endpoint framework")
+
+
+test_that("visit times", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  set.seed(4343)
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d[1:5,])
+  names(d2) <- dnames
+  
+  # test assuming at first interim analysis (look = 1)
+
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 4
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  # correct length
+  expect_equal(length(visits), 3)
+  # correct values
+  expect_equal(visits[1], d2[1, "accrt"] + d2[1, "fu1"])
+  expect_equal(visits[2], d2[1, "accrt"] + d2[1, "fu2"])
+  expect_lt(max(visits), cfg$interimmnths[1])
+  
+  # test assuming at last interim analysis (look = 32)
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 4
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 32
+  
+  cfg$interimmnths[look]
+  visits2 <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  # correct length - maximum visits is the number of visits
+  # such that (cfg$visit_lwr * 5 ) + 6 < 36 and then add two for fu1 and fu2
+  # add one to do a lt check
+  expect_lt(length(visits2), 8)
+  # correct values
+  expect_equal(visits2[1], d2[1, "accrt"] + d2[1, "fu1"])
+  expect_equal(visits2[2], d2[1, "accrt"] + d2[1, "fu2"])
+  expect_lt(max(visits2) + d2[1, "age"], cfg$max_age_fu_months + 0.000001)
+  
+  # test assuming at mid interim analysis (look = 7)
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 4
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 7
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  # correct length - maximum visits is the number of visits
+  # such that (cfg$visit_lwr * 5 ) + 6 < 36 and then add two for fu1 and fu2
+  # add one to do a lt check
+  expect_lt(length(visits), length(visits2))
+  # correct values
+  expect_equal(visits[1], d2[1, "accrt"] + d2[1, "fu1"])
+  expect_equal(visits[2], d2[1, "accrt"] + d2[1, "fu2"])
+  expect_lt(max(visits) + d2[1, "age"], cfg$max_age_fu_months + 0.000001)
+  expect_lt(max(visits), cfg$interimmnths[look] + 0.000001)
+  
+  
+  
+  # test 4 - test zero visits returned
+  
+  d2[1, "accrt"] = 6.9
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 1000
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  expect_equal(length(visits), 0)
+  
+  
+  # odd visit
+
+  # cfg <- readRDS("tests/cfg-example.RDS")
+  # d <- readRDS("tests/oddvisit.RDS")
+  # d2 <- as.data.frame(copy(d))
+  # names(d2) <- dnames
+  # look = length(cfg$looks)
+  # 
+  # 
+  # i <- 2
+  # visits <- rcpp_visits(d, i-1, look, cfg)
+  
+})
+
+
+test_that("censoring", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  set.seed(4343)
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d[1:5,])
+  names(d2) <- dnames
+  
+  # test 1 - not censored gives correct indicator and tte
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 4
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  
+  expect_equal(cens$cen, 0)
+  expect_equal(cens$obst, d2[1, "evtt"])
+  
+  
+  
+  # test 2 - censored due to evtt being after interim look
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 8
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  cens
+  
+  expect_equal(cens$cen, 1)
+  expect_equal(cens$obst, max(visits) - d2[1, "accrt"])
+  
+  
+  
+  # test 3 - censored due to evtt being greater than max age
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 1000
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- length(cfg$looks)
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  cens
+  
+  expect_equal(cens$cen, 1)
+  expect_lt(max(visits) - d2[1, "accrt"] + d2[1, "age"], cfg$max_age_fu_months)
+  expect_lt(cens$obst + d2[1, "age"], cfg$max_age_fu_months)
+  
+  
+  # test 4 - zero visits
+  
+  d2[1, "accrt"] = 6.9
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 1000
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  
+  expect_equal(length(visits), 0)
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  cens
+  
+  expect_equal(cens$obst, cfg$interimmnths[look] - d2[1, "accrt"], tolerance = 0.1 )
+  
+  
+  # test - alternative censoring - review medical records at interim observed event
+  
+  
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d[1:5,])
+  names(d2) <- dnames
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 4
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  cfg$interimmnths[look]
+  
+  cens <- rcpp_cens_visit_at_interim(as.matrix(d2), idxcpp, look, cfg)
+  
+  expect_equal(cens$cen, 0)
+  expect_equal(cens$obst, d2[1, "evtt"])
+  
+  
+  # test - alternative censoring - censored as event happens after interim
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 8
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 1
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  
+  cens <- rcpp_cens_visit_at_interim(as.matrix(d2), idxcpp, look, cfg)
+  
+  expect_equal(cens$cen, 1)
+  expect_equal(cens$obst, cfg$interimmnths[look] - d2[1, "accrt"])
+  
+
+  # test - censored due to evtt being greater than max age
+  
+  d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 6
+  d2[1, "evtt"] = 1000
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- length(cfg$looks)
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  
+  cens <- rcpp_cens_visit_at_interim(as.matrix(d2), idxcpp, look, cfg)
+  
+  expect_equal(cens$cen, 1)
+  expect_lte(cens$obst, cfg$max_age_fu_months+1)
+
+  
+  # test 6 - sample statistics
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d2))
+  names(d2) <- dnames
+  
+  cfg <- readRDS("tests/cfg-example.RDS")
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  names(d2) <- dnames
+  look = length(cfg$looks)
+  
+  m <- matrix(NA, nrow = nrow(d), ncol = 5)
+  
+  for(i in 1:nrow(d)){
+    
+    if(d[i, COL_ACCRT] <= cfg$interimmnths[look]){
+      visits <- rcpp_visits(d, i-1, look, cfg)
+      cens1 <- rcpp_cens(d, visits, i-1, look, cfg)
+      cens2 <- rcpp_cens_visit_at_interim(d, i-1, look, cfg)
+      # d2[i, ]
+      
+      m[i, ] <- c(d[i, COL_EVTT], 
+                  cens1$obst, cens1$cen, 
+                  cens2$obst, cens2$cen)
+    }
+  }
+  
+  apply(m, 2, median, na.rm = T)
+  
+  
+  
+  rcpp_clin_set_obst(d, cfg, look)
+  
+  d3 <- as.data.frame(copy(d))
+  colnames(d3) <- dnames
+  
+  
+  
+})
+
+
+test_that("setting obst and censor status", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  set.seed(4343)
+
+  # correct number of obs times and censor status set at first interim, 
+  # last analysis and mid analysis
+  
+  look <- 1
+  cfg$interimmnths[look]
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  rcpp_clin_set_obst(d, cfg, look)
+  
+  d3 <- as.data.frame(copy(d))
+  colnames(d3) <- dnames
+  
+  sum(!is.na(d3$obst))
+  cfg$looks[look]
+  
+  expect_equal(sum(!is.na(d3$obst)), cfg$looks[look], tolerance = 0.01)
+  expect_equal(sum(!is.na(d3$cen)), cfg$looks[look], tolerance = 0.01)
+  
+  
+  
+  look <- length(cfg$looks)
+  cfg$interimmnths[look]
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  rcpp_clin_set_obst(d, cfg, look)
+  
+  d3 <- as.data.frame(copy(d))
+  colnames(d3) <- dnames
+  
+  sum(!is.na(d3$obst)) ;   cfg$looks[look]
+  
+  expect_equal(sum(!is.na(d3$obst)), cfg$looks[look], tolerance = 0.01)
+  expect_equal(sum(!is.na(d3$cen)), cfg$looks[look], tolerance = 0.01)
+  
+  
+
+  look <- 12
+  cfg$interimmnths[look]
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  rcpp_clin_set_obst(d, cfg, look)
+  
+  d3 <- as.data.frame(copy(d))
+  colnames(d3) <- dnames
+  
+  sum(!is.na(d3$obst)) ;   cfg$looks[look]
+  
+  expect_equal(sum(!is.na(d3$obst)), cfg$looks[look], tolerance = 0.01)
+  expect_equal(sum(!is.na(d3$cen)), cfg$looks[look], tolerance = 0.01)
+  
+  
+  
+  
+  
+  # sample stats for obst times (that include censor times give unbiased view)
+  
+  look <- 12
+  nsim <- 10
+  m <- matrix(0, ncol = 2, nrow = nsim)
+  for(i in 1:nsim){
+    d <- rcpp_dat(cfg)
+    d2 <- as.data.frame(copy(d))
+    colnames(d2) <- dnames
+    rcpp_clin_set_obst(d, cfg, look)
+    d3 <- as.data.frame(copy(d))
+    colnames(d3) <- dnames
+    
+    v2 <- d2$evtt[1:cfg$looks[look]]
+    v3 <- d3$obst[1:cfg$looks[look]]
+    
+    m[i, ] <- c(median(v2), median(v3))
+    
+  }
+  
+  
+})
+
+test_that("clin tte data - all", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d)
+  names(d2) <- dnames
+  look <- 32
+  cfg$interimmnths[look]
+  
+  cfg$post_draw <- 2000
+  
+  nsim <- 10000
+  m <- matrix(0, ncol = 3, nrow = nsim)
+  
+  for(i in 1:nsim){
+    
+    l <- rcpp_clin(d, cfg, look)
+    
+    m[i, 1] <- mean(l$posterior[, 1])
+    m[i, 2] <- mean(l$posterior[, 2])
+    m[i, 3] <- mean(l$posterior[, 3])
+    
+    # Think there is bias due to the discrete observation pattern
+    # x <- rgamma(1000, 1 + l$n_uncen_0, 0.03 + l$tot_obst_0)
+    # hist(log(2)/x)
+    # abline(v = 30, col = "red")
+    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
+    # median(log(2)/x)
+    # 
+    # x <- rgamma(1000, 1 + l$n_uncen_1, 0.03 + l$tot_obst_1)
+    # hist(log(2)/x)
+    # abline(v = 35, col = "red")
+    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
+    # median(log(2)/x)
+  }
+  
+  # this highlights the bias in each group but fortunately the
+  # ratio looks ok (just)
+  # l <- rcpp_clin(d, cfg, look)
+  # plot_tte_hist(l$posterior)
+  
+  rat <- cfg$trt_med_tte / cfg$ctl_med_tte
+  expect_lt(abs(mean(m[i, 3]) - rat), rat * 0.15)
+  
+  
+  
+  
+  
+})
+
+
+test_that("clin tte data - ppos", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  d <- rcpp_dat(cfg)
+  
+  look <- 10
+  cfg$interimmnths[look]
+  cfg$looks[look]
+  
+  # add obst and censoring status based on current look and compute posterior
+  l <- rcpp_clin(d, cfg, look)
+  d2 <- as.data.frame(copy(d))
+  names(d2) <- dnames
+  
+  expect_equal(sum(!is.na(d2$obst)), cfg$looks[look])
+  
+  l2 <- rcpp_clin_interim_ppos(d, l$posterior, cfg$nstop - cfg$looks[look], look, cfg)
+  
+  
+  d3 <- as.data.frame(copy(d))
+  names(d3) <- dnames
+  
+  
+  nsim <- 10000
+  m <- matrix(0, ncol = 3, nrow = nsim)
+  
+  for(i in 1:nsim){
+    
+    l <- rcpp_clin(d, cfg, look)
+    
+    m[i, 1] <- mean(l$posterior[, 1])
+    m[i, 2] <- mean(l$posterior[, 2])
+    m[i, 3] <- mean(l$posterior[, 3])
+    
+    # Think there is bias due to the discrete observation pattern
+    # x <- rgamma(1000, 1 + l$n_uncen_0, 0.03 + l$tot_obst_0)
+    # hist(log(2)/x)
+    # abline(v = 30, col = "red")
+    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
+    # median(log(2)/x)
+    # 
+    # x <- rgamma(1000, 1 + l$n_uncen_1, 0.03 + l$tot_obst_1)
+    # hist(log(2)/x)
+    # abline(v = 35, col = "red")
+    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
+    # median(log(2)/x)
+  }
+  
+  # this highlights the bias in each group but fortunately the
+  # ratio looks ok (just)
+  # l <- rcpp_clin(d, cfg, look)
+  # plot_tte_hist(l$posterior)
+  
+  rat <- cfg$trt_med_tte / cfg$ctl_med_tte
+  expect_lt(abs(mean(m[i, 3]) - rat), rat * 0.15)
+  
+  
+  
+  
+  
+})
+
+test_that("clin tte data - all", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d)
+  names(d2) <- dnames
+  look <- 32
+  cfg$interimmnths[look]
+  
+  cfg$post_draw <- 2000
+  
+  nsim <- 10000
+  m <- matrix(0, ncol = 3, nrow = nsim)
+  
+  for(i in 1:nsim){
+    
+    l <- rcpp_clin(d, cfg, look)
+    
+    m[i, 1] <- mean(l$posterior[, 1])
+    m[i, 2] <- mean(l$posterior[, 2])
+    m[i, 3] <- mean(l$posterior[, 3])
+    
+    # Think there is bias due to the discrete observation pattern
+    # x <- rgamma(1000, 1 + l$n_uncen_0, 0.03 + l$tot_obst_0)
+    # hist(log(2)/x)
+    # abline(v = 30, col = "red")
+    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
+    # median(log(2)/x)
+    # 
+    # x <- rgamma(1000, 1 + l$n_uncen_1, 0.03 + l$tot_obst_1)
+    # hist(log(2)/x)
+    # abline(v = 35, col = "red")
+    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
+    # median(log(2)/x)
+  }
+  
+  # this highlights the bias in each group but fortunately the
+  # ratio looks ok (just)
+  # l <- rcpp_clin(d, cfg, look)
+  # plot_tte_hist(l$posterior)
+  
+  rat <- cfg$trt_med_tte / cfg$ctl_med_tte
+  expect_lt(abs(mean(m[i, 3]) - rat), rat * 0.15)
+  
+  
+  
+  
+  
+})
+
+
+
+
+context("immu endpoint framework")
 
 
 test_that("immu model - estimated post and diff", {
@@ -447,7 +1075,6 @@ test_that("immu model - estimated post and diff", {
   expect_lt(abs( diff_true -   diff_mean_est  ),  diff_true * 3/100)
 
 })
-
 
 
 test_that("immu model - posterior predictive", {
@@ -596,322 +1223,8 @@ test_that("immu model - rcpp_immu call", {
 })
 
 
-test_that("clin tte data - visit times", {
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  cfg <- readRDS("tests/cfg-example.RDS")
-
-  set.seed(4343)
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(d[1:5,])
-  names(d2) <- dnames
-  
-  d2[1, "accrt"] = 0.2
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 4
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- 1
-  idxcpp <- 0
-  
-  cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  # correct length
-  expect_equal(length(visits), 3)
-  # correct values
-  expect_equal(visits[1], d2[1, "accrt"] + d2[1, "fu1"])
-  expect_equal(visits[2], d2[1, "accrt"] + d2[1, "fu2"])
-  expect_lt(max(visits), cfg$interimmnths[1])
-  
-  
-  d2[1, "accrt"] = 0.2
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 4
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- 32
-  
-  cfg$interimmnths[look]
-  visits2 <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  # correct length - maximum visits is the number of visits
-  # such that (cfg$visit_lwr * 5 ) + 6 < 36 and then add two for fu1 and fu2
-  # add one to do a lt check
-  expect_lt(length(visits2), 8)
-  # correct values
-  expect_equal(visits2[1], d2[1, "accrt"] + d2[1, "fu1"])
-  expect_equal(visits2[2], d2[1, "accrt"] + d2[1, "fu2"])
-  expect_lt(max(visits2) + d2[1, "age"], cfg$max_age_fu_months + 0.000001)
-  
-  
-  d2[1, "accrt"] = 0.2
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 4
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- 7
-  
-  cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  # correct length - maximum visits is the number of visits
-  # such that (cfg$visit_lwr * 5 ) + 6 < 36 and then add two for fu1 and fu2
-  # add one to do a lt check
-  expect_lt(length(visits), length(visits2))
-  # correct values
-  expect_equal(visits[1], d2[1, "accrt"] + d2[1, "fu1"])
-  expect_equal(visits[2], d2[1, "accrt"] + d2[1, "fu2"])
-  expect_lt(max(visits) + d2[1, "age"], cfg$max_age_fu_months + 0.000001)
-  expect_lt(max(visits), cfg$interimmnths[look] + 0.000001)
-  
-  
-  
-  # test 4 - zero visits
-  
-  d2[1, "accrt"] = 6.9
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 1000
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- 1
-  idxcpp <- 0
-  
-  cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  expect_equal(length(visits), 0)
-})
 
 
-
-test_that("clin tte data - censoring", {
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  cfg <- readRDS("tests/cfg-example.RDS")
-  
-  set.seed(4343)
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(d[1:5,])
-  names(d2) <- dnames
-  
-  # test 1 - not censored
-  
-  d2[1, "accrt"] = 0.2
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 4
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- 1
-  idxcpp <- 0
-  
-  cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
-  
-  expect_equal(cens$cen, 0)
-  expect_equal(cens$obst, d2[1, "evtt"])
-  
-  
-  
-  # test 2 - censored due to evtt being after interim look
-  
-  d2[1, "accrt"] = 0.2
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 8
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- 1
-  idxcpp <- 0
-  
-  cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
-  cens
-
-  expect_equal(cens$cen, 1)
-  expect_equal(cens$obst, max(visits) - d2[1, "accrt"])
-  
-  
-  
-  # test 3 - censored due to evtt being after age
-  
-  d2[1, "accrt"] = 0.2
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 1000
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- length(cfg$looks)
-  idxcpp <- 0
-  
-  cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
-  cens
-
-  expect_equal(cens$cen, 1)
-  expect_lt(max(visits) - d2[1, "accrt"] + d2[1, "age"], cfg$max_age_fu_months)
-  
-  
-  
-  
-  
-  
-  
-  # test 4 - zero visits
-  
-  d2[1, "accrt"] = 6.9
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 1000
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- 1
-  idxcpp <- 0
-  
-  cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  expect_equal(length(visits), 0)
-  
-  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
-  cens
-  
-  
-})
-
-
-test_that("clin tte data - all", {
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  cfg <- readRDS("tests/cfg-example.RDS")
-  
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(d)
-  names(d2) <- dnames
-  look <- 32
-  cfg$interimmnths[look]
-  
-  cfg$post_draw <- 2000
-  
-  nsim <- 10000
-  m <- matrix(0, ncol = 3, nrow = nsim)
-  
-  for(i in 1:nsim){
-    
-    l <- rcpp_clin(d, cfg, look)
-    
-    m[i, 1] <- mean(l$posterior[, 1])
-    m[i, 2] <- mean(l$posterior[, 2])
-    m[i, 3] <- mean(l$posterior[, 3])
-
-    # Think there is bias due to the discrete observation pattern
-    # x <- rgamma(1000, 1 + l$n_uncen_0, 0.03 + l$tot_obst_0)
-    # hist(log(2)/x)
-    # abline(v = 30, col = "red")
-    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
-    # median(log(2)/x)
-    # 
-    # x <- rgamma(1000, 1 + l$n_uncen_1, 0.03 + l$tot_obst_1)
-    # hist(log(2)/x)
-    # abline(v = 35, col = "red")
-    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
-    # median(log(2)/x)
-  }
-  
-  # this highlights the bias in each group but fortunately the
-  # ratio looks ok (just)
-  # l <- rcpp_clin(d, cfg, look)
-  # plot_tte_hist(l$posterior)
-
-  rat <- cfg$trt_med_tte / cfg$ctl_med_tte
-  expect_lt(abs(mean(m[i, 3]) - rat), rat * 0.15)
-  
-  
-  
-  
-  
-})
-
-
-
-plot_tte_hist <- function(m){
-  
-  par(mfrow = c(2, 2))
-  
-  med0 <- log(2)/m[, 1]
-  med1 <- log(2)/m[, 2]
-  
-  hist(med0, probability = T, main = "")
-  abline(v = 30, col = "red", lwd = 2)
-  abline(v = median(med0), col = "blue", lwd = 2)
-  hist(med1, probability = T, main = "")
-  abline(v = 35, col = "red", lwd = 2)
-  abline(v = median(med1), col = "blue", lwd = 2)
-  hist(m[, 3], probability = T, main = "")
-  abline(v = 35/30, col = "red", lwd = 2)
-  abline(v = median(med1/med0) , col = "blue", lwd = 2)
-  
-  par(mfrow = c(1, 1))
-}
-
-test_gammy <- function(){
-  set.seed(4343)
-  n <- 1000
-  a <- 1
-  b <- 10
-  
-  hist(rgamma(n, a, b))
-  
-  
-  x <- seq(from = 0.0, to = 1.5, length.out = 1000)
-  y <- dgamma(x, shape = a, rate = b)
-  
-  
-  plot(x, y, type = "l")
-  
-  # 0.009902103
-  
-  test <- rgamma(1000, a, b)
-  mean(test)
-  hist(test)
-  
-  
-  y2 <- rcpp_gamma(n, a, 1/b)
-
-  hist(y2, probability = T)
-  lines(x, y, col = "red", lwd = 3)
-  
-  # 48 36 
-  # 2070 2400
-  
-  c <- 1/b
-  y2 <- rcpp_gamma(n, a, c)
-  
-  hist(y2, probability = T)  
-
-  
-  y3 <- rcpp_gamma(n, a + 48, c / (1 + c * 2000))
-  hist(y3, probability = T)  
-  
-  y3 <- rcpp_gamma(n, a + 36, c / (1 + c * 2400))
-  hist(y3, probability = T)   
-  
-  
-  hist(rcpp_gamma(1000, 1 + 48, (1/20) / (1 + (1/20) * 2000)))
-    
-}
 
 
 

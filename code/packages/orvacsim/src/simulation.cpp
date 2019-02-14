@@ -985,8 +985,8 @@ Rcpp::List rcpp_lnsero(const arma::mat& d,
   int n_sero_ctl = 0;
   int n_sero_trt = 0;
 
-  // the nobs - 1 is to adjust for the fact that we start at 0
-  for(int i = 0; i < nobs - 1; i++){
+  // todo have now discovered this can probably be done with arma::find
+  for(int i = 0; i < nobs; i++){
 
     if(d(i, COL_TRT) == 0){
       n_sero_ctl = n_sero_ctl + d(i, COL_SEROT3);
