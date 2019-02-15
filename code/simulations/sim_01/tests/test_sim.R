@@ -738,11 +738,11 @@ test_that("setting obst and censor status", {
   source("util.R")
   cfg <- readRDS("tests/cfg-example.RDS")
   
-  set.seed(4343)
-
-  # correct number of obs times and censor status set at first interim, 
-  # last analysis and mid analysis
   
+
+  # test - are the correct number of obs times and censor status set at first interim
+  
+  set.seed(4343)
   look <- 1
   cfg$interimmnths[look]
   d <- rcpp_dat(cfg)
@@ -760,7 +760,7 @@ test_that("setting obst and censor status", {
   expect_equal(sum(!is.na(d3$obst)), cfg$looks[look], tolerance = 0.01)
   expect_equal(sum(!is.na(d3$cen)), cfg$looks[look], tolerance = 0.01)
   
-  
+  # test - are the correct number of obs times and censor status set at last interim
   
   look <- length(cfg$looks)
   cfg$interimmnths[look]
@@ -778,7 +778,7 @@ test_that("setting obst and censor status", {
   expect_equal(sum(!is.na(d3$obst)), cfg$looks[look], tolerance = 0.01)
   expect_equal(sum(!is.na(d3$cen)), cfg$looks[look], tolerance = 0.01)
   
-  
+  # test - are the correct number of obs times and censor status set at mid interim
 
   look <- 12
   cfg$interimmnths[look]
@@ -795,17 +795,15 @@ test_that("setting obst and censor status", {
   
   expect_equal(sum(!is.na(d3$obst)), cfg$looks[look], tolerance = 0.01)
   expect_equal(sum(!is.na(d3$cen)), cfg$looks[look], tolerance = 0.01)
-  
-  
-  
-  
+ 
   
   # sample stats for obst times (that include censor times give unbiased view)
-  
-  look <- 12
+  cfg <- readRDS("tests/cfg-example.RDS")
+  look <- length(cfg$looks)
   nsim <- 10
-  m <- matrix(0, ncol = 2, nrow = nsim)
+  m <- matrix(0, ncol = 6, nrow = nsim)
   for(i in 1:nsim){
+    
     d <- rcpp_dat(cfg)
     d2 <- as.data.frame(copy(d))
     colnames(d2) <- dnames
@@ -813,13 +811,27 @@ test_that("setting obst and censor status", {
     d3 <- as.data.frame(copy(d))
     colnames(d3) <- dnames
     
-    v2 <- d2$evtt[1:cfg$looks[look]]
-    v3 <- d3$obst[1:cfg$looks[look]]
+    d2_ctl <- d2[d2$trt == 0,]
+    d2_trt <- d2[d2$trt == 1,]
     
-    m[i, ] <- c(median(v2), median(v3))
+    d3_ctl <- d3[d3$trt == 0,]
+    d3_trt <- d3[d3$trt == 1,]
     
+    
+    v2_ctl <- d2_ctl$evtt[1:(0.5*nrow(d2))] + d2_ctl$age[1:(0.5*nrow(d2))]
+    v2_trt <- d2_trt$evtt[1:(0.5*nrow(d2))] + d2_trt$age[1:(0.5*nrow(d2))]
+    
+    v3_ctl <- d3_ctl$obst[1:(0.5*nrow(d2))]
+    v3_trt <- d3_trt$obst[1:(0.5*nrow(d2))]
+    
+    propcensctl = sum(d3_ctl$cen, na.rm = T) / (0.5*nrow(d2))
+    propcenstrt = sum(d3_ctl$cen, na.rm = T) / (0.5*nrow(d2))
+    
+    m[i, ] <- c(median(v2_ctl), median(v2_trt), 
+                median(v3_ctl), median(v3_trt),
+                propcensctl, propcenstrt)
   }
-  
+  m
   
 })
 

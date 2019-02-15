@@ -591,7 +591,7 @@ Rcpp::List rcpp_clin_set_obst(arma::mat& d, const Rcpp::List& cfg, const int loo
 
   for(int i = 0; i < d.n_rows; i++){
 
-    if(d(i, COL_ACCRT) > months[mylook] + fudge ){
+    if(d(i, COL_ACCRT) > months[mylook] + fudge && months[mylook] != max(months)){
 
       d(i, COL_CEN) = NA_REAL;
       d(i, COL_OBST) = NA_REAL;
@@ -605,18 +605,14 @@ Rcpp::List rcpp_clin_set_obst(arma::mat& d, const Rcpp::List& cfg, const int loo
     visits = rcpp_visits(d, i, look, cfg);
     cens = rcpp_cens(d, visits, i, look, cfg);
 
-    if((double)cens["obst"] < 0){
-      d(i, COL_CEN) = 1;
-      d(i, COL_OBST) = 0;
-    } else {
-      d(i, COL_CEN) = (double)cens["cen"];
-      d(i, COL_OBST) = (double)cens["obst"];
-    }
+    d(i, COL_CEN) = (double)cens["cen"];
+    d(i, COL_OBST) = (double)cens["obst"];
 
     // this is an NA check in CPP
     // see https://stackoverflow.com/questions/570669/checking-if-a-double-or-float-is-nan-in-c
-    if(d(i, COL_OBST) != d(i, COL_OBST)){
-      //DBG(Rcpp::Rcout, "i " << i << " tot_obst_0 " << d(i, COL_OBST) << " (i.e. is nan) skipping to next iteration.");
+    if(d(i, COL_CEN) != d(i, COL_CEN) || d(i, COL_OBST) != d(i, COL_OBST)){
+      d(i, COL_CEN) = NA_REAL;
+      d(i, COL_OBST) = NA_REAL;
       continue;
     }
 
