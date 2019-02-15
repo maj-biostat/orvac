@@ -965,6 +965,26 @@ plot_tte_hist <- function(m){
   par(mfrow = c(1, 1))
 }
 
+plot_tte_meds_hist <- function(m, tmed0, tmed1){
+  
+  par(mfrow = c(2, 2))
+  med0 <- m[, 1]
+  med1 <- m[, 2]
+  hist(med0, probability = T, main = "")
+  abline(v = tmed0, col = "red", lwd = 2)
+  abline(v = median(med0), col = "blue", lwd = 2)
+  hist(med1, probability = T, main = "")
+  abline(v = tmed1, col = "red", lwd = 2)
+  abline(v = median(med1), col = "blue", lwd = 2)
+  hist(m[, 3], probability = T, main = "")
+  abline(v = tmed1/tmed0, col = "red", lwd = 2)
+  abline(v = median(med1/med0) , col = "blue", lwd = 2)
+  plot(c(0, 10), c(0, 10))
+  legend(0, 5, legend=c("true med", "sample med"),
+         col=c("red", "blue"), lty=1:2, cex=0.8)
+  par(mfrow = c(1, 1))
+}
+
 test_gammy <- function(){
   set.seed(4343)
   n <- 1000

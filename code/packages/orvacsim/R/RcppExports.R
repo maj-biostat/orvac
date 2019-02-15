@@ -17,6 +17,14 @@ rcpp_cens <- function(d_new, visits, i, look, cfg) {
     .Call(`_orvacsim_rcpp_cens`, d_new, visits, i, look, cfg)
 }
 
+rcpp_cens_interim <- function(d_new, visits, i, look, cfg) {
+    .Call(`_orvacsim_rcpp_cens_interim`, d_new, visits, i, look, cfg)
+}
+
+rcpp_cens_final <- function(d_new, visits, i, look, cfg) {
+    .Call(`_orvacsim_rcpp_cens_final`, d_new, visits, i, look, cfg)
+}
+
 rcpp_visits <- function(d_new, i, look, cfg) {
     .Call(`_orvacsim_rcpp_visits`, d_new, i, look, cfg)
 }

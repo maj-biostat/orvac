@@ -550,6 +550,40 @@ test_that("visit times", {
 })
 
 
+test_that("censoring at final", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  set.seed(4343)
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d)
+  names(d2) <- dnames
+  
+  look <- length(cfg$looks)
+  cfg$interimmnths[look]
+  
+  for(i in 1:nrow(d)){
+    (visits <- rcpp_visits(d, i-1, look, cfg))
+    cens <- rcpp_cens_final(d, visits, i-1, look, cfg)
+    
+    d2$cen[i] <- cens$cen
+    d2$obst[i] <- cens$obst
+    d2[i,]
+  }
+  
+  hist(d2$evtt + d2$age)
+  median(d2$evtt + d2$age)
+  prop.table(table(d2$cen))
+  median(d2$obst)
+  hist(d2$obst)
+  
+})
+
+
 test_that("censoring", {
   
   library(testthat)
@@ -558,6 +592,7 @@ test_that("censoring", {
   source("util.R")
   cfg <- readRDS("tests/cfg-example.RDS")
   
+
   set.seed(4343)
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(d[1:5,])
@@ -760,6 +795,94 @@ test_that("setting obst and censor status", {
   expect_equal(sum(!is.na(d3$obst)), cfg$looks[look], tolerance = 0.01)
   expect_equal(sum(!is.na(d3$cen)), cfg$looks[look], tolerance = 0.01)
   
+  
+  
+  # test - 
+  
+  look <- length(cfg$looks)
+  cfg$interimmnths[look]
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  d2$accrt <- 0
+  d2$age <- truncnorm::rtruncnorm(nrow(d2), 
+                                  cfg$age_months_lwr, cfg$age_months_upr,
+                                  cfg$age_months_mean, cfg$age_months_sd)
+  d2$evtt <- rexp(nrow(d2), cfg$b0tte) - d2$age
+  cfg$max_age_fu_months <- 36
+  d2$obst <- ifelse(d2$evtt + d2$age > cfg$max_age_fu_months, cfg$max_age_fu_months, d2$evtt + d2$age)
+  d2$cen <- ifelse(d2$evtt + d2$age > cfg$max_age_fu_months, 1, 0)
+  m <- cbind(d2$evtt + d2$age, d2$obst, 0)
+  plot_tte_meds_hist(m, log(2)/cfg$b0tte, log(2)/cfg$b0tte)
+  prop.table(table(d2$cen))
+  
+  #
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  look <- length(cfg$looks)
+  cfg$interimmnths[look]
+  cfg$b1tte <- 0
+  
+  #cfg$max_age_fu_months <- 100
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  #head(d, 5)
+  
+  #set.seed(4343)
+  # (visit <- rcpp_visits(d, 2, 32, cfg))
+  # rcpp_cens(d, visit, 2, 32, cfg)
+  
+  # set.seed(4343)
+  # (vis <- rcpp_visits(as.matrix(d), 3, look, cfg))
+  # rcpp_cens(d, vis, 3, look, cfg)
+  
+  lsuf <- rcpp_clin_set_obst(d, cfg, look)
+  head(d, 5)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  head(d2, 5)
+  median(d2$obst)
+  prop.table(table(d2$cen))
+  
+  m <- cbind(d2$evtt + d2$age, d2$obst, 0)
+  plot_tte_meds_hist(m, log(2)/cfg$b0tte, log(2)/cfg$b0tte)
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  rcpp_clin_set_obst(d, cfg, look)
+  
+  d3 <- as.data.frame(copy(d))
+  colnames(d3) <- dnames
+  
+  sum(!is.na(d3$obst))
+  cfg$looks[look]
+  
+  expect_equal(sum(!is.na(d3$obst)), cfg$looks[look], tolerance = 0.01)
+  expect_equal(sum(!is.na(d3$cen)), cfg$looks[look], tolerance = 0.01)
+  
+  nsim <- 10
+  for(i in 1:nsim){
+    
+    
+    
+    
+  }
+  
+  
+  
+  
   # test - are the correct number of obs times and censor status set at last interim
   
   look <- length(cfg$looks)
@@ -832,6 +955,45 @@ test_that("setting obst and censor status", {
                 propcensctl, propcenstrt)
   }
   m
+  
+})
+
+
+test_that("clinical endpoint posterior", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  
+  
+  # test - are the correct number of obs times and censor status set at first interim
+  
+  set.seed(4343)
+  look <- 32
+  cfg$interimmnths[look]
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  lsuffstat <- rcpp_clin_set_obst(d, cfg, look)
+  
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         300, lsuffstat$tot_obst_0,
+                         300, lsuffstat$tot_obst_1,
+                         cfg$post_draw, cfg);
+  
+  plot_tte_hist(m)
+  
+  x0 <- rgamma(1000, 1000, lsuffstat$tot_obst_0)
+  x1 <- rgamma(1000, 1000, lsuffstat$tot_obst_1)
+  m2 <- cbind(x0, x1, x0/x1)
+  
+  plot_tte_hist(m2)
+  
   
 })
 
