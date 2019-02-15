@@ -44,20 +44,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpp_cens_visit_at_interim
-Rcpp::List rcpp_cens_visit_at_interim(const arma::mat& d_new, const int i, const int look, const Rcpp::List& cfg);
-RcppExport SEXP _orvacsim_rcpp_cens_visit_at_interim(SEXP d_newSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type d_new(d_newSEXP);
-    Rcpp::traits::input_parameter< const int >::type i(iSEXP);
-    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_cens_visit_at_interim(d_new, i, look, cfg));
-    return rcpp_result_gen;
-END_RCPP
-}
 // rcpp_cens
 Rcpp::List rcpp_cens(const arma::mat& d_new, const arma::vec& visits, const int i, const int look, const Rcpp::List& cfg);
 RcppExport SEXP _orvacsim_rcpp_cens(SEXP d_newSEXP, SEXP visitsSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
@@ -271,7 +257,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_dat", (DL_FUNC) &_orvacsim_rcpp_dat, 1},
     {"_orvacsim_rcpp_dat_small", (DL_FUNC) &_orvacsim_rcpp_dat_small, 5},
     {"_orvacsim_rcpp_clin", (DL_FUNC) &_orvacsim_rcpp_clin, 3},
-    {"_orvacsim_rcpp_cens_visit_at_interim", (DL_FUNC) &_orvacsim_rcpp_cens_visit_at_interim, 4},
     {"_orvacsim_rcpp_cens", (DL_FUNC) &_orvacsim_rcpp_cens, 5},
     {"_orvacsim_rcpp_visits", (DL_FUNC) &_orvacsim_rcpp_visits, 4},
     {"_orvacsim_rcpp_clin_set_obst", (DL_FUNC) &_orvacsim_rcpp_clin_set_obst, 3},

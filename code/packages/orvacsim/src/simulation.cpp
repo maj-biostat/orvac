@@ -43,7 +43,7 @@
 
 
 
-#define _DEBUG 1
+#define _DEBUG 0
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -314,105 +314,6 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg, const int look){
 
 
 
-// [[Rcpp::export]]
-Rcpp::List rcpp_cens_visit_at_interim(const arma::mat& d_new,
-                     const int i,
-                     const int look,
-                     const Rcpp::List& cfg) {
-
-
-  Rcpp::List cens;
-
-  Rcpp::NumericVector looks = cfg["looks"];
-  Rcpp::NumericVector months = cfg["interimmnths"];
-
-  int mylook = look - 1;
-  int curmonth = months[mylook];
-
-  double cen = 0;
-  double obst = 0;
-
-  double fudge = 0.0001;
-
-
-
-  if(cen == 0 && obst == 0 &&
-     (double)months[mylook] == max(months)) {
-
-    if(d_new(i, COL_EVTT) + d_new(i, COL_AGE) <= (double)cfg["max_age_fu_months"]){
-
-      cen = 0;
-      obst = d_new(i, COL_EVTT) ;
-    } else {
-
-      cen = 1;
-      double fu36 = R::runif((double)cfg["max_age_fu_months"]-1, (double)cfg["max_age_fu_months"]+1);
-      obst = fu36 - d_new(i, COL_AGE);
-    }
-
-    DBG(Rcpp::Rcout, "i " << i << " cen test 0 acc    : " << d_new(i, COL_AGE) );
-    DBG(Rcpp::Rcout, "i " << i << " cen test 0 acc    : " << d_new(i, COL_ACCRT) );
-    DBG(Rcpp::Rcout, "i " << i << " cen test 0 at     : " << obst);
-  }
-
-
-
-  // if the event for this participant occurs after the last surveillance visit (excl
-  // final age = 36 month) then it is not possible for us to have seen the event yet
-  if(cen == 0 && obst == 0 &&
-     d_new(i, COL_EVTT) + d_new(i, COL_ACCRT) > (double)months[mylook] + fudge) {
-
-    if((double)months[mylook] - d_new(i, COL_ACCRT) < (double)cfg["max_age_fu_months"]){
-      cen = 1;
-      obst = (double)months[mylook] - d_new(i, COL_ACCRT);
-    } else {
-      cen = 1;
-      obst = (double)cfg["max_age_fu_months"];
-    }
-
-    if(obst < 0){
-      cen = NA_REAL;
-      obst = NA_REAL;
-    }
-
-    DBG(Rcpp::Rcout, "i " << i << " cen test 1 acc    : " << d_new(i, COL_ACCRT) );
-    DBG(Rcpp::Rcout, "i " << i << " cen test 1 at     : " << obst);
-  }
-
-  // happy path
-  if(cen == 0 && obst == 0 &&
-     d_new(i, COL_EVTT) + d_new(i, COL_ACCRT) <= (double)months[mylook] &&
-     d_new(i, COL_EVTT) + d_new(i, COL_AGE) <= (double)cfg["max_age_fu_months"]) {
-
-    cen = 0;
-    obst = d_new(i, COL_EVTT);
-
-    DBG(Rcpp::Rcout, "i " << i << " happy path(1) max obs: " << (double)months[mylook] );
-    DBG(Rcpp::Rcout, "i " << i << " happy path(1) acc    : " << d_new(i, COL_ACCRT) );
-    DBG(Rcpp::Rcout, "i " << i << " happy path(1) at     : " << obst);
-
-  } else if (cen == 0 && obst == 0 &&
-    d_new(i, COL_EVTT) + d_new(i, COL_AGE) > (double)cfg["max_age_fu_months"]){
-
-    if((double)months[mylook] - d_new(i, COL_ACCRT) < (double)cfg["max_age_fu_months"]){
-      cen = 1;
-      obst = (double)months[mylook] - d_new(i, COL_ACCRT);
-    } else {
-      cen = 1;
-      obst = (double)cfg["max_age_fu_months"];
-    }
-
-    DBG(Rcpp::Rcout, "i " << i << " cen test 2     : " << obst);
-
-  }
-
-  cens = Rcpp::List::create(Rcpp::Named("cen") = cen,
-                            Rcpp::Named("obst") = obst);
-
-
-  return cens;
-
-}
 
 
 
@@ -439,165 +340,114 @@ Rcpp::List rcpp_cens(const arma::mat& d_new,
   double fudge = 0.0001;
 
 
-  // if at final analysis
-  if(months[mylook] = max(months)){
+  // happy path:
+  // for the last analysis, (double)arma::max(visits) will be greater than months[mylook].
+  // otherwise, max visits will always be less than current look time.
+  // note that we consider visits rather than current look because if we haven't done a
+  // surveillance then we did not observe the event.
+  if(cen == 0 && obst == 0 &&
+     visits.n_elem > 0 &&
+     d_new(i, COL_EVTT) + d_new(i, COL_ACCRT) <= (double)arma::max(visits)  ) {
+
+    // max visit is always less than months[look] unless we are at end of trial
+    double age_at_last_visit = d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT);
+    if(age_at_last_visit < (double)cfg["max_age_fu_months"]){
+
+      cen = 0;
+      obst = d_new(i, COL_EVTT) + d_new(i, COL_AGE);
+      obst = obst < 0 ? 0 : obst;
+      DBG(Rcpp::Rcout, "i " << i << " happy path max visit: " << (double)arma::max(visits) << " after event at " << obst);
+      DBG(Rcpp::Rcout, "i " << i << " happy path acc    : " << d_new(i, COL_ACCRT) );
+      DBG(Rcpp::Rcout, "i " << i << " happy path obst     : " << obst);
+    } else {
+
+      cen = 1;
+      obst = d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT);
+
+      DBG(Rcpp::Rcout, "i " << i << " to old for happy path evet time + age : " << d_new(i, COL_AGE) + d_new(i, COL_EVTT));
+      DBG(Rcpp::Rcout, "i " << i << " to old for happy path accrt           : " << d_new(i, COL_ACCRT) );
+      DBG(Rcpp::Rcout, "i " << i << " to old for happy path censor time     : " << obst);
+    }
+  }
 
 
-    // has the event happened before the last visit and is the age at event < 36 months
+  // if there are no visits we cannot have seen
+  if(cen == 0 && obst == 0 && visits.n_elem == 0) {
 
-      // happy path
+    DBG(Rcpp::Rcout, "i " << i << " no visits yet " );
+    DBG(Rcpp::Rcout, "i " << i << " months[mylook] " << months[mylook] );
 
-
-
-    int i = 1;
-
-  } else {
-    int i = 1;
+    if(d_new(i, COL_ACCRT) <= months[mylook] + fudge){
+      cen = 1;
+      // you have to think in terms of what we have observed. e.g. we know that the
+      // analysis is taking place at month 10 but the participant only enrolled in
+      // month 7 when they were 6 months old. therefore the observation time we have
+      // seen is 6 + 10 - 7 = 9 months.
+      obst =  d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT);
+      obst = obst < 0 ? 0 : obst;
+    } else {
+      // hasn't even been enrolled yet
+      cen = NA_REAL;
+      obst =  NA_REAL;
+    }
+    DBG(Rcpp::Rcout, "i " << i << " no visit obst     : " << obst);
   }
 
 
 
 
+  // if the event for this participant occurs after the last surveillance visit but
+  // before this visit, we are not aware that it has happened
 
-
-
-  // otherwise
-
-
-
-
-
-  // happy path
-  // for the last analysis, (double)arma::max(visits) will be greater than months[mylook]
   if(cen == 0 && obst == 0 &&
      visits.n_elem > 0 &&
-     d_new(i, COL_EVTT) + d_new(i, COL_ACCRT) <= (double)arma::max(visits) &&
-     d_new(i, COL_EVTT) + d_new(i, COL_AGE) <= (double)cfg["max_age_fu_months"]) {
+     d_new(i, COL_EVTT) + d_new(i, COL_ACCRT) > (double)arma::max(visits)) {
 
-    cen = 0;
-    obst = d_new(i, COL_EVTT) + d_new(i, COL_AGE);
+    double age_at_last_visit = d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT);
+    DBG(Rcpp::Rcout, "i " << i << " event after max visit age_at_last_visit : " << age_at_last_visit);
+    cen = 1;
+    if(age_at_last_visit > (double)cfg["max_age_fu_months"] &&
+       (double)arma::max(visits) < months[mylook] ){
+      obst =  age_at_last_visit;
+    } else {
+      obst =  d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT);
+    }
     obst = obst < 0 ? 0 : obst;
 
-    DBG(Rcpp::Rcout, "i " << i << " happy path max obs: " << (double)arma::max(visits) );
-    DBG(Rcpp::Rcout, "i " << i << " happy path acc    : " << d_new(i, COL_ACCRT) );
-    DBG(Rcpp::Rcout, "i " << i << " happy path obst     : " << obst);
+    DBG(Rcpp::Rcout, "i " << i << " event after max visit      : " << (double)arma::max(visits) << " after event at " << obst);
+    DBG(Rcpp::Rcout, "i " << i << " event after max visit accrt: " << d_new(i, COL_ACCRT) );
+    DBG(Rcpp::Rcout, "i " << i << " event after max visit obst : " << obst);
+  }
+
+  try {
+    if (cen == 0 && obst == 0) {
+      DBG(Rcpp::Rcout, "i " << i << " ERROR missing censor     : " << obst);
+      //DBG(Rcpp::Rcout, "i " << i << " ERROR age_at_last_visit  : " << age_at_last_visit);
+      //DBG(Rcpp::Rcout, "i " << i << " ERROR age_now            : " << age_now);
+      DBG(Rcpp::Rcout, "i " << i << " ERROR d_new(i, COL_EVTT)     : " << d_new(i, COL_EVTT));
+      DBG(Rcpp::Rcout, "i " << i << " ERROR d_new(i, COL_ACCRT)     : " << d_new(i, COL_ACCRT));
+      DBG(Rcpp::Rcout, "i " << i << " ERROR d_new(i, COL_AGE)     : " << d_new(i, COL_AGE));
+
+      cen = NA_REAL;
+      obst =  NA_REAL;
+
+      throw std::range_error("missing censor rule");
+    }
 
     cens = Rcpp::List::create(Rcpp::Named("cen") = cen,
                               Rcpp::Named("obst") = obst);
 
     return cens;
+
+  } catch(std::exception &ex) {
+    forward_exception_to_r(ex);
   }
 
-
-  // if there are no visits we cannot have seen
-  // if(cen == 0 && obst == 0 && visits.n_elem == 0) {
-  //
-  //   DBG(Rcpp::Rcout, "i " << i << " no visits yet " );
-  //   DBG(Rcpp::Rcout, "i " << i << " months[mylook] " << months[mylook] );
-  //
-  //   if(d_new(i, COL_ACCRT) <= months[mylook] + fudge){
-  //     cen = 1;
-  //     // you have to think in terms of what we have observed. e.g. we know that the
-  //     // analysis is taking place at month 10 but the participant only enrolled in
-  //     // month 7 when they were 6 months old. therefore the observation time we have
-  //     // seen is 6 + 10 - 7 = 9 months.
-  //     obst =  d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT);
-  //     obst = obst < 0 ? 0 : obst;
-  //   } else {
-  //     cen = NA_REAL;
-  //     obst =  NA_REAL;
-  //   }
-  //   DBG(Rcpp::Rcout, "i " << i << " no visit obst     : " << obst);
-  // }
-  //
-  //
-  // // if the event for this participant occurs after the last surveillance visit but
-  // // before this visit, we are not aware that it has happened
-  // double age_at_last_visit = d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT);
-  // if(cen == 0 && obst == 0 &&
-  //    visits.n_elem > 0 &&
-  //    d_new(i, COL_EVTT) + d_new(i, COL_ACCRT) > (double)arma::max(visits)) {
-  //
-  //
-  //   // are we at the final analysis?
-  //
-  //
-  //   // yes
-  //   // test if event time
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //   cen = 1;
-  //   if(age_at_last_visit < (double)cfg["max_age_fu_months"] - 1){
-  //     obst =  age_at_last_visit;
-  //   } else {
-  //     obst =  d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT);
-  //   }
-  //   obst = obst < 0 ? 0 : obst;
-  //
-  //   DBG(Rcpp::Rcout, "i " << i << " cen 1 max obs: " << (double)arma::max(visits) );
-  //   DBG(Rcpp::Rcout, "i " << i << " cen 1 acc    : " << d_new(i, COL_ACCRT) );
-  //   DBG(Rcpp::Rcout, "i " << i << " cen 1 obst     : " << obst);
-  // }
-  //
-  //
-  // // if the event for this participant occurs after this analysis look and we are not on
-  // // the final analysis then we cannot yet be aware of the event
-  // if(cen == 0 && obst == 0 &&
-  //    visits.n_elem > 0 &&
-  //    months[mylook] != max(months) &&
-  //    d_new(i, COL_EVTT) + d_new(i, COL_ACCRT) > months[mylook]) {
-  //
-  //   cen = 1;
-  //   obst =  d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT);
-  //   obst = obst < 0 ? 0 : obst;
-  //
-  //   DBG(Rcpp::Rcout, "i " << i << " cen 2 max obs: " << (double)arma::max(visits) );
-  //   DBG(Rcpp::Rcout, "i " << i << " cen 2 acc    : " << d_new(i, COL_ACCRT) );
-  //   DBG(Rcpp::Rcout, "i " << i << " cen 2 obst     : " << obst);
-  // }
-  //
-  //
-  //
-  //
-  // double age_now = d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT);
-  // if (cen == 0 && obst == 0 &&
-  //     visits.n_elem > 0 &&
-  //     d_new(i, COL_EVTT) + d_new(i, COL_AGE) > (double)cfg["max_age_fu_months"] &&
-  //     age_now > (double)cfg["max_age_fu_months"] - 1){
-  //
-  //   cen = 1;
-  //   obst =  age_now;
-  //   obst = obst < 0 ? 0 : obst;
-  //
-  //   DBG(Rcpp::Rcout, "i " << i << " cen 2 max obs: " << (double)arma::max(visits) );
-  //   DBG(Rcpp::Rcout, "i " << i << " cen 2 acc    : " << d_new(i, COL_ACCRT) );
-  //   DBG(Rcpp::Rcout, "i " << i << " cen 2 obst   : " << obst);
-  // }
-
-  if (cen == 0 && obst == 0){
-
-    DBG(Rcpp::Rcout, "i " << i << " ERROR missing censor     : " << obst);
-    //DBG(Rcpp::Rcout, "i " << i << " ERROR age_at_last_visit  : " << age_at_last_visit);
-    //DBG(Rcpp::Rcout, "i " << i << " ERROR age_now            : " << age_now);
-    DBG(Rcpp::Rcout, "i " << i << " ERROR d_new(i, COL_EVTT)     : " << d_new(i, COL_EVTT));
-    DBG(Rcpp::Rcout, "i " << i << " ERROR d_new(i, COL_ACCRT)     : " << d_new(i, COL_ACCRT));
-    DBG(Rcpp::Rcout, "i " << i << " ERROR d_new(i, COL_AGE)     : " << d_new(i, COL_AGE));
-
-    cen = NA_REAL;
-    obst =  NA_REAL;
-  }
 
   cens = Rcpp::List::create(Rcpp::Named("cen") = cen,
                             Rcpp::Named("obst") = obst);
 
-
   return cens;
-
 }
 
 

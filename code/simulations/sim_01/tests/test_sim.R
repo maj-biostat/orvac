@@ -563,7 +563,7 @@ test_that("censoring", {
   d2 <- as.data.frame(d[1:5,])
   names(d2) <- dnames
   
-  # test 1 - not censored gives correct indicator and tte
+  # test -  not censored gives correct indicator and tte
   
   d2[1, "accrt"] = 0.2
   d2[1, "age"] = 6
@@ -580,12 +580,36 @@ test_that("censoring", {
   
   expect_equal(cens$cen, 0)
   expect_equal(cens$obst, d2[1, "evtt"] + d2[1, "age"], tolerance = 0.001)
+  expect_lt(cens$obst, cfg$max_age_fu_months)
   
   
-  
-  # test 2 - censored due to evtt being after interim look
+  # test - censored because too old event though event occurred before max visit
   
   d2[1, "accrt"] = 0.2
+  d2[1, "age"] = 10
+  d2[1, "evtt"] = 28
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 10
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  visits
+  
+  visits[length(visits)] <- d2[1, "evtt"] + d2[1, "accrt"] + 0.5
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  
+  expect_equal(cens$cen, 1)
+  expect_equal(cens$obst, max(visits) + d2[1, "age"] - d2[1, "accrt"], tolerance = 0.001)
+  # i contrived the age so do not test
+  
+  
+  
+  # test - no visits yet 
+  
+  d2[1, "accrt"] = 6.8
   d2[1, "age"] = 6
   d2[1, "evtt"] = 8
   d2[1, "fu1"] = 0.5
@@ -594,85 +618,17 @@ test_that("censoring", {
   idxcpp <- 0
   
   cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  (visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg))
   
-  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
-  cens
-  
-  expect_equal(cens$cen, 1)
-  expect_equal(cens$obst, max(visits) - d2[1, "accrt"])
-  
-  
-  
-  # test 3 - censored due to evtt being greater than max age
-  
-  d2[1, "accrt"] = 0.2
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 1000
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- length(cfg$looks)
-  idxcpp <- 0
-  
-  cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
-  cens
+  (cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg))
   
   expect_equal(cens$cen, 1)
-  expect_lt(max(visits) - d2[1, "accrt"] + d2[1, "age"], cfg$max_age_fu_months)
-  expect_lt(cens$obst + d2[1, "age"], cfg$max_age_fu_months)
+  expect_equal(cens$obst, d2[1, "age"] + cfg$interimmnths[look] - d2[1, "accrt"])
+  expect_lt(cens$obst, cfg$max_age_fu_months)
   
+  # test - no visits yet and hasn't even enrolled
   
-  # test 4 - zero visits
-  
-  d2[1, "accrt"] = 6.9
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 1000
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- 1
-  idxcpp <- 0
-  
-  cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
-  
-  expect_equal(length(visits), 0)
-  
-  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
-  cens
-  
-  expect_equal(cens$obst, cfg$interimmnths[look] - d2[1, "accrt"], tolerance = 0.1 )
-  
-  
-  # test - alternative censoring - review medical records at interim observed event
-  
-  
-  cfg <- readRDS("tests/cfg-example.RDS")
-  
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(d[1:5,])
-  names(d2) <- dnames
-  
-  d2[1, "accrt"] = 0.2
-  d2[1, "age"] = 6
-  d2[1, "evtt"] = 4
-  d2[1, "fu1"] = 0.5
-  d2[1, "fu2"] = 2
-  look <- 1
-  idxcpp <- 0
-  cfg$interimmnths[look]
-  
-  cens <- rcpp_cens_visit_at_interim(as.matrix(d2), idxcpp, look, cfg)
-  
-  expect_equal(cens$cen, 0)
-  expect_equal(cens$obst, d2[1, "evtt"])
-  
-  
-  # test - alternative censoring - censored as event happens after interim
-  
-  d2[1, "accrt"] = 0.2
+  d2[1, "accrt"] = 7.2
   d2[1, "age"] = 6
   d2[1, "evtt"] = 8
   d2[1, "fu1"] = 0.5
@@ -681,16 +637,18 @@ test_that("censoring", {
   idxcpp <- 0
   
   cfg$interimmnths[look]
+  (visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg))
   
-  cens <- rcpp_cens_visit_at_interim(as.matrix(d2), idxcpp, look, cfg)
+  (cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg))
   
-  expect_equal(cens$cen, 1)
-  expect_equal(cens$obst, cfg$interimmnths[look] - d2[1, "accrt"])
+  expect_false(!is.na(cens$cen))
+  expect_false(!is.na(cens$obst)) 
   
-
-  # test - censored due to evtt being greater than max age
   
-  d2[1, "accrt"] = 0.2
+  
+  # test - censored event is after last visit
+  
+  d2[1, "accrt"] = 98
   d2[1, "age"] = 6
   d2[1, "evtt"] = 1000
   d2[1, "fu1"] = 0.5
@@ -699,49 +657,73 @@ test_that("censoring", {
   idxcpp <- 0
   
   cfg$interimmnths[look]
+  (visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg))
   
-  cens <- rcpp_cens_visit_at_interim(as.matrix(d2), idxcpp, look, cfg)
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  cens
   
   expect_equal(cens$cen, 1)
-  expect_lte(cens$obst, cfg$max_age_fu_months+1)
+  expect_equal(d2[1, "age"] + cfg$interimmnths[look] - d2[1, "accrt"], cens$obst, tolerance = 0.001)
+  expect_lt(cens$obst, cfg$max_age_fu_months)
+  
+  
+  # test -  censored because event is after max visit but age is already > 36 at max visit
+  
+  d2[1, "accrt"] = 33
+  d2[1, "age"] = 36
+  d2[1, "evtt"] = 1000
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 10
+  idxcpp <- 0
+  
+  cfg$interimmnths[look]
+  (visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg))
+  
+  cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
+  cens
+  
+  expect_equal(cens$cen, 1)
+  expect_equal(d2[1, "age"] + max(visits) - d2[1, "accrt"], cens$obst, tolerance = 0.001)
+  
 
+  # test - sample statistics
   
-  # test 6 - sample statistics
-  
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(copy(d2))
-  names(d2) <- dnames
-  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
   cfg <- readRDS("tests/cfg-example.RDS")
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(copy(d))
   names(d2) <- dnames
   look = length(cfg$looks)
   
-  m <- matrix(NA, nrow = nrow(d), ncol = 5)
+  nsim <- 1000
+  mest <- matrix(NA, nrow = nsim, ncol = 2)
   
-  for(i in 1:nrow(d)){
+  for(j in 1:nsim){
     
-    if(d[i, COL_ACCRT] <= cfg$interimmnths[look]){
+    d <- rcpp_dat(cfg)
+    m <- matrix(NA, nrow = nrow(d), ncol = 2)
+    
+    for(i in 1:nrow(d)){
+      
       visits <- rcpp_visits(d, i-1, look, cfg)
       cens1 <- rcpp_cens(d, visits, i-1, look, cfg)
-      cens2 <- rcpp_cens_visit_at_interim(d, i-1, look, cfg)
-      # d2[i, ]
       
-      m[i, ] <- c(d[i, COL_EVTT], 
-                  cens1$obst, cens1$cen, 
-                  cens2$obst, cens2$cen)
+      
+      m[i, ] <- c(d[i, COL_EVTT] + d[i, COL_AGE], cens1$obst)
+      
     }
+    mest[j, ] <- apply(m, 2, median, na.rm = T)
   }
   
-  apply(m, 2, median, na.rm = T)
+  
+  hist(mest[,1])
+  hist(mest[,2])
   
   
-  
-  rcpp_clin_set_obst(d, cfg, look)
-  
-  d3 <- as.data.frame(copy(d))
-  colnames(d3) <- dnames
   
   
   
