@@ -44,6 +44,10 @@ compute_sero_delta <- function(p_ctl, p_trt){
   
 }
 
+compute_exp_rate <- function(med){
+  return(log(2)/med)
+}
+
 
 convert_to_df <- function(m){
   

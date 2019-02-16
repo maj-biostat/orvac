@@ -1208,16 +1208,16 @@ test_that("clinical endpoint ppos", {
   
   #set.seed(4343)
   # look after n = 200
-  look <- 6
-  look <- 32
+  look <- 28
   cfg$looks[look]
+  cfg$interimmnths
   cfg$interimmnths[look]
   
-  cfg$prior_gamma_a; cfg$prior_gamma_b
-  cfg$max_age_fu_months <- 36
+  cfg$b1tte <- compute_exp_rate(39) - compute_exp_rate(30)
   
-  # hist(rgamma(1000, cfg$prior_gamma_a, cfg$prior_gamma_b))
-
+  # cfg$prior_gamma_a; cfg$prior_gamma_b
+  # cfg$max_age_fu_months <- 36
+  
   # get data
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(copy(d))
@@ -1229,75 +1229,24 @@ test_that("clinical endpoint ppos", {
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
   
-  #lsuffstat2 <- rcpp_clin_set_obst(d, cfg, look)
-  
   # obtain posterior based on current look 
   m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
   rcpp_clin_interim_post(m, 
                          lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
                          lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
                          cfg$post_draw, cfg);
- 
-  # colMeans(m)
   
-  par(mfrow = c(2, 2))
-  hist(log(2)/m[, 1], probability = T, main = "")
-  abline(v = log(2)/cfg$b0tte, col = "red", lwd = 2)
-  hist(log(2)/m[, 2], probability = T, main = "")
-  abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = "red", lwd = 2)
-  hist(m[, 1]/m[, 2], probability = T, main = "")
-  abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = "red", lwd = 2)
-  plot(c(0, 10), c(0, 10))
-  legend(0, 5, legend=c("true med", "sample med"),
-         col=c("red", "blue"), lty=1:2, cex=0.8)
-  par(mfrow = c(1, 1))
-  
-  colMeans(m)
-  
-  
-  d2$testcen <- ifelse(d2$evtt > 36, 1, 0)
-  d2$testobst <- ifelse(d2$testcen == 1, 36, d2$evtt)
-  
-  
-  n_uncen_0 <- sum(d2$testcen[d2$trt == 0] == 0)
-  n_uncen_1 <- sum(d2$testcen[d2$trt == 1] == 0)
-  tot_obst_0 <- sum(d2$testobst[d2$trt == 0])
-  tot_obst_1 <- sum(d2$testobst[d2$trt == 1])
-  
-  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
-  rcpp_clin_interim_post(m, 
-                         n_uncen_0, tot_obst_0,
-                         n_uncen_1, tot_obst_1,
-                         cfg$post_draw, cfg);
-  
-  par(mfrow = c(2, 2))
-  hist(log(2)/m[, 1], probability = T, main = "")
-  abline(v = log(2)/cfg$b0tte, col = "red", lwd = 2)
-  hist(log(2)/m[, 2], probability = T, main = "")
-  abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = "red", lwd = 2)
-  hist(m[, 1]/m[, 2], probability = T, main = "")
-  abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = "red", lwd = 2)
-  plot(c(0, 10), c(0, 10))
-  legend(0, 5, legend=c("true med", "sample med"),
-         col=c("red", "blue"), lty=1:2, cex=0.8)
-  par(mfrow = c(1, 1))
-  
-  colMeans(m)
-  
+  ppos_n <- mean(m[, 3] > 1)
+  ppos_n
   
   # 
-  d3 <- copy(d)
-  nimpute = max(cfg$looks) - cfg$looks[look]
+  d_new <- copy(d)
+  (nimpute = max(cfg$looks) - cfg$looks[look])
+  lres <- rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg);
+  str(lres)
+  #  
   
-  rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg);
   
-  
-  
-  # x0 <- rgamma(1000, 1000, lsuffstat$tot_obst_0)
-  # x1 <- rgamma(1000, 1000, lsuffstat$tot_obst_1)
-  # m2 <- cbind(x0, x1, x0/x1)
-  # 
-  # plot_tte_hist(m2)
   
   
   
