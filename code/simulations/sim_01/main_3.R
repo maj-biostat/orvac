@@ -182,7 +182,7 @@ results <- foreach(i = 1:cfg$nsims,
       # analysis for making decision is the same in the interim and at max sero
       # namely we look at the ppos based on simulated trials. 
       if (m_immu_res$ppos_max < cfg$rule1_sero_pp_fut_thresh){
-       flog.info("Immu futile: ppos_max = %s threshold %s, i = %s look = %s", 
+       flog.info("Immunological ep futile: ppos_max = %s threshold %s, i = %s look = %s", 
                  m_immu_res$ppos_max, cfg$rule1_sero_pp_fut_thresh, i, look)
         stop_immu_fut <<- 1
         trial_state$stop_immu_fut <- 1
@@ -190,6 +190,8 @@ results <- foreach(i = 1:cfg$nsims,
 
       # rule 3 - "stop venous sampling"
       if (m_immu_res$ppos_n > cfg$rule3_sero_pp_sup_thresh && !trial_state$stop_immu_fut){
+        flog.info("Immunological ep stopped sampling: ppos_n = %s threshold %s, i = %s look = %s", 
+                  m_immu_res$ppos_n, cfg$rule3_sero_pp_sup_thresh, i, look)
         stop_ven_samp <<- 1
         trial_state$stop_ven_samp <- 1
       }
@@ -218,7 +220,7 @@ results <- foreach(i = 1:cfg$nsims,
       # ppos_max will be NA at max looks since that is the final analysis and we just
       # look at the posterior rather than the predictive probability
       if (!is.na(m_clin_res$ppos_max) && m_clin_res$ppos_max < cfg$rule1_tte_pp_fut_thresh){
-        flog.info("Treatment futile: ppos_max = %s threshold %s, i = %s look = %s", 
+        flog.info("Clinical ep futile: ppos_max = %s threshold %s, i = %s look = %s", 
                   m_clin_res$ppos_max, cfg$rule1_tte_pp_fut_thresh, i, look)
         stop_clin_fut <<- 1
         trial_state$stop_clin_fut <- 1
@@ -226,7 +228,7 @@ results <- foreach(i = 1:cfg$nsims,
       
       if (m_clin_res$ppos_n > cfg$rule2_tte_pp_sup_thresh[look] &&
           !trial_state$stop_clin_fut){
-        flog.info("Treatment superior: ppos_n = %s threshold %s, i = %s look = %s", 
+        flog.info("Clinical ep superior: ppos_n = %s threshold %s, i = %s look = %s", 
                   m_clin_res$ppos_n, cfg$rule2_tte_pp_sup_thresh[look], i, look)
         stop_clin_sup <<- 1
         trial_state$stop_clin_sup <- 1
@@ -296,7 +298,10 @@ results <- foreach(i = 1:cfg$nsims,
         return(lrerr)
       })
     
-    flog.info("Completed look, trial: i = %s, look = %s", i, look)
+    if(i%%100 == 0){
+      flog.info("Completed look, trial: i = %s, look = %s", i, look)
+    }
+    
 
     return(lr)
   }

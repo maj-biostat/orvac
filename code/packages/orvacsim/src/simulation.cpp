@@ -43,7 +43,7 @@
 
 
 
-#define _DEBUG 1
+#define _DEBUG 0
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -53,7 +53,7 @@
 #define DBG( os, msg )
 #endif
 
-#define _INFO  1
+#define _INFO  0
 
 #if _INFO
 #define INFO( os, msg )                                \
