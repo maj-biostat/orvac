@@ -1,5 +1,9 @@
 
 
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
+
 
 COL_ID        <-    0 + 1
 COL_TRT       <-    1 + 1
@@ -373,7 +377,9 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   
   
   l$prior_gamma_a <- 1
-  l$prior_gamma_b <- 1/10
+  l$prior_gamma_b <- 50
+  
+  l$use_alt_censoring <- 0
   
   
   if(opt$use){

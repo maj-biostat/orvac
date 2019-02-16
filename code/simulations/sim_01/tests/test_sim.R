@@ -1015,23 +1015,149 @@ test_that("clinical endpoint posterior", {
   
   
   
-  # test - are the correct number of obs times and censor status set at first interim
-  
-  set.seed(4343)
+  # test - estimated median tte is biased in both arms due to censoring mechanism
+  # but ratio is preserved with lower than 2% bias
   look <- 32
-  cfg$interimmnths[look]
+  nsim <- 10000
+  v <- numeric(nsim)
+  
+  for(i in 1:nsim){
+    d <- rcpp_dat(cfg)
+    d2 <- as.data.frame(copy(d))
+    colnames(d2) <- dnames
+    
+    # get sufficieitn stats
+    (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+    
+    d2 <- as.data.frame(copy(d))
+    colnames(d2) <- dnames
+    
+    #lsuffstat2 <- rcpp_clin_set_obst(d, cfg, look)
+    
+    # obtain posterior based on current look 
+    m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+    rcpp_clin_interim_post(m, 
+                           lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
+                           lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
+                           cfg$post_draw, cfg);
+    v[i] <- mean(m[, 1]/m[, 2])
+    
+    # should be (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
+  }
+  hist(v)
+  abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = cbPalette[2], lwd = 2)
+  abline(v = mean(v), col = cbPalette[3], lwd = 2, lty = 3)
+  
+  expect_equal(mean(v), (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), tolerance = 0.02)
+  
+
+  
+  
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
   
-  lsuffstat <- rcpp_clin_set_obst(d, cfg, look)
+  # get sufficieitn stats
+  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+  
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  #lsuffstat2 <- rcpp_clin_set_obst(d, cfg, look)
+  
+  # obtain posterior based on current look 
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
+                         lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
+                         cfg$post_draw, cfg);
+  
+  # colMeans(m)
+  
+  par(mfrow = c(2, 2))
+  hist(log(2)/m[, 1], probability = T, main = "")
+  abline(v = log(2)/cfg$b0tte, col = "red", lwd = 2)
+  hist(log(2)/m[, 2], probability = T, main = "")
+  abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = "red", lwd = 2)
+  hist(m[, 1]/m[, 2], probability = T, main = "")
+  abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = "red", lwd = 2)
+  plot(c(0, 10), c(0, 10))
+  legend(0, 5, legend=c("true med", "sample med"),
+         col=c("red", "blue"), lty=1:2, cex=0.8)
+  par(mfrow = c(1, 1))
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  # test - are the correct number of obs times and censor status set at first interim
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  set.seed(4343)
+  look <- 32
+  cfg$interimmnths[look]
+  cfg$b1tte <- 0
+  
+  cfg$max_age_fu_months <- 36
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  # about 30
+  median(d2$evtt)
+  
+  (lsuffstat <- rcpp_clin_set_obst(d, cfg, look))
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  sum(1-d2$cen)
+  sum(d2$obst)
+  median(d2$obst)
+  d2$testcen <- ifelse(d2$evtt + d2$age > 48, 1, 0)
+  d2$testobst <- ifelse(d2$testcen == 1, 48, d2$evtt)
+  sum(1-d2$testcen)
+  median(d2$testobst)
   
   m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
   rcpp_clin_interim_post(m, 
                          lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
                          lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
                          cfg$post_draw, cfg);
-  
+  apply(m , 2, function(x)log(2)/median(x))
   plot_tte_hist(m)
   
   # x0 <- rgamma(1000, 1000, lsuffstat$tot_obst_0)
@@ -1040,6 +1166,31 @@ test_that("clinical endpoint posterior", {
   # 
   # plot_tte_hist(m2)
   
+
+  
+  library(survival)
+  library(spBayesSurv)
+  library(coda)
+  
+  km_fit <- survfit(Surv(obst, 1-cen) ~ trt, data = d2)
+  plot(km_fit)
+  abline(v = 30)
+  abline(v = 35)
+  
+  
+  nburn=500; nsave=300; nskip=0;
+  # Note larger nburn, nsave and nskip should be used in practice.
+  mcmc=list(nburn=nburn, nsave=nsave, nskip=nskip, ndisplay=1000);
+  prior = list(M=10, r0=1);
+  # Fit the Cox PH model
+  res1 = indeptCoxph(formula = Surv(obst, 1-cen)~trt, data=d2, 
+                     prior=prior, mcmc=mcmc);
+  sfit1=summary(res1); sfit1;
+  
+  par(mfrow = c(1,1))
+  tgrid = seq(1e-10,60,0.1);
+  xpred = data.frame(trt=c(0,1)); 
+  plot(res1, xnewdata=xpred, tgrid=tgrid);
   
 })
 
@@ -1052,31 +1203,86 @@ test_that("clinical endpoint ppos", {
   library(data.table)
   source("util.R")
   cfg <- readRDS("tests/cfg-example.RDS")
-  
-  
-  
+ 
   # test - are the correct number of obs times and censor status set at first interim
   
-  set.seed(4343)
-  look <- 1
+  #set.seed(4343)
+  # look after n = 200
+  look <- 6
+  look <- 32
+  cfg$looks[look]
   cfg$interimmnths[look]
   
+  cfg$prior_gamma_a; cfg$prior_gamma_b
+  cfg$max_age_fu_months <- 36
+  
+  # hist(rgamma(1000, cfg$prior_gamma_a, cfg$prior_gamma_b))
+
   # get data
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
   
   # get sufficieitn stats
-  lsuffstat <- rcpp_clin_set_obst(d, cfg, look)
+  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+  
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  #lsuffstat2 <- rcpp_clin_set_obst(d, cfg, look)
   
   # obtain posterior based on current look 
   m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
   rcpp_clin_interim_post(m, 
-                         lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
-                         lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                         lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
+                         lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
+                         cfg$post_draw, cfg);
+ 
+  # colMeans(m)
+  
+  par(mfrow = c(2, 2))
+  hist(log(2)/m[, 1], probability = T, main = "")
+  abline(v = log(2)/cfg$b0tte, col = "red", lwd = 2)
+  hist(log(2)/m[, 2], probability = T, main = "")
+  abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = "red", lwd = 2)
+  hist(m[, 1]/m[, 2], probability = T, main = "")
+  abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = "red", lwd = 2)
+  plot(c(0, 10), c(0, 10))
+  legend(0, 5, legend=c("true med", "sample med"),
+         col=c("red", "blue"), lty=1:2, cex=0.8)
+  par(mfrow = c(1, 1))
+  
+  colMeans(m)
+  
+  
+  d2$testcen <- ifelse(d2$evtt > 36, 1, 0)
+  d2$testobst <- ifelse(d2$testcen == 1, 36, d2$evtt)
+  
+  
+  n_uncen_0 <- sum(d2$testcen[d2$trt == 0] == 0)
+  n_uncen_1 <- sum(d2$testcen[d2$trt == 1] == 0)
+  tot_obst_0 <- sum(d2$testobst[d2$trt == 0])
+  tot_obst_1 <- sum(d2$testobst[d2$trt == 1])
+  
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         n_uncen_0, tot_obst_0,
+                         n_uncen_1, tot_obst_1,
                          cfg$post_draw, cfg);
   
-  plot_tte_hist(m)
+  par(mfrow = c(2, 2))
+  hist(log(2)/m[, 1], probability = T, main = "")
+  abline(v = log(2)/cfg$b0tte, col = "red", lwd = 2)
+  hist(log(2)/m[, 2], probability = T, main = "")
+  abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = "red", lwd = 2)
+  hist(m[, 1]/m[, 2], probability = T, main = "")
+  abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = "red", lwd = 2)
+  plot(c(0, 10), c(0, 10))
+  legend(0, 5, legend=c("true med", "sample med"),
+         col=c("red", "blue"), lty=1:2, cex=0.8)
+  par(mfrow = c(1, 1))
+  
+  colMeans(m)
   
   
   # 
@@ -1094,6 +1300,7 @@ test_that("clinical endpoint ppos", {
   # plot_tte_hist(m2)
   
   
+  
 })
 
 
@@ -1106,6 +1313,63 @@ test_that("clinical endpoint ppos", {
 # decision rules for main_3
 
 # refactor sim.cpp to optimise speed - update rather than return.
+
+
+tmptest <- function(){
+  library(Rcpp)
+  cppFunction("NumericVector callrexp(int n, double mean) { 
+              NumericVector x(n);
+              for(int i = 0; i < n; i ++){
+              x[i] = R::rexp(mean);
+              }
+              return(x); }")
+  
+  
+  cppFunction("NumericVector callrgamma(int n, double shape, double scale) { 
+              return(rgamma(n, shape, scale)); }")
+  
+  
+  # generate tte data using expo with mean beta (reciprocal of rate lambda)
+  x1 <- callrexp(1000, 1/cfg$b0tte)
+  x2 <- rexp(1000, cfg$b0tte)
+  
+  hist(x1, prob = T); lines(density(x2), col = "red")
+  
+  # censor based on max fu of 36 months
+  c1 <- ifelse(x1 > 36, 1, 0)
+  c2 <- ifelse(x2 > 36, 1, 0)
+  
+  x1 <- ifelse(x1 > 36, 36, x1)
+  x2 <- ifelse(x2 > 36, 36, x2)
+  hist(x1, prob = T); lines(density(x2), col = "red")
+  
+  # sufficient stats
+  (nuncen1 <- sum(1-c1))
+  (nuncen2 <- sum(1-c2))
+  (obst1 <- sum(x1))
+  (obst2 <- sum(x2))
+  
+  # generate posterior
+  hist(rgamma(1000, 1, 50))
+  abline(v = cfg$b0tte, col = "red", lwd = 2)
+  b0post1 <- rgamma(1000, 1 + nuncen1, 50 + obst1)
+  b0post2 <- rgamma(1000, 1 + nuncen2, 50 + obst2)
+  
+  # hist(callrgamma(1000, 1, 1/50))
+  # abline(v = cfg$b0tte, col = "red", lwd = 2)
+  
+  b0post1b <- callrgamma(1000, 1 + nuncen1, 1/(50 + obst1))
+  b0post2b <- callrgamma(1000, 1 + nuncen2, 1/(50 + obst2))
+  
+  par(mfrow = c(1, 2))
+  hist(log(2)/b0post1, prob = T)
+  lines(density(log(2)/b0post1b), col = "red")
+  abline(v = log(2)/cfg$b0tte, col = "blue", lwd = 2)
+  hist(log(2)/b0post2, prob = T)
+  lines(density(log(2)/b0post2b), col = "red")
+  abline(v = log(2)/cfg$b0tte, col = "blue", lwd = 2)
+  par(mfrow = c(1, 1))
+}
 
 
 

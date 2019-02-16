@@ -85,3 +85,7 @@ rcpp_test_sub_2 <- function(d) {
     .Call(`_orvacsim_rcpp_test_sub_2`, d)
 }
 
+rcpp_cens_interim_alt <- function(d_new, i, look, cfg) {
+    .Call(`_orvacsim_rcpp_cens_interim_alt`, d_new, i, look, cfg)
+}
+

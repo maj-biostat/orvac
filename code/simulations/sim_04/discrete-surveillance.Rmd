@@ -1,0 +1,270 @@
+---
+title: "Orvac - Discrete surveillance leads to unreliable median survival estimates"
+output:
+  html_document:
+    number_sections: yes
+    self_contained: yes
+    theme: united
+    toc: yes
+    toc_float: true
+    toc_depth: 3
+geometry: left=0.2cm,right=0.2cm,top=1cm,bottom=1cm
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, echo = F}
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(truncnorm))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(orvacsim))
+ggplot2::theme_set(theme_bw())
+```
+
+# Preamble
+
+Further to the report on discrete surveillance periods, here we look at the impact this approach might have on parameter estimates derived from the data that we collect.
+
+# Data generating process
+
+Is as before -- exponential distribution generated with rates such that the medians are 30 and 35 months in the control and treatment arms respectively.
+
+```{r, echo = F, fig.cap="Figure 1. Underlying time to event data (solid vertical is true value, dashed is sample estimate)"}
+
+dnames <- c("id", "trt", "accrt", "age", 
+            "serot2", "serot3", "probt3", 
+            "evtt", "fu1", "fu2", "cen", "obst")
+
+
+cbp <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
+
+cfg <- readRDS("../sim_01/tests/cfg-example.RDS")
+
+d <- rcpp_dat(cfg)
+d2 <- as.data.frame(copy(d))
+colnames(d2) <- dnames
+
+v0 <- d2$evtt[d2$trt == 0]
+v1 <- d2$evtt[d2$trt == 1]
+
+par(mfrow = c(1, 2))
+hist(v0, probability = T, main = "Ctl")
+abline(v = log(2)/cfg$b0tte, col = cbp[2], lwd = 2)
+abline(v = median(v0), col = cbp[3], lwd = 2, lty = 3)
+hist(v1, probability = T, main = "Trt")
+abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = cbp[2], lwd = 2)
+abline(v = median(v1), col = cbp[3], lwd = 2, lty = 3)
+legend(0, 5, legend=c("true med", "sample med"),
+       col=c(cbp[2], cbp[3]), lty=1:2, cex=0.8)
+par(mfrow = c(1, 1))
+  
+```
+
+# Excess Censored Values
+
+Naive censoring based solely on the maximum follow up age of 36 months introduces a probability mass weighted towards 36 months and an unreliable median time to event due to a high proportion (>50% of sample) of censored values.
+
+```{r, echo = F, fig.cap="Figure 2. Censoring at 36 months"}
+set.seed(345)
+nsim <- 100
+m <- matrix(0, nrow = nsim, ncol = 3)
+
+for(i in 1:nsim){
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  d2$testcen <- ifelse(d2$evtt + d2$age > 36, 1, 0)
+  d2$testobst <- ifelse(d2$testcen == 1, 36, d2$evtt)
+  
+  m[i, 3] <- sum(d2$testcen)/nrow(d2)
+  
+  v0 <- d2$testobst[d2$trt == 0]
+  v1 <- d2$testobst[d2$trt == 1]
+  
+  m[i, 1] <- median(v0)
+  m[i, 2] <- median(v1)
+}
+
+v0 <- d2$testobst[d2$trt == 0]
+v1 <- d2$testobst[d2$trt == 1]
+
+par(mfrow = c(1, 2))
+hist(v0, probability = T, main = "Ctl")
+abline(v = log(2)/cfg$b0tte, col = cbp[2], lwd = 2)
+abline(v = median(v0), col = cbp[3], lwd = 2, lty = 3)
+hist(v1, probability = T, main = "Trt")
+abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = cbp[2], lwd = 2)
+abline(v = median(v1), col = cbp[3], lwd = 2, lty = 3)
+legend(0, 5, legend=c("true med", "sample med"),
+       col=c(cbp[2], cbp[3]), lty=1:2, cex=0.8)
+par(mfrow = c(1, 1))
+```
+
+Increasing the follow up time to 48 months leads to a more stable estimate of the median time to event. In this case a max follow up of 48 months works, but if the underlying data were generated with a median time to above 40 months then we would see the median time to event start to jump around again due to excessive censoring. Fundamentally, under the parameteric assumptions we follow here, having a maximum follow up time approximately equal to the true parameter that was used to generate the data will lead to high levels of censoring and therefore unreliable point estimates for the median time to event.
+
+```{r, echo = F, fig.cap="Figure 3. Censoring at 48 months"}
+set.seed(2)
+nsim <- 100
+m <- matrix(0, nrow = nsim, ncol = 3)
+
+for(i in 1:nsim){
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  maxfu <- 48
+  d2$testcen <- ifelse(d2$evtt + d2$age > maxfu, 1, 0)
+  d2$testobst <- ifelse(d2$testcen == 1, maxfu, d2$evtt)
+  
+  m[i, 3] <- sum(d2$testcen)/nrow(d2)
+  
+  v0 <- d2$testobst[d2$trt == 0]
+  v1 <- d2$testobst[d2$trt == 1]
+  
+  m[i, 1] <- median(v0)
+  m[i, 2] <- median(v1)
+}
+
+v0 <- d2$testobst[d2$trt == 0]
+v1 <- d2$testobst[d2$trt == 1]
+
+par(mfrow = c(1, 2))
+hist(v0, probability = T, main = "Ctl")
+abline(v = log(2)/cfg$b0tte, col = cbp[2], lwd = 2)
+abline(v = median(v0), col = cbp[3], lwd = 2, lty = 3)
+hist(v1, probability = T, main = "Trt")
+abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = cbp[2], lwd = 2)
+abline(v = median(v1), col = cbp[3], lwd = 2, lty = 3)
+legend(0, 5, legend=c("true med", "sample med"),
+       col=c(cbp[2], cbp[3]), lty=1:2, cex=0.8)
+par(mfrow = c(1, 1))
+```
+
+# Estimating parameters of interest
+
+Using a gamma conjugate prior with an exponential distribution parameterised with a rate, the sufficient statistics are the total number of uncensored events and the total observed time. The posterior estimates for the rate parameter (which give us a posterior view of the median time to event) are unreliable.
+
+```{r, echo = F, fig.cap="Figure 4. Posterior estimats of medians"}
+set.seed(34)
+d <- rcpp_dat(cfg)
+d2 <- as.data.frame(copy(d))
+colnames(d2) <- dnames
+d2$testcen <- ifelse(d2$evtt + d2$age > 36, 1, 0)
+d2$testobst <- ifelse(d2$testcen == 1, 36, d2$evtt)
+
+uc0 <- sum(d2$testcen[d2$trt == 0] == 0)
+uc1 <- sum(d2$testcen[d2$trt == 1] == 0)
+
+obst0 <- sum(d2$testobst[d2$trt == 0])
+obst1 <- sum(d2$testobst[d2$trt == 1])
+
+
+post0 <- rgamma(1000, 1 + uc0, 50 + obst0)
+post1 <- rgamma(1000, 1 + uc1, 50 + obst1)
+
+par(mfrow = c(1, 2))
+hist(log(2)/post0, prob = T, main = "Ctl", xlim = c(20, 60))
+abline(v = log(2)/cfg$b0tte, col = cbp[2], lwd = 2)
+
+hist(log(2)/post1, prob = T, main = "Trt", xlim = c(20, 60))
+abline(v = log(2)/(cfg$b0tte + cfg$b1tte), col = cbp[2], lwd = 2)
+par(mfrow = c(1, 1))
+```
+
+But the ratio remains surprisingly robust. Here is a plot derived from conducting the above analysis 1000 times and working out the ratio of median time to event in the treatment versus control arms. The true value is plotted as the vertical line. Note the ratio of exponential rates is an equivalent picture.
+
+```{r, echo = F, fig.cap="Figure 5. Posterior of ratio of medians"}
+nsim <- 1000
+rat <- numeric(nsim)
+for(i in 1:nsim){
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  d2$testcen <- ifelse(d2$evtt + d2$age > 36, 1, 0)
+  d2$testobst <- ifelse(d2$testcen == 1, 36, d2$evtt)
+  
+  uc0 <- sum(d2$testcen[d2$trt == 0] == 0)
+  uc1 <- sum(d2$testcen[d2$trt == 1] == 0)
+  
+  obst0 <- sum(d2$testobst[d2$trt == 0])
+  obst1 <- sum(d2$testobst[d2$trt == 1])
+  
+  post0 <- rgamma(1000, 1 + uc0, 50 + obst0)
+  post1 <- rgamma(1000, 1 + uc1, 50 + obst1)
+  med0 <- log(2)/post0
+  med1 <- log(2)/post1
+
+  rat[i] <- median(med1/med0)
+}
+
+truerat = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
+
+par(mfrow = c(1, 1))
+hist(rat, prob = T, main = "Ratio of median time to event", xlab = "")
+abline(v = truerat, col = cbp[2], lwd = 2)
+abline(v = mean(rat), col = cbp[3], lwd = 2, lty = 3)
+
+par(mfrow = c(1, 1))
+```
+
+# Orvac Censoring
+
+Is more involved because we observe the data at discrete times that do not necessarily align with the interim analyses. Again, the median time to event estimates are  unreliable. However, the ratio continues to hold up. Below is a histogram of the ratio of medians from 1000 simulations of the data and censoring as used in the Orvac simulations.
+
+```{r, echo = F, fig.cap="Figure 6. Ratio of meds from Orvac"}
+set.seed(5343534)
+look <- 32
+nsim <- 1000
+v <- numeric(nsim)
+  
+for(i in 1:nsim){
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  # get sufficieitn stats
+  lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look)
+  
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+
+  # obtain posterior based on current look 
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
+                         lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
+                         cfg$post_draw, cfg);
+  v[i] <- mean(m[, 1]/m[, 2])
+  
+  # should be (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
+}
+
+truerat = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
+
+par(mfrow = c(1, 1))
+hist(v, prob = T, main = "Ratio of median time to event", xlab = "")
+abline(v = truerat, col = cbp[2], lwd = 2)
+abline(v = mean(v), col = cbp[3], lwd = 2, lty = 3)
+
+```
+
+
+# Conclusion
+
+Excess censoring as we are likely to see in the Orvac trial leads to unreliable median time to event estimates. However, the ratio of the medians appears to remain robust. Conclusion - (1) reporting of median time to events should be caveated to indicate that they are probably unreliable (2) ratio of time to events looks to be within about +/- 2% of the true values.
+
+
+
+
+
