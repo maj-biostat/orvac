@@ -1336,42 +1336,11 @@ test_that("clin tte data - all", {
   look <- 32
   cfg$interimmnths[look]
   
-  cfg$post_draw <- 2000
   
-  nsim <- 10000
-  m <- matrix(0, ncol = 3, nrow = nsim)
-  
-  for(i in 1:nsim){
-    
-    l <- rcpp_clin(d, cfg, look)
-    
-    m[i, 1] <- mean(l$posterior[, 1])
-    m[i, 2] <- mean(l$posterior[, 2])
-    m[i, 3] <- mean(l$posterior[, 3])
-    
-    # Think there is bias due to the discrete observation pattern
-    # x <- rgamma(1000, 1 + l$n_uncen_0, 0.03 + l$tot_obst_0)
-    # hist(log(2)/x)
-    # abline(v = 30, col = "red")
-    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
-    # median(log(2)/x)
-    # 
-    # x <- rgamma(1000, 1 + l$n_uncen_1, 0.03 + l$tot_obst_1)
-    # hist(log(2)/x)
-    # abline(v = 35, col = "red")
-    # abline(v = median(log(2)/x), col = "green",  lwd = 3)
-    # median(log(2)/x)
-  }
-  
-  # this highlights the bias in each group but fortunately the
-  # ratio looks ok (just)
-  # l <- rcpp_clin(d, cfg, look)
-  # plot_tte_hist(l$posterior)
-  
-  rat <- cfg$trt_med_tte / cfg$ctl_med_tte
-  expect_lt(abs(mean(m[i, 3]) - rat), rat * 0.15)
-  
-  
+  lres <- rcpp_clin(d, cfg, look)
+  str(lres)
+  lres$ppos_n
+  lres$ppos_max
   
   
   

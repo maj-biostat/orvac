@@ -188,17 +188,17 @@ BEGIN_RCPP
 END_RCPP
 }
 // rcpp_immu_interim_post
-arma::mat rcpp_immu_interim_post(const arma::mat& d, const int nobs, const int post_draw, const Rcpp::List& lnsero);
-RcppExport SEXP _orvacsim_rcpp_immu_interim_post(SEXP dSEXP, SEXP nobsSEXP, SEXP post_drawSEXP, SEXP lnseroSEXP) {
+void rcpp_immu_interim_post(const arma::mat& d, arma::mat& m, const int nobs, const int post_draw, const Rcpp::List& lnsero);
+RcppExport SEXP _orvacsim_rcpp_immu_interim_post(SEXP dSEXP, SEXP mSEXP, SEXP nobsSEXP, SEXP post_drawSEXP, SEXP lnseroSEXP) {
 BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type m(mSEXP);
     Rcpp::traits::input_parameter< const int >::type nobs(nobsSEXP);
     Rcpp::traits::input_parameter< const int >::type post_draw(post_drawSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type lnsero(lnseroSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_immu_interim_post(d, nobs, post_draw, lnsero));
-    return rcpp_result_gen;
+    rcpp_immu_interim_post(d, m, nobs, post_draw, lnsero);
+    return R_NilValue;
 END_RCPP
 }
 // rcpp_immu_interim_ppos
@@ -311,7 +311,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_immu", (DL_FUNC) &_orvacsim_rcpp_immu, 3},
     {"_orvacsim_rcpp_n_obs", (DL_FUNC) &_orvacsim_rcpp_n_obs, 5},
     {"_orvacsim_rcpp_lnsero", (DL_FUNC) &_orvacsim_rcpp_lnsero, 2},
-    {"_orvacsim_rcpp_immu_interim_post", (DL_FUNC) &_orvacsim_rcpp_immu_interim_post, 4},
+    {"_orvacsim_rcpp_immu_interim_post", (DL_FUNC) &_orvacsim_rcpp_immu_interim_post, 5},
     {"_orvacsim_rcpp_immu_interim_ppos", (DL_FUNC) &_orvacsim_rcpp_immu_interim_ppos, 7},
     {"_orvacsim_atest", (DL_FUNC) &_orvacsim_atest, 0},
     {"_orvacsim_rcpp_gamma", (DL_FUNC) &_orvacsim_rcpp_gamma, 3},

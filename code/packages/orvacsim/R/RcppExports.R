@@ -53,8 +53,8 @@ rcpp_lnsero <- function(d, nobs) {
     .Call(`_orvacsim_rcpp_lnsero`, d, nobs)
 }
 
-rcpp_immu_interim_post <- function(d, nobs, post_draw, lnsero) {
-    .Call(`_orvacsim_rcpp_immu_interim_post`, d, nobs, post_draw, lnsero)
+rcpp_immu_interim_post <- function(d, m, nobs, post_draw, lnsero) {
+    invisible(.Call(`_orvacsim_rcpp_immu_interim_post`, d, m, nobs, post_draw, lnsero))
 }
 
 rcpp_immu_interim_ppos <- function(d, m, nobs, nimpute, post_draw, lnsero, cfg) {

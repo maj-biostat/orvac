@@ -119,7 +119,8 @@ int rcpp_n_obs(const arma::mat& d,
                const double info_delay);
 Rcpp::List rcpp_lnsero(const arma::mat& d,
                        const int nobs);
-arma::mat rcpp_immu_interim_post(const arma::mat& d,
+void rcpp_immu_interim_post(const arma::mat& d,
+                            arma::mat& m,
                              const int nobs,
                              const int post_draw,
                              const Rcpp::List& lnsero);
@@ -305,6 +306,9 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
                          n_uncen_1, tot_obst_1,
                          post_draw, cfg);
 
+  arma::uvec tmp = arma::find(m.col(COL_RATIO) > 1);
+  double ppos_n =  (double)tmp.n_elem / (double)post_draw;
+
   // use posterior to do pp at final analysis
   // this involves simulating multiple datasets conditional on the
   // posterior and therefore requires multiple to the censoring funct
@@ -313,15 +317,21 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
   int nimpute = max(looks) - looks[mylook];
 
   // DBG(Rcpp::Rcout, " need to impute " << nimpute << " to get to end of trial");
-  rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg);
+  Rcpp::List lppos = rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg);
 
-
-  ret = Rcpp::List::create(Rcpp::Named("d") = d_new,
-                           Rcpp::Named("posterior") = m,
-                           Rcpp::Named("n_uncen_0") = n_uncen_0,
-                           Rcpp::Named("tot_obst_0") = tot_obst_0,
-                           Rcpp::Named("n_uncen_1") = n_uncen_1,
-                           Rcpp::Named("tot_obst_1") = tot_obst_1);
+  if(_DEBUG == 1){
+    ret = Rcpp::List::create(Rcpp::Named("ppos_n") = ppos_n,
+                             Rcpp::Named("ppos_max") = (double)lppos["ppos"],
+                             Rcpp::Named("d") = d_new,
+                             Rcpp::Named("posterior") = m,
+                             Rcpp::Named("n_uncen_0") = n_uncen_0,
+                             Rcpp::Named("tot_obst_0") = tot_obst_0,
+                             Rcpp::Named("n_uncen_1") = n_uncen_1,
+                             Rcpp::Named("tot_obst_1") = tot_obst_1);
+  } else {
+    ret = Rcpp::List::create(Rcpp::Named("ppos_n") = ppos_n,
+                             Rcpp::Named("ppos_max") = (double)lppos["ppos"]);
+  }
 
   return ret;
 }
@@ -407,10 +417,17 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
 
   double ppos = (double)win / (double)post_draw;
 
-  Rcpp::List res = Rcpp::List::create(Rcpp::Named("win") = win,
-                                      Rcpp::Named("ppos") = ppos,
-                                      Rcpp::Named("pp_ratio") = postprob_ratio_gt1,
-                                      Rcpp::Named("mean_ratio") = mean_rat);
+  Rcpp::List res ;
+  if(_DEBUG == 1){
+    res = Rcpp::List::create(Rcpp::Named("win") = win,
+                                        Rcpp::Named("ppos") = ppos,
+                                        Rcpp::Named("pp_ratio") = postprob_ratio_gt1,
+                                        Rcpp::Named("mean_ratio") = mean_rat);
+  } else {
+    res = Rcpp::List::create(Rcpp::Named("win") = win,
+                                        Rcpp::Named("ppos") = ppos);
+  }
+
 
   return res;
 
@@ -893,7 +910,8 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
     lnsero = rcpp_lnsero(d, nobs);
 
     // posterior at this interim
-    m = rcpp_immu_interim_post(d, nobs, (int)cfg["post_draw"], lnsero);
+    arma::mat m = arma::zeros((int)cfg["post_draw"] , 3);
+    rcpp_immu_interim_post(d, m, nobs, (int)cfg["post_draw"], lnsero);
 
     // therefore how many do we need to impute?
     nimpute1 = looks[mylook] - nobs;
@@ -909,14 +927,18 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
                                     (int)cfg["post_draw"],
                                             lnsero, cfg);
 
-    ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
-                             Rcpp::Named("nimpute1") = nimpute1,
-                             Rcpp::Named("nimpute2") = nimpute2,
-                             Rcpp::Named("lnsero") = lnsero,
-                             Rcpp::Named("posterior") = m,
-                             Rcpp::Named("ppn") = pp1,
-                             Rcpp::Named("ppmax") = pp2);
-
+    if(_DEBUG == 1){
+      ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
+                               Rcpp::Named("nimpute1") = nimpute1,
+                               Rcpp::Named("nimpute2") = nimpute2,
+                               Rcpp::Named("lnsero") = lnsero,
+                               Rcpp::Named("posterior") = m,
+                               Rcpp::Named("ppos_n") = (double)pp1["ppos"],
+                               Rcpp::Named("ppos_max") = (double)pp2["ppos"]);
+    } else {
+      ret = Rcpp::List::create(Rcpp::Named("ppos_n") = (double)pp1["ppos"],
+                               Rcpp::Named("ppos_max") = (double)pp2["ppos"]);
+    }
   }
 
   return ret;
@@ -1001,12 +1023,11 @@ Rcpp::List rcpp_lnsero(const arma::mat& d,
 
 
 // [[Rcpp::export]]
-arma::mat rcpp_immu_interim_post(const arma::mat& d,
-                                 const int nobs,
-                                 const int post_draw,
-                                 const Rcpp::List& lnsero){
-
-  arma::mat m = arma::zeros(post_draw, 3);
+void rcpp_immu_interim_post(const arma::mat& d,
+                            arma::mat& m,
+                            const int nobs,
+                            const int post_draw,
+                            const Rcpp::List& lnsero){
 
   for(int i = 0; i < post_draw; i++){
     m(i, COL_THETA0) = R::rbeta(1 + (int)lnsero["n_sero_ctl"], 1 + (nobs/2) - (int)lnsero["n_sero_ctl"]);
@@ -1014,7 +1035,7 @@ arma::mat rcpp_immu_interim_post(const arma::mat& d,
     m(i, COL_DELTA) = m(i, COL_THETA1) - m(i, COL_THETA0);
   }
 
-  return m;
+  return;
 
 }
 
@@ -1033,10 +1054,8 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
   int win = 0;
   arma::vec t0 = arma::zeros(post_draw);
   arma::vec t1 = arma::zeros(post_draw);
-  arma::vec delta_gt0 = arma::zeros(post_draw);
+  arma::vec delta1 = arma::zeros(post_draw);
   arma::vec postprobdelta_gt0 = arma::zeros(post_draw);
-  arma::mat delta1 = arma::zeros(post_draw, post_draw);
-  double mean_delta = 0;
   int ntarget = nobs + nimpute;
 
   // create 1000 phony interims conditional on our current understanding
@@ -1053,28 +1072,18 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
       t0(j) = R::rbeta(1 + n_sero_ctl, 1 + (ntarget/2) - n_sero_ctl);
       t1(j) = R::rbeta(1 + n_sero_trt, 1 + (ntarget/2) - n_sero_trt);
 
-      delta1(j, i) = t1(j) - t0(j);
-      mean_delta = mean_delta + delta1(j, i);
-
-      if(delta1(j, i) > 0){
-        delta_gt0(j) = 1;
-      }
+      delta1(j) = t1(j) - t0(j);
     }
 
-    // empirical posterior probability that delta > 0
-    postprobdelta_gt0(i) = arma::mean(delta_gt0);
-    if(postprobdelta_gt0(i) > (float)cfg["post_sero_thresh"]){
+    // empirical posterior probability that ratio_lamb > 1
+    arma::uvec tmp = arma::find(delta1 > 0);
+    postprobdelta_gt0(i) =  (double)tmp.n_elem / (double)post_draw;
+    if(postprobdelta_gt0(i) > (double)cfg["post_sero_thresh"]){
       win++;
     }
-
-    //reset to zeros
-    delta_gt0 = arma::zeros(post_draw);
   }
 
   //DBG(Rcpp::Rcout, "pow " << std::pow((float)post_draw, 2.0) );
-
-  mean_delta = mean_delta / std::pow((float)post_draw, 2.0);
-
   //DBG(Rcpp::Rcout, "mean difference mean_delta " << mean_delta );
   //DBG(Rcpp::Rcout, "mean   postprobdelta_gt0 " << (double)arma::mean(postprobdelta_gt0) );
   //DBG(Rcpp::Rcout, "median postprobdelta_gt0 " << (double)arma::median(postprobdelta_gt0) );
@@ -1084,8 +1093,7 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
   //DBG(Rcpp::Rcout, "post_draw " << (double)post_draw);
   //DBG(Rcpp::Rcout, "mean wins " << (double)win / (double)post_draw );
 
-  Rcpp::List res = Rcpp::List::create(Rcpp::Named("ppos") = (double)win / (double)post_draw,
-                                      Rcpp::Named("delta") = mean_delta);
+  Rcpp::List res = Rcpp::List::create(Rcpp::Named("ppos") = (double)win / (double)post_draw);
 
   return res;
 

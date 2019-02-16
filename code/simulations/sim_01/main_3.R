@@ -181,15 +181,15 @@ results <- foreach(i = 1:cfg$nsims,
       # we do not make superiority assessments based on the immu endpoint. 
       # analysis for making decision is the same in the interim and at max sero
       # namely we look at the ppos based on simulated trials. 
-      if (m_immu_res$ppmax$ppos < cfg$rule1_sero_pp_fut_thresh){
+      if (m_immu_res$ppos_max < cfg$rule1_sero_pp_fut_thresh){
        flog.info("Immu futile: ppos_max = %s threshold %s, i = %s look = %s", 
-                 m_immu_res$ppmax$ppos, cfg$rule1_sero_pp_fut_thresh, i, look)
+                 m_immu_res$ppos_max, cfg$rule1_sero_pp_fut_thresh, i, look)
         stop_immu_fut <<- 1
         trial_state$stop_immu_fut <- 1
       }
 
       # rule 3 - "stop venous sampling"
-      if (m_immu_res$ppn > cfg$rule3_sero_pp_sup_thresh && !trial_state$stop_immu_fut){
+      if (m_immu_res$ppos_n > cfg$rule3_sero_pp_sup_thresh && !trial_state$stop_immu_fut){
         stop_ven_samp <<- 1
         trial_state$stop_ven_samp <- 1
       }
@@ -199,7 +199,48 @@ results <- foreach(i = 1:cfg$nsims,
 
     
     
-    # cat(paste0("/n", m_immu_res,"/n"))
+    if (!stop_clin(stop_immu_fut,
+                   stop_clin_fut,
+                   stop_clin_sup) & cfg$looks[look] >= cfg$nstartclin){
+      
+      m_clin_res <- tryCatch({
+        rcpp_clin(dt1, cfg, look)
+      }, error = function(err) {
+        flog.fatal("CATCH ERROR model_clin err = %s \n i = %s look = %s", err, i, look)
+        flog.fatal(sys.calls())
+        stop("Stopped in main loop model_clin error")
+      }, warning=function(cond) {
+        flog.fatal("CATCH WARNING model_clin err = %s \n i = %s look = %s", cond, i, look)
+        flog.fatal(sys.calls())
+        stop("Stopped in main loop model_clin warning")
+      })
+      
+      # ppos_max will be NA at max looks since that is the final analysis and we just
+      # look at the posterior rather than the predictive probability
+      if (!is.na(m_clin_res$ppos_max) && m_clin_res$ppos_max < cfg$rule1_tte_pp_fut_thresh){
+        flog.info("Treatment futile: ppos_max = %s threshold %s, i = %s look = %s", 
+                  m_clin_res$ppos_max, cfg$rule1_tte_pp_fut_thresh, i, look)
+        stop_clin_fut <<- 1
+        trial_state$stop_clin_fut <- 1
+      }
+      
+      if (m_clin_res$ppos_n > cfg$rule2_tte_pp_sup_thresh[look] &&
+          !trial_state$stop_clin_fut){
+        flog.info("Treatment superior: ppos_n = %s threshold %s, i = %s look = %s", 
+                  m_clin_res$ppos_n, cfg$rule2_tte_pp_sup_thresh[look], i, look)
+        stop_clin_sup <<- 1
+        trial_state$stop_clin_sup <- 1
+      }
+      
+      if (look == length(cfg$looks) && stop_clin_fut == 0 && stop_clin_sup == 0){
+        inconclusive <<- 1
+        trial_state$inconclusive <- 1
+      }
+      
+      
+      # we are not concerned with the zeros.
+      ss_clin <- cfg$looks[look]
+    }
     
     
 
@@ -225,42 +266,20 @@ results <- foreach(i = 1:cfg$nsims,
                  stop_c_fut = trial_state$stop_clin_fut,
                  stop_c_sup = trial_state$stop_clin_sup,
                  inconclusive = trial_state$inconclusive,
-                 i_nobs = NA,
-                 i_nimpute1 = NA,
-                 i_nimpute2 =  NA,
-                 i_n_sero_ctl = NA,
-                 i_n_sero_trt = NA,
-                 i_t0_mean = NA,
-                 i_t0_lwr = NA,
-                 i_t0_upr = NA,
-                 i_t1_mean = NA,
-                 i_t1_lwr = NA,
-                 i_t1_upr = NA,
-                 i_del_mean = NA,
-                 i_del_lwr = NA,
-                 i_del_upr = NA,
                  i_pposn = NA,
-                 i_pposmax = NA
-                 
+                 i_pposmax = NA,
+                 c_pposn = NA,
+                 c_pposmax = NA
                  )
       
       if (exists("m_immu_res") && !is.null(m_immu_res)){
-        lr$i_nobs <- m_immu_res$nobs
-        lr$i_nimpute1 <- m_immu_res$nimpute1
-        lr$i_nimpute2 <-  m_immu_res$nimpute2
-        lr$i_n_sero_ctl <- m_immu_res$lnsero$n_sero_ctl
-        lr$i_n_sero_trt <- m_immu_res$lnsero$n_sero_trt
-        lr$i_t0_mean <- mean(m_immu_res$posterior[,COL_THETA0])
-        lr$i_t0_lwr <- as.numeric(quantile(m_immu_res$posterior[,COL_THETA0], probs = 0.025))
-        lr$i_t0_upr <- as.numeric(quantile(m_immu_res$posterior[,COL_THETA0], probs = 0.975))
-        lr$i_t1_mean <- mean(m_immu_res$posterior[,COL_THETA1])
-        lr$i_t1_lwr <- as.numeric(quantile(m_immu_res$posterior[,COL_THETA1], probs = 0.025))
-        lr$i_t1_upr <- as.numeric(quantile(m_immu_res$posterior[,COL_THETA1], probs = 0.975))
-        lr$i_del_mean <- mean(m_immu_res$posterior[,COL_DELTA])
-        lr$i_del_lwr <- as.numeric(quantile(m_immu_res$posterior[,COL_DELTA], probs = 0.025))
-        lr$i_del_upr <- as.numeric(quantile(m_immu_res$posterior[,COL_DELTA], probs = 0.975))
-        lr$i_pposn <- m_immu_res$ppn$ppos
-        lr$i_pposmax <- m_immu_res$ppmax$ppos
+        lr$i_pposn <- m_immu_res$ppos_n
+        lr$i_pposmax <- m_immu_res$ppos_max
+      }
+      
+      if (exists("m_clin_res") && !is.null(m_clin_res)){
+        lr$c_pposn <- m_clin_res$ppos_n
+        lr$c_pposmax <- m_clin_res$ppos_max
       }
       
       lr
