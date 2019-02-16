@@ -556,30 +556,77 @@ test_that("censoring at final", {
   library(orvacsim)
   library(data.table)
   source("util.R")
+  
+
+  # set.seed(4343)
   cfg <- readRDS("tests/cfg-example.RDS")
-  
-  set.seed(4343)
+  #cfg$b0tte <- log(2)/35
+  cfg$b1tte <- 0
   d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(d)
-  names(d2) <- dnames
-  
   look <- length(cfg$looks)
+  cfg$interimmnths[look]
+  cfg$max_age_fu_months <- 36
+  # cfg$visit_lwr <- 1.8
+  # cfg$visit_lwr <- 2.2
+  
+  for(i in 1:nrow(d)){
+    visits <- rcpp_visits(d, i-1, look, cfg)
+    cat(paste0(visits, "\n"))
+    cens <- rcpp_cens_final(d, visits, i-1, look, cfg)
+    
+    d[i, COL_CEN] <- cens$cen
+    d[i, COL_OBST] <- cens$obst
+    
+  }
+  median(d[, COL_EVTT])
+  median(d[, COL_OBST])
+  m <- cbind(d[, COL_EVTT], d[, COL_OBST], 0)
+  plot_tte_meds_hist(m, 30, 30)
+  prop.table(table(d[, COL_CEN]))
+  
+  # i remain unconvince about the feasibility of a 36 month fu when your 
+  # median tte is 30
+  
+})
+
+
+test_that("censoring at interim", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  
+  
+  # set.seed(4343)
+  cfg <- readRDS("tests/cfg-example.RDS")
+  #cfg$b0tte <- log(2)/35
+  cfg$b1tte <- 0
+  d <- rcpp_dat(cfg)
+  look <- 31
   cfg$interimmnths[look]
   
   for(i in 1:nrow(d)){
-    (visits <- rcpp_visits(d, i-1, look, cfg))
-    cens <- rcpp_cens_final(d, visits, i-1, look, cfg)
     
-    d2$cen[i] <- cens$cen
-    d2$obst[i] <- cens$obst
+    # i = i + 1
+    (visits <- rcpp_visits(d, i-1, look, cfg))
+    (cens <- rcpp_cens_interim(d, visits, i-1, look, cfg))
+    
+    d[i, COL_CEN] <- cens$cen
+    d[i, COL_OBST] <- cens$obst
+    
+    d2 <- as.data.frame(d)
+    names(d2) <- dnames
     d2[i,]
   }
+  median(d[1:cfg$looks[look], COL_EVTT])
+  median(d[1:cfg$looks[look], COL_OBST])
+  m <- cbind(d[, COL_EVTT], d[, COL_OBST], 0)
+  plot_tte_meds_hist(m, 30, 30)
+  prop.table(table(d[, COL_CEN]))
   
-  hist(d2$evtt + d2$age)
-  median(d2$evtt + d2$age)
-  prop.table(table(d2$cen))
-  median(d2$obst)
-  hist(d2$obst)
+  # i remain unconvince about the feasibility of a 36 month fu when your 
+  # median tte is 30
   
 })
 
@@ -614,7 +661,7 @@ test_that("censoring", {
   cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
   
   expect_equal(cens$cen, 0)
-  expect_equal(cens$obst, d2[1, "evtt"] + d2[1, "age"], tolerance = 0.001)
+  expect_equal(cens$obst, d2[1, "evtt"] , tolerance = 0.001)
   expect_lt(cens$obst, cfg$max_age_fu_months)
   
   
@@ -637,7 +684,7 @@ test_that("censoring", {
   cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg)
   
   expect_equal(cens$cen, 1)
-  expect_equal(cens$obst, max(visits) + d2[1, "age"] - d2[1, "accrt"], tolerance = 0.001)
+  expect_lte(cens$obst, cfg$max_age_fu_months)
   # i contrived the age so do not test
   
   
@@ -658,7 +705,7 @@ test_that("censoring", {
   (cens <- rcpp_cens(as.matrix(d2), visits, idxcpp, look, cfg))
   
   expect_equal(cens$cen, 1)
-  expect_equal(cens$obst, d2[1, "age"] + cfg$interimmnths[look] - d2[1, "accrt"])
+  expect_equal(cens$obst, d2[1, "age"] + cfg$interimmnths[look] - d2[1, "accrt"], tolerance = 0.001)
   expect_lt(cens$obst, cfg$max_age_fu_months)
   
   # test - no visits yet and hasn't even enrolled
@@ -698,7 +745,6 @@ test_that("censoring", {
   cens
   
   expect_equal(cens$cen, 1)
-  expect_equal(d2[1, "age"] + cfg$interimmnths[look] - d2[1, "accrt"], cens$obst, tolerance = 0.001)
   expect_lt(cens$obst, cfg$max_age_fu_months)
   
   
@@ -719,7 +765,7 @@ test_that("censoring", {
   cens
   
   expect_equal(cens$cen, 1)
-  expect_equal(d2[1, "age"] + max(visits) - d2[1, "accrt"], cens$obst, tolerance = 0.001)
+  expect_equal(cfg$max_age_fu_months, cens$obst, tolerance = 0.001)
   
 
   # test - sample statistics
@@ -982,20 +1028,86 @@ test_that("clinical endpoint posterior", {
   
   m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
   rcpp_clin_interim_post(m, 
-                         300, lsuffstat$tot_obst_0,
-                         300, lsuffstat$tot_obst_1,
+                         lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                         lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
                          cfg$post_draw, cfg);
   
   plot_tte_hist(m)
   
-  x0 <- rgamma(1000, 1000, lsuffstat$tot_obst_0)
-  x1 <- rgamma(1000, 1000, lsuffstat$tot_obst_1)
-  m2 <- cbind(x0, x1, x0/x1)
-  
-  plot_tte_hist(m2)
+  # x0 <- rgamma(1000, 1000, lsuffstat$tot_obst_0)
+  # x1 <- rgamma(1000, 1000, lsuffstat$tot_obst_1)
+  # m2 <- cbind(x0, x1, x0/x1)
+  # 
+  # plot_tte_hist(m2)
   
   
 })
+
+
+
+test_that("clinical endpoint ppos", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  
+  
+  # test - are the correct number of obs times and censor status set at first interim
+  
+  set.seed(4343)
+  look <- 1
+  cfg$interimmnths[look]
+  
+  # get data
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  
+  # get sufficieitn stats
+  lsuffstat <- rcpp_clin_set_obst(d, cfg, look)
+  
+  # obtain posterior based on current look 
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                         lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                         cfg$post_draw, cfg);
+  
+  plot_tte_hist(m)
+  
+  
+  # 
+  d3 <- copy(d)
+  nimpute = max(cfg$looks) - cfg$looks[look]
+  
+  rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg);
+  
+  
+  
+  # x0 <- rgamma(1000, 1000, lsuffstat$tot_obst_0)
+  # x1 <- rgamma(1000, 1000, lsuffstat$tot_obst_1)
+  # m2 <- cbind(x0, x1, x0/x1)
+  # 
+  # plot_tte_hist(m2)
+  
+  
+})
+
+
+# finish rcpp_clin loop
+
+# test for rcpp_clin loop
+
+# calling clin from main_3
+
+# decision rules for main_3
+
+# refactor sim.cpp to optimise speed - update rather than return.
+
+
 
 test_that("clin tte data - all", {
   
