@@ -506,7 +506,8 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
         obst = NA_REAL;
       } else {
         cen = 1;
-        obst = d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT);
+        obst = months[mylook] - d_new(i, COL_ACCRT);
+        obst = obst < 0 ? 0 : obst;
       }
 
       cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
@@ -544,7 +545,8 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
           obst = (double)cfg["max_age_fu_months"];
           //DBG(Rcpp::Rcout, "i " << i << " cens 2a     : " << obst);
         } else {
-          obst = d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT);
+          obst = months[mylook] - d_new(i, COL_ACCRT);
+          obst = obst < 0 ? 0 : obst;
           //DBG(Rcpp::Rcout, "i " << i << " cens 2b     : " << obst);
         }
 
