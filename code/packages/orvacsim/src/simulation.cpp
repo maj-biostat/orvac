@@ -43,7 +43,7 @@
 
 
 
-#define _DEBUG 1
+#define _DEBUG 0
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -557,7 +557,7 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
         cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
         return cens;
       }
-      // event occurred after last visit  -- age is only relevant in the censoring time
+      // event occurred after last visit
       if(d_new(i, COL_ACCRT) + d_new(i, COL_EVTT) > (double)arma::max(visits)){
         cen = 1;
 

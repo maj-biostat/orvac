@@ -1045,8 +1045,8 @@ test_that("clinical endpoint posterior", {
     # should be (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
   }
   hist(v)
-  abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = cbPalette[2], lwd = 2)
-  abline(v = mean(v), col = cbPalette[3], lwd = 2, lty = 3)
+  abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = cbp[2], lwd = 2)
+  abline(v = mean(v), col = cbp[3], lwd = 2, lty = 3)
   
   expect_equal(mean(v), (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), tolerance = 0.02)
   
@@ -1290,6 +1290,7 @@ test_that("clinical endpoint ppos", {
   hr <- numeric(nsim)
   
   for(i in 1:nsim){
+    # i = i + 1
     d <- rcpp_dat(cfg)
     d2 <- as.data.frame(copy(d))
     colnames(d2) <- dnames
@@ -1306,13 +1307,20 @@ test_that("clinical endpoint ppos", {
   
   
   
-  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  library(survival)
+  source("util.R")
+  i = 0
+  cfg <- readRDS("tests/cfg-example.RDS")
+  look <- 8
   nsim <- 500
   pp1 <- numeric(nsim)
   pp2 <- numeric(nsim)
   
   for(i in 1:nsim){
-    
+    # i = i + 1
     d <- rcpp_dat(cfg)
     d2 <- as.data.frame(copy(d))
     colnames(d2) <- dnames
@@ -1327,6 +1335,7 @@ test_that("clinical endpoint ppos", {
                            lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
                            lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
                            cfg$post_draw, cfg);
+    plot_tte_hist(m)
     
     d_new <- copy(d)
     (nimpute = max(cfg$looks) - cfg$looks[look])

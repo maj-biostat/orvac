@@ -47,7 +47,7 @@ sero_info_delay: 0.75
 # max number of venous samp
 nmaxsero: 250
 # n when we start assessing the clinical endpoint
-nstartclin: 200
+nstartclin: 250
 
 
 
