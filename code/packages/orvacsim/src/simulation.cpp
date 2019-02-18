@@ -43,7 +43,7 @@
 
 
 
-#define _DEBUG 0
+#define _DEBUG 1
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -53,7 +53,7 @@
 #define DBG( os, msg )
 #endif
 
-#define _INFO  0
+#define _INFO  1
 
 #if _INFO
 #define INFO( os, msg )                                \
@@ -384,12 +384,7 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
     //                       << tot_obst_0 << "  "  << tot_obst_1 );
 
     // compute posterior
-    // note the parameterisation of the gamma distribution is not the same as R
-    // if the conjugate prior is gamma(k, q) then the posterior is:
-    //
-    // ~ gamma(k + sum(uncensored obs), q / (1 + q * total obs time))
-    //
-    // se ibrahim bayesian surv analysis and
+    // see ibrahim bayesian surv analysis and
     // https://cdn2.hubspot.net/hubfs/310840/VWO_SmartStats_technical_whitepaper.pdf
 
     // updates m
@@ -419,6 +414,8 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
 
   Rcpp::List res ;
   if(_DEBUG == 1){
+
+    DBG(Rcpp::Rcout, "ppos debug is 1" );
     res = Rcpp::List::create(Rcpp::Named("win") = win,
                                         Rcpp::Named("ppos") = ppos,
                                         Rcpp::Named("pp_ratio") = postprob_ratio_gt1,

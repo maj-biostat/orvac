@@ -1198,6 +1198,7 @@ test_that("clinical endpoint posterior", {
 
 test_that("clinical endpoint ppos", {
   
+
   library(testthat)
   library(orvacsim)
   library(data.table)
@@ -1208,12 +1209,12 @@ test_that("clinical endpoint ppos", {
   
   #set.seed(4343)
   # look after n = 200
-  look <- 28
+  look <- 6
   cfg$looks[look]
   cfg$interimmnths
   cfg$interimmnths[look]
   
-  cfg$b1tte <- compute_exp_rate(39) - compute_exp_rate(30)
+  cfg$b1tte <- compute_exp_rate(42) - compute_exp_rate(30)
   
   # cfg$prior_gamma_a; cfg$prior_gamma_b
   # cfg$max_age_fu_months <- 36
@@ -1228,6 +1229,12 @@ test_that("clinical endpoint ppos", {
   
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
+  
+  # how many obs in total?
+  cfg$looks[look]
+  # not censored naive
+  sum(!is.na(d2$evtt) & d2$evtt < 36)/2
+  
   
   # obtain posterior based on current look 
   m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
