@@ -133,7 +133,7 @@ results <- foreach(i = 1:cfg$nsims,
   # individual trial processing is 'embarrassingly parallel' hence the foreach dopar loop
   dotrial <- function(look){
     
-    #flog.info("Started look, trial i = %s, look = %s", i, look)
+    #flog.info("Started look, trial sim = %s, look = %s", i, look)
 
     # idx = i = look = 1
     # idx = i = 2; look = look + 1; look
@@ -168,11 +168,11 @@ results <- foreach(i = 1:cfg$nsims,
         # m_immu_res <- rcpp_immu(dt1, cfg, look)
         # model_immu(d, cfg, look, i)
       }, error = function(err) {
-        flog.fatal("CATCH ERROR model_immu_2 err = %s \n i = %s look = %s", err, i, look)
+        flog.fatal("CATCH ERROR model_immu_2 err = %s \n sim = %s look = %s", err, i, look)
         flog.fatal(sys.calls())
         stop("Stopped in main loop model_immu_2 error")
       }, warning=function(cond) {
-        flog.fatal("CATCH WARNING model_immu_2 err = %s \n i = %s look = %s", cond, i, look)
+        flog.fatal("CATCH WARNING model_immu_2 err = %s \n sim = %s look = %s", cond, i, look)
         flog.fatal(sys.calls())
         stop("Stopped in main loop model_immu_2 warning")
       })
@@ -182,7 +182,7 @@ results <- foreach(i = 1:cfg$nsims,
       # analysis for making decision is the same in the interim and at max sero
       # namely we look at the ppos based on simulated trials. 
       if (m_immu_res$ppos_max < cfg$rule1_sero_pp_fut_thresh){
-       flog.info("Immunological ep futile: ppos_max = %s threshold %s, i = %s look = %s", 
+       flog.info("Immunological ep futile: ppos_max = %s threshold %s, sim = %s look = %s", 
                  m_immu_res$ppos_max, cfg$rule1_sero_pp_fut_thresh, i, look)
         stop_immu_fut <<- 1
         trial_state$stop_immu_fut <- 1
@@ -190,7 +190,7 @@ results <- foreach(i = 1:cfg$nsims,
 
       # rule 3 - "stop venous sampling"
       if (m_immu_res$ppos_n > cfg$rule3_sero_pp_sup_thresh && !trial_state$stop_immu_fut){
-        flog.info("Immunological ep stopped sampling: ppos_n = %s threshold %s, i = %s look = %s", 
+        flog.info("Immunological ep stopped sampling: ppos_n = %s threshold %s, sim = %s look = %s", 
                   m_immu_res$ppos_n, cfg$rule3_sero_pp_sup_thresh, i, look)
         stop_ven_samp <<- 1
         trial_state$stop_ven_samp <- 1
@@ -208,28 +208,28 @@ results <- foreach(i = 1:cfg$nsims,
       m_clin_res <- tryCatch({
         rcpp_clin(dt1, cfg, look)
       }, error = function(err) {
-        flog.fatal("CATCH ERROR model_clin err = %s \n i = %s look = %s", err, i, look)
+        flog.fatal("CATCH ERROR model_clin err = %s \n sim = %s look = %s", err, i, look)
         flog.fatal(sys.calls())
         stop("Stopped in main loop model_clin error")
       }, warning=function(cond) {
-        flog.fatal("CATCH WARNING model_clin err = %s \n i = %s look = %s", cond, i, look)
+        flog.fatal("CATCH WARNING model_clin err = %s \n sim = %s look = %s", cond, i, look)
         flog.fatal(sys.calls())
         stop("Stopped in main loop model_clin warning")
       })
       
-      # ppos_max will be NA at max looks since that is the final analysis and we just
+      # ppmax will be NA at max looks since that is the final analysis and we just
       # look at the posterior rather than the predictive probability
-      if (!is.na(m_clin_res$ppos_max) && m_clin_res$ppos_max < cfg$rule1_tte_pp_fut_thresh){
-        flog.info("Clinical ep futile: ppos_max = %s threshold %s, i = %s look = %s", 
-                  m_clin_res$ppos_max, cfg$rule1_tte_pp_fut_thresh, i, look)
+      if (!is.na(m_clin_res$ppmax) && m_clin_res$ppmax < cfg$rule1_tte_pp_fut_thresh){
+        flog.info("Clinical ep futile: ppmax = %s threshold %s, sim = %s look = %s", 
+                  m_clin_res$ppmax, cfg$rule1_tte_pp_fut_thresh, i, look)
         stop_clin_fut <<- 1
         trial_state$stop_clin_fut <- 1
       }
       
-      if (m_clin_res$ppos_n > cfg$rule2_tte_pp_sup_thresh[look] &&
+      if (m_clin_res$ppn > cfg$rule2_tte_pp_sup_thresh[look] &&
           !trial_state$stop_clin_fut){
-        flog.info("Clinical ep superior: ppos_n = %s threshold %s, i = %s look = %s", 
-                  m_clin_res$ppos_n, cfg$rule2_tte_pp_sup_thresh[look], i, look)
+        flog.info("Clinical ep superior: ppn = %s threshold %s, sim = %s look = %s", 
+                  m_clin_res$ppn, cfg$rule2_tte_pp_sup_thresh[look], i, look)
         stop_clin_sup <<- 1
         trial_state$stop_clin_sup <- 1
       }
@@ -270,8 +270,10 @@ results <- foreach(i = 1:cfg$nsims,
                  inconclusive = trial_state$inconclusive,
                  i_pposn = NA,
                  i_pposmax = NA,
-                 c_pposn = NA,
-                 c_pposmax = NA
+                 c_ppn = NA,
+                 c_ppmax = NA,
+                 c_ppmax_mean_ratio = NA,
+                 c_ppmax_sd_ratio = NA
                  )
       
       if (exists("m_immu_res") && !is.null(m_immu_res)){
@@ -280,8 +282,10 @@ results <- foreach(i = 1:cfg$nsims,
       }
       
       if (exists("m_clin_res") && !is.null(m_clin_res)){
-        lr$c_pposn <- m_clin_res$ppos_n
-        lr$c_pposmax <- m_clin_res$ppos_max
+        lr$c_ppn <- m_clin_res$ppn
+        lr$c_ppmax <- m_clin_res$ppmax
+        lr$c_ppmax_mean_ratio <- m_clin_res$ppmax_mean_ratio
+        lr$c_ppmax_sd_ratio <- m_clin_res$ppmax_sd_ratio
       }
       
       lr
@@ -299,7 +303,7 @@ results <- foreach(i = 1:cfg$nsims,
       })
     
     if(i%%100 == 0){
-      flog.info("Completed look, trial: i = %s, look = %s", i, look)
+      flog.info("Completed look, trial: sim = %s, look = %s", i, look)
     }
     
 
@@ -308,7 +312,7 @@ results <- foreach(i = 1:cfg$nsims,
 
   res <- do.call(rbind, lapply(1:cfg$nlooks, dotrial))
   
-  # flog.info("Finished trial: i = %s", i)
+  # flog.info("Finished trial: sim = %s", i)
   return(res)
 }
 

@@ -61,6 +61,14 @@ rcpp_immu_interim_ppos <- function(d, m, nobs, nimpute, post_draw, lnsero, cfg) 
     .Call(`_orvacsim_rcpp_immu_interim_ppos`, d, m, nobs, nimpute, post_draw, lnsero, cfg)
 }
 
+rcpp_outer <- function(z, t, out) {
+    invisible(.Call(`_orvacsim_rcpp_outer`, z, t, out))
+}
+
+rcpp_logrank <- function(d, look, cfg) {
+    .Call(`_orvacsim_rcpp_logrank`, d, look, cfg)
+}
+
 atest <- function() {
     invisible(.Call(`_orvacsim_atest`))
 }
