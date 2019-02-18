@@ -43,7 +43,7 @@
 
 
 
-#define _DEBUG 0
+#define _DEBUG 1
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -132,6 +132,12 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
                              const Rcpp::List& lnsero,
                              const Rcpp::List& cfg);
 
+Rcpp::List rcpp_logrank(const arma::mat& d,
+                        const int look,
+                        const Rcpp::List& cfg);
+void rcpp_outer(const arma::vec& z,
+                const arma::vec& t,
+                arma::mat& out);
 arma::vec rcpp_gamma(const int n, const double a, const double b);
 void rcpp_test_1(arma::mat& d);
 void rcpp_test_sub_1(arma::mat& d);
@@ -308,6 +314,7 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
 
   arma::uvec tmp = arma::find(m.col(COL_RATIO) > 1);
   double ppos_n =  (double)tmp.n_elem / (double)post_draw;
+  double mean_ratio =  arma::mean(m.col(COL_RATIO));
 
   // use posterior to do pp at final analysis
   // this involves simulating multiple datasets conditional on the
@@ -320,18 +327,25 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
   Rcpp::List lppos = rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg);
 
   if(_DEBUG == 1){
-    ret = Rcpp::List::create(Rcpp::Named("ppos_n") = ppos_n,
-                             Rcpp::Named("ppos_max") = (double)lppos["ppos"],
-                             Rcpp::Named("d") = d_new,
-                             Rcpp::Named("posterior") = m,
+    ret = Rcpp::List::create(Rcpp::Named("ppn") = ppos_n,
+                             Rcpp::Named("mean_ratio") = mean_ratio,
+                             Rcpp::Named("ppmax") = (double)lppos["ppos"],
+                             Rcpp::Named("ppmax_mean_ratio") = (double)lppos["mean_ratio"],
                              Rcpp::Named("n_uncen_0") = n_uncen_0,
                              Rcpp::Named("tot_obst_0") = tot_obst_0,
                              Rcpp::Named("n_uncen_1") = n_uncen_1,
                              Rcpp::Named("tot_obst_1") = tot_obst_1);
+
   } else {
-    ret = Rcpp::List::create(Rcpp::Named("ppos_n") = ppos_n,
-                             Rcpp::Named("ppos_max") = (double)lppos["ppos"]);
+    ret = Rcpp::List::create(Rcpp::Named("ppn") = ppos_n,
+                             Rcpp::Named("mean_ratio") = mean_ratio,
+                             Rcpp::Named("ppmax") = (double)lppos["ppos"],
+                             Rcpp::Named("ppmax_mean_ratio") = (double)lppos["mean_ratio"],
+                             Rcpp::Named("ppmax_sd_ratio") = (double)lppos["sd_ratio"]);
   }
+
+
+
 
   return ret;
 }
@@ -349,6 +363,7 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
   Rcpp::List lsuffstat;
+  Rcpp::List llr;
 
   int win = 0;
   int mylook = look - 1;
@@ -360,6 +375,7 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
 
   arma::vec postprob_ratio_gt1 = arma::zeros(post_draw);
   arma::vec mean_rat = arma::zeros(post_draw);
+  arma::vec lrp = arma::zeros(post_draw);
 
   for(int i = 0; i < post_draw; i++){
 
@@ -372,7 +388,10 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
     // changes evtt, fu1, fu2
     rcpp_dat_small(d_new, cfg, look, m[i, COL_LAMB0], m[i, COL_LAMB1]);
 
-    lsuffstat = rcpp_clin_set_obst(d_new, cfg, look);
+    lsuffstat = rcpp_clin_set_obst(d_new, cfg, looks.size());
+
+    llr = rcpp_logrank(d_new, looks.size(), cfg);
+    lrp(i) = (double)llr["pvalue"];
 
     n_uncen_0 = (double)lsuffstat["n_uncen_0"];
     tot_obst_0 = (double)lsuffstat["tot_obst_0"];
@@ -384,12 +403,7 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
     //                       << tot_obst_0 << "  "  << tot_obst_1 );
 
     // compute posterior
-    // note the parameterisation of the gamma distribution is not the same as R
-    // if the conjugate prior is gamma(k, q) then the posterior is:
-    //
-    // ~ gamma(k + sum(uncensored obs), q / (1 + q * total obs time))
-    //
-    // se ibrahim bayesian surv analysis and
+    // see ibrahim bayesian surv analysis and
     // https://cdn2.hubspot.net/hubfs/310840/VWO_SmartStats_technical_whitepaper.pdf
 
     // updates m
@@ -399,9 +413,9 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
                            n_uncen_1, tot_obst_1,
                            post_draw, cfg);
 
-    //for(int j = 0; j < 10; j++){
+    // for(int j = 0; j < 10; j++){
     //  DBG(Rcpp::Rcout, "i " << i << " new posterior " << m_new(j, COL_RATIO));
-    //}
+    // }
 
     mean_rat(i) = arma::mean(m_new.col(COL_RATIO));
 
@@ -419,13 +433,19 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
 
   Rcpp::List res ;
   if(_DEBUG == 1){
+
     res = Rcpp::List::create(Rcpp::Named("win") = win,
                                         Rcpp::Named("ppos") = ppos,
                                         Rcpp::Named("pp_ratio") = postprob_ratio_gt1,
-                                        Rcpp::Named("mean_ratio") = mean_rat);
+                                        Rcpp::Named("mean_ratio") = arma::mean(mean_rat),
+                                        Rcpp::Named("pvalue") = lrp);
   } else {
+
     res = Rcpp::List::create(Rcpp::Named("win") = win,
-                                        Rcpp::Named("ppos") = ppos);
+                             Rcpp::Named("ppos") = ppos,
+                             Rcpp::Named("mean_ratio") = arma::mean(mean_rat),
+                             Rcpp::Named("sd_ratio") = arma::stddev(mean_rat),
+                             Rcpp::Named("pvalue") = lrp);
   }
 
 
@@ -501,7 +521,7 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
 
     if(visits.n_elem == 0){
 
-      if(i > looks[mylook]){
+      if(i > looks[mylook]-1){
         cen = NA_REAL;
         obst = NA_REAL;
       } else {
@@ -1102,7 +1122,120 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
 }
 
 
+// [[Rcpp::export]]
+void rcpp_outer(const arma::vec& z,
+                const arma::vec& t,
+                arma::mat& out){
 
+  for(int i = 0; i < z.n_elem; i++){
+    for(int j = 0; j < t.n_elem; j++){
+      out(i, j) = z(i) >= t(j) ? 1 : 0;
+    }
+  }
+}
+
+
+// [[Rcpp::export]]
+Rcpp::List rcpp_logrank(const arma::mat& d,
+                        const int look,
+                        const Rcpp::List& cfg){
+
+  int mylook = look - 1;
+  Rcpp::NumericVector looks = cfg["looks"];
+  Rcpp::NumericVector months = cfg["interimmnths"];
+
+  arma::mat d_new = d.submat(0, COL_ID, looks[mylook]-1, COL_OBST);
+  //DBG(Rcpp::Rcout, "  submatrix " << std::endl << d_new );
+
+  // all observation time indices by group
+  arma::uvec idxz1 = arma::find(d_new.col(COL_TRT) == 0);
+  arma::uvec idxz2 = arma::find(d_new.col(COL_TRT) == 1);
+
+  //DBG(Rcpp::Rcout, " idxz1 " <<  idxz1 );
+  //DBG(Rcpp::Rcout, " idxz2 " <<  idxz2 );
+
+  arma::vec tmp = d_new.col(COL_OBST);
+  //DBG(Rcpp::Rcout, " tmp " <<  tmp );
+
+  arma::vec z1 = tmp.elem(idxz1);
+  arma::vec z2 = tmp.elem(idxz2);
+
+  // uncensored observation time indices by group
+  idxz1 = arma::find(d_new.col(COL_TRT) == 0 && d_new.col(COL_CEN) == 0);
+  idxz2 = arma::find(d_new.col(COL_TRT) == 1 && d_new.col(COL_CEN) == 0);
+
+  arma::vec t1 = tmp.elem(idxz1);
+  arma::vec t2 = tmp.elem(idxz2);
+
+  //DBG(Rcpp::Rcout, " z1 " << z1);
+  //DBG(Rcpp::Rcout, " z2 " << z2);
+  //DBG(Rcpp::Rcout, " t1 " << t1);
+  //DBG(Rcpp::Rcout, " t2 " << t2);
+
+  arma::mat z1t1 = arma::zeros(z1.n_elem, t1.n_elem);
+  arma::mat z1t2 = arma::zeros(z1.n_elem, t2.n_elem);
+  arma::mat z2t1 = arma::zeros(z2.n_elem, t1.n_elem);
+  arma::mat z2t2 = arma::zeros(z2.n_elem, t2.n_elem);
+
+  //DBG(Rcpp::Rcout, " rcpp_outer " );
+  rcpp_outer(z1, t1, z1t1);
+  rcpp_outer(z1, t2, z1t2);
+  rcpp_outer(z2, t1, z2t1);
+  rcpp_outer(z2, t2, z2t2);
+
+  //DBG(Rcpp::Rcout, " cumsum " );
+  arma::vec risk1t1 = arma::sum(z1t1.t(), 1);
+  arma::vec risk1t2 = arma::sum(z1t2.t(), 1);
+  arma::vec risk2t1 = arma::sum(z2t1.t(), 1);
+  arma::vec risk2t2 = arma::sum(z2t2.t(), 1);
+
+  // DBG(Rcpp::Rcout, " risk1t1 " << risk1t1);
+  // DBG(Rcpp::Rcout, " risk1t2 " << risk1t2);
+  // DBG(Rcpp::Rcout, " risk2t1 " << risk2t1);
+  // DBG(Rcpp::Rcout, " risk2t2 " << risk2t2);
+
+  double sum1 = 0;
+  double sum2 = 0;
+  double var1 = 0;
+  double var2 = 0;
+
+  for(int i=0; i < risk1t1.n_elem; i++){
+    sum1 += risk2t1(i) / (risk1t1(i) + risk2t1(i));
+    var1 += risk1t1(i) * risk2t1(i) / std::pow((risk1t1(i) + risk2t1(i)), 2.0);
+  }
+  for(int i=0; i < risk1t2.n_elem; i++){
+    sum2 += risk1t2(i) / (risk1t2(i) + risk2t2(i));
+    var2 += risk1t2(i) * risk2t2(i) / std::pow((risk1t2(i) + risk2t2(i)), 2.0);
+  }
+
+  // DBG(Rcpp::Rcout, " sum1 " << sum1 );
+  // DBG(Rcpp::Rcout, " sum2 " << sum2 );
+  // DBG(Rcpp::Rcout, " var1 " << var1 );
+  // DBG(Rcpp::Rcout, " var2 " << var2 );
+  //
+  // DBG(Rcpp::Rcout, " (sum1 - sum2) " << (sum1 - sum2) );
+  // DBG(Rcpp::Rcout, " std::pow(var1 + var2, 0.5) " << std::pow(var1 + var2, 0.5) );
+
+  double logrank = (sum1 - sum2)/std::pow(var1 + var2, 0.5);
+  double pvalue = R::pchisq(std::pow(logrank, 2), 1, 0, 0);
+
+  //DBG(Rcpp::Rcout, " z1 " << std::endl << z1 );
+  //DBG(Rcpp::Rcout, " z2 " << std::endl << z2 );
+
+  //DBG(Rcpp::Rcout, " col of submatrix " << std::endl << d_new.col(COL_TRT)  );
+
+  // z1 = d2$obst[d2$trt == 0],
+  // delta1 = 1-d2$cen[d2$trt == 0],
+
+  // z2 = d2$obst[d2$trt == 1],
+  // delta2 = 1-d2$cen[d2$trt == 1])
+
+  Rcpp::List res = Rcpp::List::create(Rcpp::Named("logrank") = logrank,
+                                      Rcpp::Named("pvalue") = pvalue );
+
+  return res;
+
+}
 
 
 

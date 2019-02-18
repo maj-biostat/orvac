@@ -1198,57 +1198,247 @@ test_that("clinical endpoint posterior", {
 
 test_that("clinical endpoint ppos", {
   
+
   library(testthat)
   library(orvacsim)
   library(data.table)
+  library(survival)
   source("util.R")
+  source("LogRank2.r")
   cfg <- readRDS("tests/cfg-example.RDS")
- 
-  # test - are the correct number of obs times and censor status set at first interim
+  look <- 2
+  d <- rcpp_dat(cfg)
+  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+  d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+
+  z1 = d2$obst[d2$trt == 0];    z1 <- z1[!is.na(z1)]
+  delta1 = 1-d2$cen[d2$trt == 0]; delta1 <- delta1[!is.na(delta1)]
   
-  #set.seed(4343)
-  # look after n = 200
-  look <- 28
+  z2 = d2$obst[d2$trt == 1];    z2 <- z2[!is.na(z2)]
+  delta2 = 1-d2$cen[d2$trt == 1]; delta2 <- delta2[!is.na(delta2)]
+  
+  (t1 <- z1[delta1 == 1])
+  (t2 <- z2[delta2 == 1])
+  (risk1t1 <- psum( t( outer(z1, t1, FUN=">=") ) ))
+  (risk1t2 <- psum( t( outer(z1, t2, FUN=">=") ) ))
+  (risk2t1 <- psum( t( outer(z2, t1, FUN=">=") ) ))
+  (risk2t2 <- psum( t( outer(z2, t2, FUN=">=") ) ))
+  k=1
+  
+  num <- sum(risk2t1/(risk1t1+k*risk2t1))-sum(risk1t2/(risk1t2+k*risk2t2))
+  var2 <- sum(risk1t1*risk2t1/(risk1t1+k*risk2t1)^2) + 
+    sum(risk1t2*risk2t2/(risk1t2+k*risk2t2)^2)
+  
+  # As far as SAS Wilcoxson test inside the lifetest,  when there is no tie 
+  #    numGH <- sum(risk2t1)-sum(risk1t2)                    This version 
+  #    varGH <- sum(risk1t1*risk2t1) + sum(risk1t2*risk2t2)  agrees with SAS.
+  #    varGH1 <- sum(risk2t1^2) + sum(risk1t2^2)             Not this version
+  # Ref. for use this version of var est.?  Gill 1981 (V2) (4.1.21) 
+  # This agrees with Splus when there is no tie.
+  
+  temp2 <- num/sqrt(var2)
+  pval <- 1-pchisq((temp2)^2, df=1)
+  
+  list(VarA2=var2, Logrank=temp2, ApproxPvalue2side=pval)
+
+  rcpp_logrank(d, look, cfg)
+  
+  z1 <- c(1, 2, 3, 4, 5)
+  t1 <- c(2, 3, 4)
+  mout <- matrix(0, nrow = length(z1), ncol = length(t1))
+  psum(t(outer(z1, t1, ">=")))
+  rcpp_outer(z1, t1, mout)
+  
+  
+  
+  rcpp_logrank(d, look, cfg)
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  library(survival)
+  source("util.R")
+  i = 0
+  cfg <- readRDS("tests/cfg-example.RDS")
+  look <- 8
   cfg$looks[look]
   cfg$interimmnths
   cfg$interimmnths[look]
-  
   cfg$b1tte <- compute_exp_rate(39) - compute_exp_rate(30)
-  
-  # cfg$prior_gamma_a; cfg$prior_gamma_b
-  # cfg$max_age_fu_months <- 36
-  
   # get data
+  
+  # hazard is equal to lambda, => hazard ratio = 
+  # compute_exp_rate(39)/compute_exp_rate(30) because:
+  # compute_exp_rate(35)/compute_exp_rate(30) because:
+  # h(x) = f(x)/S(x) = f(x)/(1-F(x))
+  # f(x) = lambda exp(-lambda * x)
+  # F(x) = 1 - exp(-lambda x)
+  # S(x) = 1 - (1 - exp(-lambda x)) = exp(-lambda x)
+  # h(x) = lambda exp(-lambda * x) / exp(-lambda x) = lambda
+  
+  nsim <- 1000
+  hr <- numeric(nsim)
+  
+  for(i in 1:nsim){
+    d <- rcpp_dat(cfg)
+    d2 <- as.data.frame(copy(d))
+    colnames(d2) <- dnames
+    # get sufficieitn stats
+    (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+    rcpp_logrank(d, look, cfg)
+    d2 <- as.data.frame(copy(d))
+    colnames(d2) <- dnames
+    s <- summary(cph1 <- coxph(Surv(obst, 1-cen) ~ trt, data = d2))
+    hr[i] <- s$coefficients[2]
+  }
+  
+  
+  
+  
+  
+  
+  nsim <- 500
+  pp1 <- numeric(nsim)
+  pp2 <- numeric(nsim)
+  
+  for(i in 1:nsim){
+    
+    d <- rcpp_dat(cfg)
+    d2 <- as.data.frame(copy(d))
+    colnames(d2) <- dnames
+    # get sufficieitn stats
+    (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+    
+    # how many obs in total?
+    cfg$looks[look]
+    # obtain posterior based on current look 
+    m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+    rcpp_clin_interim_post(m, 
+                           lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
+                           lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
+                           cfg$post_draw, cfg);
+    
+    d_new <- copy(d)
+    (nimpute = max(cfg$looks) - cfg$looks[look])
+    lres <- rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg)
+    str(lres)
+    mean(lres$pvalue < 0.05)
+    
+    pp1[i] <- lres$ppos
+    pp2[i] <- mean(lres$pvalue < 0.05)
+  }
+  
+  
+  
+  
+  
+  
+  
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
   
-  # get sufficieitn stats
-  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
-  
-  d2 <- as.data.frame(copy(d))
-  colnames(d2) <- dnames
-  
-  # obtain posterior based on current look 
-  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
-  rcpp_clin_interim_post(m, 
-                         lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
-                         lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
-                         cfg$post_draw, cfg);
-  
-  ppos_n <- mean(m[, 3] > 1)
-  ppos_n
-  
-  # 
+  nsim <- nrow(m)
+  win <- numeric(nsim)
+  for(i in 1:nsim){
+    
+    # i = i + 1
+    d_new <- copy(d)
+    rcpp_dat_small(d_new, cfg, look, m[i, 1], m[i, 2])
+    d2 <- as.data.frame(copy(d_new))
+    colnames(d2) <- dnames
+    tail(d2, 5)
+    (lsuffstat <- rcpp_clin_set_obst(d_new, cfg, length(cfg$looks)))
+    d2 <- as.data.frame(copy(d_new))
+    colnames(d2) <- dnames
+    tail(d2, 5)
+    
+    lrfit1 <- survdiff(Surv(obst, 1-cen) ~ trt, data = d2)
+    
+    p1 <- pchisq(lrfit1$chisq, 1, lower.tail = F)
+    
+
+    lrfit2 <- LogRank2(z1 = d2$obst[d2$trt == 0],
+             delta1 = 1-d2$cen[d2$trt == 0],
+             z2 = d2$obst[d2$trt == 1],
+             delta2 = 1-d2$cen[d2$trt == 1])
+    
+    p2 <- lrfit2$ApproxPvalue2side
+    win[i] <- p2<0.05
+    
+    expect_equal(p1, p2, tolerance = 0.0001)
+    #c(p1, p2)
+    #plot(survfit(Surv(obst, (1-cen)) ~ trt, data = d2))
+  }
   d_new <- copy(d)
-  (nimpute = max(cfg$looks) - cfg$looks[look])
-  lres <- rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg);
+  lres <- rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg)
   str(lres)
+  mean(win)
+  
+  
+  lsuffstat <- rcpp_clin_set_obst(d_new, cfg, length(cfg$looks))
+
+  m_new = matrix(0, ncol = 3, nrow = cfg$post_draw)
+  rcpp_clin_interim_post(m_new,
+                                 lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                                 lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                                 cfg$post_draw, cfg);
+                         
+  plot_tte_hist(m_new)
+  
+  
+  
+  
+  # test
+  
+  
+  nsim <- 1000
+  ppmax <- numeric(nsim)
+  for(i in 1:nsim){
+    cfg <- readRDS("tests/cfg-example.RDS")
+    look <- 8
+    cfg$looks[look]
+    cfg$interimmnths
+    cfg$interimmnths[look]
+    cfg$b1tte <- compute_exp_rate(42) - compute_exp_rate(30)
+    # get data
+    d <- rcpp_dat(cfg)
+    (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+    d2 <- as.data.frame(copy(d))
+    colnames(d2) <- dnames
+    # obtain posterior based on current look 
+    m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+    rcpp_clin_interim_post(m, 
+                           lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
+                           lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
+                           cfg$post_draw, cfg);
+    d_new <- copy(d)
+    (nimpute = max(cfg$looks) - cfg$looks[look])
+    lres <- rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg)
+    ppmax[i] <- lres$ppos
+  }
+
+  str(lres)
+  # plot_tte_hist(m)
+  # hist(lres$mean_ratio)
   #  
   
   
-  
-  
+  library(Rcpp)
+  cppFunction('int fx(){
+    Rcpp::NumericVector v(10);
+      return v.size();
+  }')
   
 })
 

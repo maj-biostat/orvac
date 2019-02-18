@@ -218,6 +218,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rcpp_outer
+void rcpp_outer(const arma::vec& z, const arma::vec& t, arma::mat& out);
+RcppExport SEXP _orvacsim_rcpp_outer(SEXP zSEXP, SEXP tSEXP, SEXP outSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type z(zSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type t(tSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type out(outSEXP);
+    rcpp_outer(z, t, out);
+    return R_NilValue;
+END_RCPP
+}
+// rcpp_logrank
+Rcpp::List rcpp_logrank(const arma::mat& d, const int look, const Rcpp::List& cfg);
+RcppExport SEXP _orvacsim_rcpp_logrank(SEXP dSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_logrank(d, look, cfg));
+    return rcpp_result_gen;
+END_RCPP
+}
 // atest
 void atest();
 RcppExport SEXP _orvacsim_atest() {
@@ -313,6 +338,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_lnsero", (DL_FUNC) &_orvacsim_rcpp_lnsero, 2},
     {"_orvacsim_rcpp_immu_interim_post", (DL_FUNC) &_orvacsim_rcpp_immu_interim_post, 5},
     {"_orvacsim_rcpp_immu_interim_ppos", (DL_FUNC) &_orvacsim_rcpp_immu_interim_ppos, 7},
+    {"_orvacsim_rcpp_outer", (DL_FUNC) &_orvacsim_rcpp_outer, 3},
+    {"_orvacsim_rcpp_logrank", (DL_FUNC) &_orvacsim_rcpp_logrank, 3},
     {"_orvacsim_atest", (DL_FUNC) &_orvacsim_atest, 0},
     {"_orvacsim_rcpp_gamma", (DL_FUNC) &_orvacsim_rcpp_gamma, 3},
     {"_orvacsim_rcpp_test_1", (DL_FUNC) &_orvacsim_rcpp_test_1, 1},
