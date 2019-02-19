@@ -307,7 +307,7 @@ results <- foreach(i = 1:cfg$nsims,
     }
     
 
-    return(lr)
+    return(unlist(lr))
   }
 
   res <- do.call(rbind, lapply(1:cfg$nlooks, dotrial))
