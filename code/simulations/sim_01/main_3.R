@@ -283,8 +283,9 @@ results <- foreach(i = 1:cfg$nsims,
                  i_pposmax = NA,
                  c_ppn = NA,
                  c_ppmax = NA,
-                 c_ppmax_mean_ratio = NA,
-                 c_ppmax_sd_ratio = NA
+                 c_ppmax_ratio = NA,
+                 c_ppmax_l0 = NA,
+                 c_ppmax_l1 = NA
                  )
       
       if (exists("m_immu_res") && !is.null(m_immu_res)){
@@ -295,8 +296,9 @@ results <- foreach(i = 1:cfg$nsims,
       if (exists("m_clin_res") && !is.null(m_clin_res)){
         lr$c_ppn <- m_clin_res$ppn
         lr$c_ppmax <- m_clin_res$ppmax
-        lr$c_ppmax_mean_ratio <- m_clin_res$ppmax_mean_ratio
-        lr$c_ppmax_sd_ratio <- m_clin_res$ppmax_sd_ratio
+        lr$c_ppmax_ratio <- m_clin_res$ratio
+        lr$c_ppmax_l0 <- m_clin_res$l0
+        lr$c_ppmax_l1 <- m_clin_res$l1
       }
       
       lr
