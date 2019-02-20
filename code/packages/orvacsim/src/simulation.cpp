@@ -333,10 +333,10 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
                              Rcpp::Named("l0") = (double)lppos["l0"],
                              Rcpp::Named("l1") = (double)lppos["l1"],
                              Rcpp::Named("ratio") = (double)lppos["ratio"],
-                             Rcpp::Named("n_uncen_0") = n_uncen_0,
-                             Rcpp::Named("tot_obst_0") = tot_obst_0,
-                             Rcpp::Named("n_uncen_1") = n_uncen_1,
-                             Rcpp::Named("tot_obst_1") = tot_obst_1);
+                             Rcpp::Named("n0") = (double)lppos["n0"],
+                             Rcpp::Named("n1") = (double)lppos["n1"],
+                             Rcpp::Named("t0") = (double)lppos["t0"],
+                             Rcpp::Named("t1") = (double)lppos["t1"]);
 
   } else {
     ret = Rcpp::List::create(Rcpp::Named("ppn") = ppos_n,
@@ -345,10 +345,10 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
                              Rcpp::Named("l0") = (double)lppos["l0"],
                              Rcpp::Named("l1") = (double)lppos["l1"],
                              Rcpp::Named("ratio") = (double)lppos["ratio"],
-                             Rcpp::Named("n_uncen_0") = n_uncen_0,
-                             Rcpp::Named("tot_obst_0") = tot_obst_0,
-                             Rcpp::Named("n_uncen_1") = n_uncen_1,
-                             Rcpp::Named("tot_obst_1") = tot_obst_1);
+                            Rcpp::Named("n0") = (double)lppos["n0"],
+                            Rcpp::Named("n1") = (double)lppos["n1"],
+                             Rcpp::Named("t0") = (double)lppos["t0"],
+                             Rcpp::Named("t1") = (double)lppos["t1"]);
   }
 
 
@@ -386,6 +386,12 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
   arma::vec mean_rat = arma::zeros(post_draw);
   arma::vec lrp = arma::zeros(post_draw);
 
+  arma::vec n0 = arma::zeros(post_draw);
+  arma::vec n1 = arma::zeros(post_draw);
+  arma::vec t0 = arma::zeros(post_draw);
+  arma::vec t1 = arma::zeros(post_draw);
+
+
   for(int i = 0; i < post_draw; i++){
 
     n_uncen_0 = 0;
@@ -406,6 +412,11 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
     tot_obst_0 = (double)lsuffstat["tot_obst_0"];
     n_uncen_1 = (double)lsuffstat["n_uncen_1"];
     tot_obst_1 = (double)lsuffstat["tot_obst_1"];
+
+    n0(i) = n_uncen_0;
+    n1(i) = n_uncen_1;
+    t0(i) = tot_obst_0;
+    t1(i) = tot_obst_1;
 
     // DBG(Rcpp::Rcout, "i " << i << " sufficient " << n_uncen_0
     //                       << "  " << n_uncen_1 << "  "
@@ -450,7 +461,11 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
                              Rcpp::Named("pgt1") = arma::mean(postprob_ratio_gt1),
                              Rcpp::Named("l0") = arma::mean(l0),
                              Rcpp::Named("l1") = arma::mean(l1),
-                             Rcpp::Named("ratio") = arma::mean(mean_rat));
+                             Rcpp::Named("ratio") = arma::mean(mean_rat),
+                             Rcpp::Named("n0") = arma::median(n0),
+                             Rcpp::Named("n1") = arma::median(n1),
+                             Rcpp::Named("t0") = arma::median(t0),
+                             Rcpp::Named("t1") = arma::median(t1));
   } else {
 
     res = Rcpp::List::create(Rcpp::Named("win") = win,
@@ -458,7 +473,11 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
                              Rcpp::Named("pgt1") = arma::mean(postprob_ratio_gt1),
                              Rcpp::Named("l0") = arma::mean(l0),
                              Rcpp::Named("l1") = arma::mean(l1),
-                             Rcpp::Named("ratio") = arma::mean(mean_rat));
+                             Rcpp::Named("ratio") = arma::mean(mean_rat),
+                             Rcpp::Named("n0") = arma::median(n0),
+                             Rcpp::Named("n1") = arma::median(n1),
+                             Rcpp::Named("t0") = arma::median(t0),
+                             Rcpp::Named("t1") = arma::median(t1));
   }
 
 
