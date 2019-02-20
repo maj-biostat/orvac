@@ -328,9 +328,11 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
 
   if(_DEBUG == 1){
     ret = Rcpp::List::create(Rcpp::Named("ppn") = ppos_n,
-                             Rcpp::Named("mean_ratio") = mean_ratio,
-                             Rcpp::Named("ppmax") = (double)lppos["ppos"],
-                             Rcpp::Named("ppmax_mean_ratio") = (double)lppos["mean_ratio"],
+                             Rcpp::Named("ppmax") = (double)lppos["ppos"],  //is correct as ppos
+                             Rcpp::Named("pgt1") = (double)lppos["pgt1"],
+                             Rcpp::Named("l0") = (double)lppos["l0"],
+                             Rcpp::Named("l1") = (double)lppos["l1"],
+                             Rcpp::Named("ratio") = (double)lppos["ratio"],
                              Rcpp::Named("n_uncen_0") = n_uncen_0,
                              Rcpp::Named("tot_obst_0") = tot_obst_0,
                              Rcpp::Named("n_uncen_1") = n_uncen_1,
@@ -338,10 +340,15 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
 
   } else {
     ret = Rcpp::List::create(Rcpp::Named("ppn") = ppos_n,
-                             Rcpp::Named("mean_ratio") = mean_ratio,
                              Rcpp::Named("ppmax") = (double)lppos["ppos"],
-                             Rcpp::Named("ppmax_mean_ratio") = (double)lppos["mean_ratio"],
-                             Rcpp::Named("ppmax_sd_ratio") = (double)lppos["sd_ratio"]);
+                             Rcpp::Named("pgt1") = (double)lppos["pgt1"],    //is correct as ppos
+                             Rcpp::Named("l0") = (double)lppos["l0"],
+                             Rcpp::Named("l1") = (double)lppos["l1"],
+                             Rcpp::Named("ratio") = (double)lppos["ratio"],
+                             Rcpp::Named("n_uncen_0") = n_uncen_0,
+                             Rcpp::Named("tot_obst_0") = tot_obst_0,
+                             Rcpp::Named("n_uncen_1") = n_uncen_1,
+                             Rcpp::Named("tot_obst_1") = tot_obst_1);
   }
 
 
@@ -374,6 +381,8 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
   double tot_obst_1 = 0;
 
   arma::vec postprob_ratio_gt1 = arma::zeros(post_draw);
+  arma::vec l0 = arma::zeros(post_draw);
+  arma::vec l1 = arma::zeros(post_draw);
   arma::vec mean_rat = arma::zeros(post_draw);
   arma::vec lrp = arma::zeros(post_draw);
 
@@ -390,8 +399,8 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
 
     lsuffstat = rcpp_clin_set_obst(d_new, cfg, looks.size());
 
-    llr = rcpp_logrank(d_new, looks.size(), cfg);
-    lrp(i) = (double)llr["pvalue"];
+    //llr = rcpp_logrank(d_new, looks.size(), cfg);
+    //lrp(i) = (double)llr["pvalue"];
 
     n_uncen_0 = (double)lsuffstat["n_uncen_0"];
     tot_obst_0 = (double)lsuffstat["tot_obst_0"];
@@ -417,6 +426,8 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
     //  DBG(Rcpp::Rcout, "i " << i << " new posterior " << m_new(j, COL_RATIO));
     // }
 
+    l0(i) = arma::mean(m_new.col(COL_LAMB0));
+    l1(i) = arma::mean(m_new.col(COL_LAMB1));
     mean_rat(i) = arma::mean(m_new.col(COL_RATIO));
 
     // empirical posterior probability that ratio_lamb > 1
@@ -435,17 +446,19 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
   if(_DEBUG == 1){
 
     res = Rcpp::List::create(Rcpp::Named("win") = win,
-                                        Rcpp::Named("ppos") = ppos,
-                                        Rcpp::Named("pp_ratio") = postprob_ratio_gt1,
-                                        Rcpp::Named("mean_ratio") = arma::mean(mean_rat),
-                                        Rcpp::Named("pvalue") = lrp);
+                             Rcpp::Named("ppos") = ppos,
+                             Rcpp::Named("pgt1") = arma::mean(postprob_ratio_gt1),
+                             Rcpp::Named("l0") = arma::mean(l0),
+                             Rcpp::Named("l1") = arma::mean(l1),
+                             Rcpp::Named("ratio") = arma::mean(mean_rat));
   } else {
 
     res = Rcpp::List::create(Rcpp::Named("win") = win,
                              Rcpp::Named("ppos") = ppos,
-                             Rcpp::Named("mean_ratio") = arma::mean(mean_rat),
-                             Rcpp::Named("sd_ratio") = arma::stddev(mean_rat),
-                             Rcpp::Named("pvalue") = lrp);
+                             Rcpp::Named("pgt1") = arma::mean(postprob_ratio_gt1),
+                             Rcpp::Named("l0") = arma::mean(l0),
+                             Rcpp::Named("l1") = arma::mean(l1),
+                             Rcpp::Named("ratio") = arma::mean(mean_rat));
   }
 
 

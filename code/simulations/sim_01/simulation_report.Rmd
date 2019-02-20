@@ -250,6 +250,8 @@ datatable(df_0, options = list(pageLength = 100, autoWidth = TRUE,  columnDefs =
 
 ## Null Scenarios
 
+### No seroconversion effect, no immunological effect
+
 Trials are indicated as futile > 95% of the time with a type i error < 0.05.
 
 Average sample size at which futility is announced is 150. Venous sampling is stopped less than 5% of the time, but this needs to be considered in the context of the fact that most trials are already identified as futile.
@@ -289,6 +291,8 @@ if(sum(df_0$idsim == currentsimid ) > 0) {
 
 ## Immunological effect scenarios
 
+### Small seroconversion effect, no immunological effect
+
 Table 2 shows the results from simulating with a 25% increase in seroconversion rates and no difference across the arms in the clinical endpoint. Accrual at both 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
 Futility remains high (mean of 0.9) because superiority can only be determined based on the clinical endpoint. Mean/median type i error are both around 0.08. Venous sampling is more likely to be stopped but, again, most of the trials are deemed futile. Average sample size for declaring futility is approximately 298, i.e. is higher than the null case above. Approximately 1.5% of trials were inconclusive.
@@ -320,16 +324,16 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
 
 ## Clinical effect scenarios
 
+### No seroconversion effect, small immunological effect
+
 Table 3 shows the results from simulating zero difference in seroconversion rate. Median survival time is assumed to increase by 5 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
 Futility decision is still very likely (mean probability of futility equals 0.93) and power is very low (6%). Venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
-
 
 ```{r, echo = F, eval = T}
 
 currentsimid <- "ClinTrt01"
 if(sum(df_0$idsim == currentsimid ) > 0) {
-
 
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim) %>%
@@ -349,6 +353,8 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
                      "Mean sample size (sd)" = 4))
 }
 ```
+
+### No seroconversion effect, large immunological effect
 
 Table 4 shows the results from simulating zero difference in seroconversion rates. Median survival time is assumed to increase by 9 months. Accrual is 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -377,29 +383,15 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
                      "Probability (number of trials)" = 4,
                      "Mean sample size (sd)" = 4))
   
-} else {
-  kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim) %>%
-        dplyr::arrange(baseclin, trtclin),
-      caption = "Table 4. Clinical Scenario",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-}
+} 
 
 
 ```
 
 
 ## Combined effect scenarios
+
+### Small seroconversion effect, small immunological effect
 
 Table 5 shows the results from simulating a 25% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 5 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -429,6 +421,7 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
 }
 ```
 
+### Large seroconversion effect, small immunological effect
 
 Table 6 shows the results from simulating a 45% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 5 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -467,6 +460,7 @@ if(sum(df_0$idsim == currentsimid ) > 0) {
 # mean(df_tmp$prob_sup)
 ```
 
+### Small seroconversion effect, large immunological effect
 
 Table 7 shows the results from simulating a 25% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 9 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -495,6 +489,8 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
                      "Mean sample size (sd)" = 4))
 }
 ```
+
+### Large seroconversion effect, large immunological effect
 
 Table 8 shows the results from simulating a 45% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 9 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
