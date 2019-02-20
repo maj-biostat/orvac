@@ -380,10 +380,9 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$mcmciterfin <- c(l$mcmciter - l$mcmcburnin) / l$mcmcthin
   
   
-  l$prior_gamma_a <- 1
-  l$prior_gamma_b <- 50
-  
-  l$use_alt_censoring <- 0
+  l$prior_gamma_a <- tt$prior_gamma_a
+  l$prior_gamma_b <- tt$prior_gamma_b
+  l$use_alt_censoring <- tt$use_alt_censoring
   
   
   if(opt$use){
@@ -951,7 +950,22 @@ jags_init <- function(d, omit_const = T){
 
 
 
-
+plot_tte_hist_dat <- function(obst, trt, n){
+  
+  obst <- obst[1:n]
+  trt <- trt[1:n]
+  o0 <- obst[trt == 0]
+  o1 <- obst[trt == 1]
+  
+  par(mfrow = c(1, 2))
+  hist(o0, probability = T, main = "CTL evtt")
+  abline(v = 30, col = "red", lwd = 2)
+  abline(v = median(o0), col = "blue", lwd = 2)
+  hist(o1, probability = T, main = "TRT evtt")
+  abline(v = 35, col = "red", lwd = 2)
+  abline(v = median(o1), col = "blue", lwd = 2)
+  par(mfrow = c(1, 1))
+}
 
 
 plot_tte_hist <- function(m){

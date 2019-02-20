@@ -25,6 +25,10 @@ rcpp_cens_interim <- function(d_new, visits, i, look, cfg) {
     .Call(`_orvacsim_rcpp_cens_interim`, d_new, visits, i, look, cfg)
 }
 
+rcpp_cens_interim_alt <- function(d_new, i, look, cfg) {
+    .Call(`_orvacsim_rcpp_cens_interim_alt`, d_new, i, look, cfg)
+}
+
 rcpp_cens_final <- function(d_new, visits, i, look, cfg) {
     .Call(`_orvacsim_rcpp_cens_final`, d_new, visits, i, look, cfg)
 }
@@ -91,9 +95,5 @@ rcpp_test_2 <- function(d) {
 
 rcpp_test_sub_2 <- function(d) {
     .Call(`_orvacsim_rcpp_test_sub_2`, d)
-}
-
-rcpp_cens_interim_alt <- function(d_new, i, look, cfg) {
-    .Call(`_orvacsim_rcpp_cens_interim_alt`, d_new, i, look, cfg)
 }
 

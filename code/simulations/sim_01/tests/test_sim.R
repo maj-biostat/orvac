@@ -1018,10 +1018,11 @@ test_that("clinical endpoint posterior", {
   # test - estimated median tte is biased in both arms due to censoring mechanism
   # but ratio is preserved with lower than 2% bias
   look <- 32
-  nsim <- 10000
+  nsim <- 1000
   v <- numeric(nsim)
   
   for(i in 1:nsim){
+    # i = i + 1 
     d <- rcpp_dat(cfg)
     d2 <- as.data.frame(copy(d))
     colnames(d2) <- dnames
@@ -1040,6 +1041,7 @@ test_that("clinical endpoint posterior", {
                            lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
                            lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
                            cfg$post_draw, cfg);
+   # plot_tte_hist(m)
     v[i] <- mean(m[, 1]/m[, 2])
     
     # should be (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
@@ -1192,9 +1194,143 @@ test_that("clinical endpoint posterior", {
   xpred = data.frame(trt=c(0,1)); 
   plot(res1, xnewdata=xpred, tgrid=tgrid);
   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  # test stan
+  
+  
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  library(rstan)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  look = 32
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+  d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+  d3 <- d2[d2$trt == 0,]
+  
+  sdat <- list(
+    ## Number of event individuals
+    Nobs = sum(d3$cen == 0),
+    ## Number of censored individuals
+    Ncen = sum(d3$cen == 1),
+    ## Times for event individuals
+    yobs = d3$obst[d3$cen == 0],
+    ## Times for censored individuals
+    ycen = d3$obst[d3$cen == 1]
+  )
+  
+  s1 <- rstan::stan(file = "expo.stan",
+              data = sdat)
+  
+  
+  
+  
+  
+  
+  look <- 32
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  stan_weibull_survival_model_data <-
+    list(
+      ## Number of event individuals
+      Nobs = sum(d2$cen == 0),
+      ## Number of censored individuals
+      Ncen = sum(d2$cen == 1),
+      ## Number of covariates
+      M_bg = 1,
+      ## Times for event individuals
+      yobs = d2$obst[d2$cen == 0],
+      ## Times for censored individuals
+      ycen = d2$obst[d2$cen == 1],
+      ## Covariates for event individuals as a matrix
+      Xobs_bg = matrix(d2$trt[d2$cen == 0]),
+      ## Covariates for censored individuals as a matrix
+      Xcen_bg = matrix(d2$trt[d2$cen == 1])
+    )
+  stan_weibull_survival_model_data
+  
+  
+ 
+  rstan::stan(file = "weibull.stan",
+              data = stan_weibull_survival_model_data)
+  
 })
 
 
+# both produce unreliable parameter estimates. this is because we 
+# look at the data at discrete times and therefore observe lower
+# numbers of events than we would if we observed all the data at the time
+# of each interim rather than at some arbitrary earlier point.
+test_that("clinical endpoint post - conjugate versus stan", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  library(rstan)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS"); look = 32
+  cfg$max_age_fu_months <- 45
+  cfg$use_alt_censoring <- 0
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  plot_tte_hist_dat(d2$evtt, d2$trt, cfg$looks[look])
+  (lsuffstat <- rcpp_clin_set_obst(d, cfg, look))
+  d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+  plot_tte_hist_dat(d2$obst, d2$trt, cfg$looks[look])
+  
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                         lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                         cfg$post_draw, cfg);
+  plot_tte_hist(m)
+  
+  sdat <- list(
+    ## Number of event individuals
+    Nobs = sum(d2$cen == 0),
+    ## Number of censored individuals
+    Ncen = sum(d2$cen == 1),
+    ## Times for event individuals
+    yobs = d2$obst[d2$cen == 0],
+    ## Times for censored individuals
+    ycen = d2$obst[d2$cen == 1],
+    ## Covariates for event individuals as a matrix
+    Xobs_bg = d2$trt[d2$cen == 0],
+    ## Covariates for censored individuals as a matrix
+    Xcen_bg = d2$trt[d2$cen == 1],
+    alpha0 = 1,
+    beta0 = 30
+  )
+  
+  s2 <- rstan::stan(file = "expo_2.stan",
+                    data = sdat, chains = 1)
+  
+  beta <- as.matrix(s2)
+  beta[,2] <- beta[,1] + beta[,2]
+  beta[,3] <- beta[,1]/beta[,2]
+  plot_tte_hist(beta)
+  
+  
+})
 
 test_that("clinical endpoint ppos", {
   

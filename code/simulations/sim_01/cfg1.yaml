@@ -102,6 +102,13 @@ b2tte: 0 # remote
 b3tte: 0 # baseline serot2 status
 
 
+
+  
+prior_gamma_a: 1
+prior_gamma_b: 0.025
+use_alt_censoring: 1
+  
+
 # for significance testing of a win in the pp section
 
 
