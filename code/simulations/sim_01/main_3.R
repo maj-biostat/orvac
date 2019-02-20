@@ -220,9 +220,9 @@ results <- foreach(i = 1:cfg$nsims,
       # ppmax will be NA at max looks since that is the final analysis and we just
       # look at the posterior rather than the predictive probability
       if (!is.na(m_clin_res$ppmax) && m_clin_res$ppmax < cfg$rule1_tte_pp_fut_thresh){
-        flog.info("Clin ep futile: ppmax = %s threshold %s (pgt1 = %.3f l0 = %.3f l1 = %.3f ratio = %.3f n0 = %s n1 = %s t0 = %.3f t1 = %.3f), sim = %s look = %s", 
+        flog.info("Clin ep futile: ppmax = %s threshold %s (pgt1 = %s l0 = %s l1 = %s ratio = %s n0 = %s n1 = %s t0 = %s t1 = %s), sim = %s look = %s", 
                   m_clin_res$ppmax, cfg$rule1_tte_pp_fut_thresh, 
-                  m_clin_res$pgt1, m_clin_res$l0, m_clin_res$l1,  m_clin_res$ratio,
+                  m_clin_res$pgt1, m_clin_res$l0 , m_clin_res$l1, m_clin_res$ratio, 
                   m_clin_res$n0, m_clin_res$n1, m_clin_res$t0, m_clin_res$t1,
                   i, look)
         stop_clin_fut <<- 1
@@ -233,9 +233,9 @@ results <- foreach(i = 1:cfg$nsims,
       
       if (m_clin_res$ppn > cfg$rule2_tte_pp_sup_thresh[look] &&
           !trial_state$stop_clin_fut){
-        flog.info("Clin ep superior: ppn = %s threshold %s (pgt1 = %.3f l0 = %.3f l1 = %.3f ratio = %.3f n0 = %s n1 = %s t0 = %.3f t1 = %.3f), sim = %s look = %s", 
+        flog.info("Clin ep superior: ppn = %s threshold %s (pgt1 = %s l0 = %s l1 = %s ratio = %s n0 = %s n1 = %s t0 = %s t1 = %s), sim = %s look = %s", 
                   m_clin_res$ppn, cfg$rule2_tte_pp_sup_thresh[look], 
-                  m_clin_res$pgt1, m_clin_res$l0, m_clin_res$l1,  m_clin_res$ratio, 
+                  m_clin_res$pgt1, m_clin_res$l0 , m_clin_res$l1, m_clin_res$ratio, 
                   m_clin_res$n0, m_clin_res$n1, m_clin_res$t0, m_clin_res$t1,
                   i, look)
         stop_clin_sup <<- 1
@@ -243,9 +243,9 @@ results <- foreach(i = 1:cfg$nsims,
       }
       
       if (look == length(cfg$looks) && stop_clin_fut == 0 && stop_clin_sup == 0){
-        flog.info("Clin ep inconclusive: ppmax = %s threshold %s (pgt1 = %.3f l0 = %.3f l1 = %.3f ratio = %.3f n0 = %s n1 = %s t0 = %.3f t1 = %.3f), sim = %s look = %s", 
+        flog.info("Clin ep inconclusive: ppmax = %s threshold %s (pgt1 = %s l0 = %s l1 = %s ratio = %s n0 = %s n1 = %s t0 = %s t1 = %s), sim = %s look = %s", 
                   m_clin_res$ppmax, cfg$rule1_tte_pp_fut_thresh, 
-                  m_clin_res$pgt1, m_clin_res$l0, m_clin_res$l1,  m_clin_res$ratio,
+                  m_clin_res$pgt1, m_clin_res$l0 , m_clin_res$l1, m_clin_res$ratio, 
                   m_clin_res$n0, m_clin_res$n1, m_clin_res$t0, m_clin_res$t1,
                   i, look)
         inconclusive <<- 1

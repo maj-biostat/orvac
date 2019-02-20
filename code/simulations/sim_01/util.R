@@ -948,7 +948,24 @@ jags_init <- function(d, omit_const = T){
               dat = dat))
 }
 
-
+tte_suff_stats <- function(obst, trt, cen, n){
+  
+  obst <- obst[1:n]
+  trt <- trt[1:n]
+  cen <- cen[1:n]
+  
+  n_uncen_0 <- sum(1-cen[trt == 0])
+  n_uncen_1 <- sum(1-cen[trt == 1])
+  
+  tot_obst_0 <- sum(obst[trt == 0])
+  tot_obst_1 <- sum(obst[trt == 1])
+  
+  
+  return(list(n_uncen_0 = n_uncen_0,
+              n_uncen_1 = n_uncen_1,
+              tot_obst_0 = tot_obst_0,
+              tot_obst_1 = tot_obst_1))
+}
 
 plot_tte_hist_dat <- function(obst, trt, n){
   
