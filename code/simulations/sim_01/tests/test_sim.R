@@ -1288,7 +1288,7 @@ test_that("clinical endpoint post - conjugate versus stan", {
   source("util.R")
   cfg <- readRDS("tests/cfg-example.RDS"); look = 32
   cfg$max_age_fu_months <- 45
-  cfg$use_alt_censoring <- 0
+  cfg$use_alt_censoring <- 1
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
@@ -1328,6 +1328,104 @@ test_that("clinical endpoint post - conjugate versus stan", {
   beta[,2] <- beta[,1] + beta[,2]
   beta[,3] <- beta[,1]/beta[,2]
   plot_tte_hist(beta)
+  
+  
+})
+
+
+test_that("clinical endpoint post - posterior makes any sense", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  library(rstan)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS"); look = 32
+  cfg$max_age_fu_months <- 100
+  cfg$use_alt_censoring <- 1
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+  plot_tte_hist_dat(d2$evtt, d2$trt, cfg$looks[look])
+  (lsuffstat <- rcpp_clin_set_obst(d, cfg, look))
+  d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+  
+  # this is for the last analysis
+  d2$cen2 <- NA
+  d2$cen2 <- ifelse(d2$evtt > cfg$max_age_fu_months, 1, 0)
+  d2$obst2 <- NA
+  d2$obst2 <- ifelse(d2$cen2 == 0, d2$evtt, d2$obst2)
+  d2$obst2 <- ifelse(d2$cen2 == 1, pmin(cfg$max_age_fu_months, d2$age + d2$evtt ), d2$obst2)
+  hist(d2$obst2)
+  
+  lsuff <- tte_suff_stats(obst = d2$obst2, 
+                 trt = d2$trt, 
+                 cen = d2$cen, 
+                 n = max(cfg$looks))
+  
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  
+  m[,1] <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_0,   cfg$prior_gamma_b + lsuff$tot_obst_0)
+  m[,2] <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_1,  cfg$prior_gamma_b + lsuff$tot_obst_1)
+  m[,3] <- m[,1]/m[,2]
+  plot_tte_hist(m)
+  
+  
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                         lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                         cfg$post_draw, cfg);
+  
+  plot_tte_hist(m)
+  
+  lsuffstat
+  
+  s0 <- rgamma(1000, cfg$prior_gamma_a + lsuffstat$n_uncen_0, (1/cfg$prior_gamma_b) + lsuffstat$tot_obst_0)
+  hist(s0)
+  
+  s0 <- rcpp_gamma(1000, cfg$prior_gamma_a + lsuffstat$n_uncen_0,  1/lsuffstat$tot_obst_0)
+  hist(s0)
+  #
+  
+  s0 = 1/rgamma(1000, cfg$prior_gamma_a + lsuffstat$n_uncen_0, (1/cfg$prior_gamma_b) + lsuffstat$tot_obst_0);
+  hist(s0)
+  #
+  
+
+  
+  nsim <- 1000
+  mres <- matrix(0, ncol = 4, nrow = nsim)
+  for(i in 1:nsim){
+    d <- rcpp_dat(cfg)
+    d2 <- as.data.frame(copy(d))
+    colnames(d2) <- dnames
+    plot_tte_hist_dat(d2$evtt, d2$trt, cfg$looks[look])
+    (lsuffstat <- rcpp_clin_set_obst(d, cfg, look))
+    d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+    
+    m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+    rcpp_clin_interim_post(m, 
+                           lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                           lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                           cfg$post_draw, cfg);
+    
+    s0 <- rgamma(1000, cfg$prior_gamma_a + lsuffstat$n_uncen_0, (1/cfg$prior_gamma_b) + lsuffstat$tot_obst_0)
+    
+    mres[i,] <- c(colMeans(m), mean(s0))
+  }
+  
+  mres2 <- mres
+  mres2[,1] <- log(2)/mres[,1]
+  mres2[,2] <- log(2)/mres[,2]
+  hist(mres2[,1])
+  abline(v = 30)
+  abline(v = mean(mres2[,1]))
+  hist(mres2[,2])
+  abline(v = 35)
+  abline(v = mean(mres2[,2]))
+  
   
   
 })
