@@ -105,7 +105,7 @@ b3tte: 0 # baseline serot2 status
 
   
 prior_gamma_a: 1
-prior_gamma_b: 0.025
+prior_gamma_b: 40
 use_alt_censoring: 0
   
 

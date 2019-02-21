@@ -130,6 +130,7 @@ for(fname in resfiles){
   # accrual
   accrual <- d1$cfg$people_per_interim_period
   info_delay <- d1$cfg$sero_info_delay
+  alt_cen <- d1$cfg$use_alt_censoring
   
   outcome_labs <- c("Futile", "Superior", "Inconclusive")
   df_res$trial_outcome <- NA
@@ -194,7 +195,8 @@ for(fname in resfiles){
                      ss_stopv_mean = mean(df_stopv$n_obs),
                      ss_stopv_sd = sd(df_stopv$n_obs),
 
-                     fname = fname, stringsAsFactors = F)
+                     fname = fname, stringsAsFactors = F, 
+                     alt_cen = alt_cen)
   
   dtmp <- dtmp %>%
     dplyr::mutate(f_prob_sup = sprintf("%.3f (%d)", prob_sup, n_sup),
@@ -224,7 +226,7 @@ df_0 <- df_all %>%
                 basesero, trtsero, baseclin, trtclin, accrual,info_delay,
                 f_prob_sup, f_prob_fut, f_prob_incon, f_prob_stopv, 
                 f_ss_sup, f_ss_fut, f_ss_incon, f_ss_stopv,
-                fname, idsim) %>%
+                fname, idsim, alt_cen) %>%
   dplyr::select(-row)
 
 df_blank <- df_0 %>% dplyr::slice(1L) 
@@ -266,7 +268,7 @@ Average sample size at which futility is announced is 150. Venous sampling is st
 currentsimid <- "Null01"
 if(sum(df_0$idsim == currentsimid ) > 0) {
 
-  kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim) %>%
+  kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
         dplyr::arrange(basesero, baseclin, -accrual, info_delay),
       caption = "Table 1. Simulation Null Scenarios",
       col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
@@ -302,7 +304,7 @@ currentsimid <- "SeroTrt01"
 if(sum(df_0$idsim == currentsimid ) > 0) {
 
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim) %>%
+kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
         dplyr::arrange(basesero, trtsero),
       caption = "Table 2. Immunological effect scenario 1",
       col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
@@ -322,6 +324,8 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
 ```
 
 
+
+
 ## Clinical effect scenarios
 
 ### No seroconversion effect, small immunological effect
@@ -336,7 +340,7 @@ currentsimid <- "ClinTrt01"
 if(sum(df_0$idsim == currentsimid ) > 0) {
 
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim) %>%
+kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
         dplyr::arrange(baseclin, trtclin),
       caption = "Table 3. Clinical Scenario",
       col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
@@ -367,7 +371,7 @@ currentsimid <- "ClinTrt02"
 if(sum(df_0$idsim == currentsimid ) > 0) {
 
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim) %>%
+kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
         dplyr::arrange(baseclin, trtclin),
       caption = "Table 4. Clinical Scenario",
       col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
@@ -403,7 +407,7 @@ Power has increased but is still low (26%). Probability of a futile outcome is a
 currentsimid <- "ClinSeroTrt01"
 if(sum(df_0$idsim == currentsimid ) > 0) {
 
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim) %>%
+kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
       caption = "Table 5. Combined Scenario",
       col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
@@ -434,7 +438,7 @@ Power has increased again but is still low (40%). Probability of a futile outcom
 currentsimid <- "ClinSeroTrt02"
 if(sum(df_0$idsim == currentsimid ) > 0) {
   
-  kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt02") %>% dplyr::select(-fname, -idsim, -nsim) %>%
+  kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt02") %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
       caption = "Table 6. Combined Scenario",
       col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
@@ -472,7 +476,7 @@ Power is still low (42%). Probability of a futile outcome is around 0.55. Mean s
 currentsimid <- "ClinSeroTrt03"
 if(sum(df_0$idsim == currentsimid ) > 0) {
 
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim) %>%
+kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
       caption = "Table 7. Combined Scenario",
       col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
@@ -502,9 +506,9 @@ Power now reaches around 82%. Probability of a futile outcome is around 0.17. Me
 currentsimid <- "ClinSeroTrt04"
 if(sum(df_0$idsim == currentsimid ) > 0) {
 
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim) %>%
+kable(df_0 %>% dplyr::filter(idsim == currentsimid & alt_cen == 0) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
         dplyr::arrange(basesero, trtsero, baseclin, trtclin),
-      caption = "Table 8. Combined Scenario",
+      caption = "Table 8a. Combined Scenario - std cen",
       col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
                     "superiority", "futility", "inconclusive", "stop v samp",
                     "superiority", "futility", "inconclusive", "stop v samp"),
@@ -519,6 +523,32 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
                      "Mean sample size (sd)" = 4))
 }
 ```
+
+
+```{r, echo = F, eval = T}
+# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
+
+currentsimid <- "ClinSeroTrt04"
+if(sum(df_0$idsim == currentsimid ) > 0) {
+
+kable(df_0 %>% dplyr::filter(idsim == currentsimid & alt_cen == 1) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
+        dplyr::arrange(basesero, trtsero, baseclin, trtclin),
+      caption = "Table 8a. Combined Scenario - alt cen",
+      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
+                    "superiority", "futility", "inconclusive", "stop v samp",
+                    "superiority", "futility", "inconclusive", "stop v samp"),
+      digits = digits) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",
+                font_size = 11,
+                latex_options = "hold_position") %>%
+  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
+                     " " = 1, " " = 1,
+                     "Probability (number of trials)" = 4,
+                     "Mean sample size (sd)" = 4))
+}
+```
+
 
 # Conclusions
 ***

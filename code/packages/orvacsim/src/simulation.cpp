@@ -43,7 +43,7 @@
 
 
 
-#define _DEBUG 0
+#define _DEBUG 1
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -53,7 +53,7 @@
 #define DBG( os, msg )
 #endif
 
-#define _INFO  0
+#define _INFO  1
 
 #if _INFO
 #define INFO( os, msg )                                \
@@ -656,7 +656,7 @@ Rcpp::List rcpp_cens_interim_alt(const arma::mat& d_new,
      d_new(i, COL_AGE) + d_new(i, COL_EVTT) <= (double)cfg["max_age_fu_months"]){
     cen = 0;
     obst = d_new(i, COL_EVTT);
-    //DBG(Rcpp::Rcout, "i " << i << " event     : " << obst);
+    DBG(Rcpp::Rcout, "i " << i << " event     : " << obst);
     cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
     return cens;
   }
@@ -667,7 +667,7 @@ Rcpp::List rcpp_cens_interim_alt(const arma::mat& d_new,
      d_new(i, COL_AGE) + d_new(i, COL_EVTT) > (double)cfg["max_age_fu_months"]){
     cen = 1;
     obst = (double)cfg["max_age_fu_months"];
-    //DBG(Rcpp::Rcout, "i " << i << " cens 1     : " << obst);
+    DBG(Rcpp::Rcout, "i " << i << " cens 1     : " << obst);
     cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
     return cens;
   }
@@ -677,11 +677,11 @@ Rcpp::List rcpp_cens_interim_alt(const arma::mat& d_new,
 
     if(d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
       obst = (double)cfg["max_age_fu_months"];
-      //DBG(Rcpp::Rcout, "i " << i << " cens 2a     : " << obst);
+      DBG(Rcpp::Rcout, "i " << i << " cens 2a     : " << obst);
     } else {
       obst = months[mylook] - d_new(i, COL_ACCRT);
       obst = obst < 0 ? 0 : obst;
-      //DBG(Rcpp::Rcout, "i " << i << " cens 2b     : " << obst);
+      DBG(Rcpp::Rcout, "i " << i << " cens 2b     : " << obst);
     }
     cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
     return cens;
@@ -973,8 +973,9 @@ void rcpp_clin_interim_post(arma::mat& m,
     //m(i, COL_LAMB0) = R::rgamma(a + n_uncen_0, b/(1 + b * tot_obst_0));
     //m(i, COL_LAMB1) = R::rgamma(a + n_uncen_1, b/(1 + b * tot_obst_1));
 
-    m(i, COL_LAMB0) = R::rgamma(a + n_uncen_0, 1/((1/b) + tot_obst_0));
-    m(i, COL_LAMB1) = R::rgamma(a + n_uncen_1, 1/((1/b) + tot_obst_1));
+
+    m(i, COL_LAMB0) = R::rgamma(a + n_uncen_0, 1/(b + tot_obst_0));
+    m(i, COL_LAMB1) = R::rgamma(a + n_uncen_1, 1/(b + tot_obst_1));
 
 
     m(i, COL_RATIO) = m(i, COL_LAMB0) / m(i, COL_LAMB1);

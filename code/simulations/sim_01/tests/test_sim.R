@@ -1333,7 +1333,7 @@ test_that("clinical endpoint post - conjugate versus stan", {
 })
 
 
-test_that("clinical endpoint post - posterior makes any sense", {
+test_that("clinical endpoint post - does the posterior make any sense?", {
   
   library(testthat)
   library(orvacsim)
