@@ -43,7 +43,7 @@
 
 
 
-#define _DEBUG 1
+#define _DEBUG 0
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -53,7 +53,7 @@
 #define DBG( os, msg )
 #endif
 
-#define _INFO  1
+#define _INFO  0
 
 #if _INFO
 #define INFO( os, msg )                                \
@@ -591,7 +591,7 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
       if(d_new(i, COL_ACCRT) + d_new(i, COL_EVTT) <= (double)arma::max(visits) &&
          d_new(i, COL_AGE) + d_new(i, COL_EVTT) > (double)cfg["max_age_fu_months"]){
         cen = 1;
-        obst = (double)cfg["max_age_fu_months"];
+        obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
         // DBG(Rcpp::Rcout, "i " << i << " cen1 : " << obst << " accru " << d_new(i, COL_ACCRT) <<
         //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
         //     " months[mylook] + fudge = " << months[mylook] + fudge <<
@@ -605,7 +605,7 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
         cen = 1;
 
         if(d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
-          obst = (double)cfg["max_age_fu_months"];
+          obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
           // DBG(Rcpp::Rcout, "i " << i << " cen2a : " << obst << " accru " << d_new(i, COL_ACCRT) <<
           //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
           //     " months[mylook] + fudge = " << months[mylook] + fudge <<
@@ -631,7 +631,7 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
       cen = 1;
 
       if(d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
-        obst = (double)cfg["max_age_fu_months"];
+        obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
 
         if(visits.n_elem == 0){
           // DBG(Rcpp::Rcout, "i " << i << " cen 3 : " << obst << " accru " << d_new(i, COL_ACCRT) <<
@@ -714,7 +714,7 @@ Rcpp::List rcpp_cens_interim_alt(const arma::mat& d_new,
   if(d_new(i, COL_ACCRT) + d_new(i, COL_EVTT) <= months[mylook] + fudge &&
      d_new(i, COL_AGE) + d_new(i, COL_EVTT) > (double)cfg["max_age_fu_months"]){
     cen = 1;
-    obst = (double)cfg["max_age_fu_months"];
+    obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
     // DBG(Rcpp::Rcout, "i " << i << " cen 1 : " << obst << " accru " << d_new(i, COL_ACCRT) <<
     //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
     //     " months[mylook] + fudge = " << months[mylook] + fudge <<
@@ -727,7 +727,7 @@ Rcpp::List rcpp_cens_interim_alt(const arma::mat& d_new,
     cen = 1;
 
     if(d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
-      obst = (double)cfg["max_age_fu_months"];
+      obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
       // DBG(Rcpp::Rcout, "i " << i << " cen 2a : " << obst << " accru " << d_new(i, COL_ACCRT) <<
       //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
       //     " months[mylook] + fudge = " << months[mylook] + fudge <<
@@ -786,7 +786,7 @@ Rcpp::List rcpp_cens_final(const arma::mat& d_new,
      d_new(i, COL_AGE) + d_new(i, COL_EVTT) > (double)cfg["max_age_fu_months"]){
 
     cen = 1;
-    obst = (double)cfg["max_age_fu_months"];
+    obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
     //DBG(Rcpp::Rcout, "i " << i << " censor 1     : " << obst);
     cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
     return cens;
@@ -798,7 +798,7 @@ Rcpp::List rcpp_cens_final(const arma::mat& d_new,
     cen = 1;
 
     if(d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
-      obst = (double)cfg["max_age_fu_months"];
+      obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
      // DBG(Rcpp::Rcout, "i " << i << " censor 2     : " << obst);
     } else {
       obst = d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT);
