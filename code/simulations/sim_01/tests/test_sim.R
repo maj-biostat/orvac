@@ -1335,34 +1335,47 @@ test_that("clinical endpoint post - conjugate versus stan", {
 
 test_that("clinical endpoint post - does the posterior make any sense?", {
   
+  
+  # test - use alternative censoring to see if it improves stability in being able to recover params
+  
   library(testthat)
   library(orvacsim)
   library(data.table)
   library(rstan)
   source("util.R")
-  cfg <- readRDS("tests/cfg-example.RDS"); look = 32
-  cfg$max_age_fu_months <- 100
+  cfg <- readRDS("tests/cfg-example.RDS"); look = 31
+  cfg$max_age_fu_months <- 36
   cfg$use_alt_censoring <- 1
   
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
-  plot_tte_hist_dat(d2$evtt, d2$trt, cfg$looks[look])
+  #plot_tte_hist_dat(d2$evtt, d2$trt, cfg$looks[look])
   (lsuffstat <- rcpp_clin_set_obst(d, cfg, look))
   d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
-  
-  # this is for the last analysis
+ 
+  # 
   d2$cen2 <- NA
-  d2$cen2 <- ifelse(d2$evtt > cfg$max_age_fu_months, 1, 0)
+  d2$cen2 <- ifelse(d2$evtt > cfg$max_age_fu_months &
+                      as.numeric(rownames(d2)) <= cfg$looks[look], 1, d2$cen2)
+  d2$cen2 <- ifelse(d2$evtt <= cfg$max_age_fu_months &
+                      as.numeric(rownames(d2)) <= cfg$looks[look], 0, d2$cen2)
   d2$obst2 <- NA
-  d2$obst2 <- ifelse(d2$cen2 == 0, d2$evtt, d2$obst2)
-  d2$obst2 <- ifelse(d2$cen2 == 1, pmin(cfg$max_age_fu_months, d2$age + d2$evtt ), d2$obst2)
+  d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 0, d2$evtt, d2$obst2)
+  d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 1, 
+                     pmin(cfg$max_age_fu_months, d2$age + d2$evtt ), d2$obst2)
   hist(d2$obst2)
+  
+  sum(1-d2$cen2, na.rm = T)
+  sum(1-d2$cen, na.rm = T)
+  
+  sum(d2$obst2, na.rm = T)
+  sum(d2$obst, na.rm = T)
   
   lsuff <- tte_suff_stats(obst = d2$obst2, 
                  trt = d2$trt, 
-                 cen = d2$cen, 
-                 n = max(cfg$looks))
+                 cen = d2$cen2, 
+                 n = cfg$looks[look])
   
   m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
   
@@ -1371,6 +1384,12 @@ test_that("clinical endpoint post - does the posterior make any sense?", {
   m[,3] <- m[,1]/m[,2]
   plot_tte_hist(m)
   
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         lsuff$n_uncen_0, lsuff$tot_obst_0,
+                         lsuff$n_uncen_1, lsuff$tot_obst_1,
+                         cfg$post_draw, cfg);
+  plot_tte_hist(m)
   
   m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
   rcpp_clin_interim_post(m, 
@@ -1380,30 +1399,132 @@ test_that("clinical endpoint post - does the posterior make any sense?", {
   
   plot_tte_hist(m)
   
-  lsuffstat
-  
-  s0 <- rgamma(1000, cfg$prior_gamma_a + lsuffstat$n_uncen_0, (1/cfg$prior_gamma_b) + lsuffstat$tot_obst_0)
-  hist(s0)
-  
-  s0 <- rcpp_gamma(1000, cfg$prior_gamma_a + lsuffstat$n_uncen_0,  1/lsuffstat$tot_obst_0)
-  hist(s0)
-  #
-  
-  s0 = 1/rgamma(1000, cfg$prior_gamma_a + lsuffstat$n_uncen_0, (1/cfg$prior_gamma_b) + lsuffstat$tot_obst_0);
-  hist(s0)
-  #
+  # run the above as many times as you like. anecdotably it looks ok.
   
 
   
+  
+  
+  
+  # sim to examine whether the alternative censoring aligns with naive censoring
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  library(rstan)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS"); look = 31
+  cfg$max_age_fu_months <- 36
+  cfg$use_alt_censoring <- 1
   nsim <- 1000
-  mres <- matrix(0, ncol = 4, nrow = nsim)
+  mr <- matrix(0, ncol = 6, nrow = nsim)
+  
   for(i in 1:nsim){
+    
     d <- rcpp_dat(cfg)
-    d2 <- as.data.frame(copy(d))
-    colnames(d2) <- dnames
-    plot_tte_hist_dat(d2$evtt, d2$trt, cfg$looks[look])
     (lsuffstat <- rcpp_clin_set_obst(d, cfg, look))
     d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+    # 
+    d2$cen2 <- NA
+    d2$cen2 <- ifelse(d2$evtt > cfg$max_age_fu_months &
+                        as.numeric(rownames(d2)) <= cfg$looks[look], 1, d2$cen2)
+    d2$cen2 <- ifelse(d2$evtt <= cfg$max_age_fu_months &
+                        as.numeric(rownames(d2)) <= cfg$looks[look], 0, d2$cen2)
+    d2$obst2 <- NA
+    d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 0, d2$evtt, d2$obst2)
+    d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 1, 
+                       pmin(cfg$max_age_fu_months, d2$age + d2$evtt ), d2$obst2)
+
+    lsuff <- tte_suff_stats(obst = d2$obst2, 
+                            trt = d2$trt, 
+                            cen = d2$cen2, 
+                            n = cfg$looks[look])
+    
+    post_ctl <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_0,   cfg$prior_gamma_b + lsuff$tot_obst_0)
+    post_trt <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_1,  cfg$prior_gamma_b + lsuff$tot_obst_1)
+    post_ratio <- post_ctl / post_trt
+    
+    post_ctl <- mean(post_ctl)
+    post_trt <- mean(post_trt)
+    post_ratio <- mean(post_ratio)
+
+    m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+    rcpp_clin_interim_post(m, 
+                           lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                           lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                           cfg$post_draw, cfg);
+
+    post_ctl2 <- mean(m[,1])
+    post_trt2 <- mean(m[,2])
+    post_ratio2 <- mean(m[,3])
+    
+    mr[i,] <- c(post_ctl, post_trt, post_ratio, post_ctl2, post_trt2, post_ratio2)
+  }
+  
+  pdf(file = "test-alt-censoring.pdf")
+  par(mfrow = c(1, 3))
+  hist(mr[,1], prob = T)
+  lines(density(mr[,4]))
+  hist(mr[,2], prob = T)
+  lines(density(mr[,5]))
+  hist(mr[,3], prob = T)
+  lines(density(mr[,6]))
+  par(mfrow = c(1, 1))
+  dev.off()
+  
+  res <- log(2)/colMeans(mr)
+  
+  expect_equal(res[1], 30, tolerance = 0.5)
+  expect_equal(res[2], 35, tolerance = 0.5)
+  expect_equal(res[4], 30, tolerance = 0.5)
+  expect_equal(res[5], 35, tolerance = 0.5)
+
+  
+  # sim to look at orvac censoring alignment
+  
+  
+  
+  # sim to examine whether the alternative censoring aligns with naive censoring
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  library(rstan)
+  source("util.R")
+  cfg <- readRDS("tests/cfg-example.RDS"); look = 31
+  cfg$max_age_fu_months <- 36
+  cfg$use_alt_censoring <- 0
+  nsim <- 1000
+  mr <- matrix(0, ncol = 6, nrow = nsim)
+  
+  for(i in 1:nsim){
+    
+    d <- rcpp_dat(cfg)
+    (lsuffstat <- rcpp_clin_set_obst(d, cfg, look))
+    d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+    # 
+    d2$cen2 <- NA
+    d2$cen2 <- ifelse(d2$evtt > cfg$max_age_fu_months &
+                        as.numeric(rownames(d2)) <= cfg$looks[look], 1, d2$cen2)
+    d2$cen2 <- ifelse(d2$evtt <= cfg$max_age_fu_months &
+                        as.numeric(rownames(d2)) <= cfg$looks[look], 0, d2$cen2)
+    d2$obst2 <- NA
+    d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 0, d2$evtt, d2$obst2)
+    d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 1, 
+                       pmin(cfg$max_age_fu_months, d2$age + d2$evtt ), d2$obst2)
+    
+    lsuff <- tte_suff_stats(obst = d2$obst2, 
+                            trt = d2$trt, 
+                            cen = d2$cen2, 
+                            n = cfg$looks[look])
+    
+    post_ctl <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_0,   cfg$prior_gamma_b + lsuff$tot_obst_0)
+    post_trt <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_1,  cfg$prior_gamma_b + lsuff$tot_obst_1)
+    post_ratio <- post_ctl / post_trt
+    
+    post_ctl <- mean(post_ctl)
+    post_trt <- mean(post_trt)
+    post_ratio <- mean(post_ratio)
     
     m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
     rcpp_clin_interim_post(m, 
@@ -1411,26 +1532,34 @@ test_that("clinical endpoint post - does the posterior make any sense?", {
                            lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
                            cfg$post_draw, cfg);
     
-    s0 <- rgamma(1000, cfg$prior_gamma_a + lsuffstat$n_uncen_0, (1/cfg$prior_gamma_b) + lsuffstat$tot_obst_0)
+    post_ctl2 <- mean(m[,1])
+    post_trt2 <- mean(m[,2])
+    post_ratio2 <- mean(m[,3])
     
-    mres[i,] <- c(colMeans(m), mean(s0))
+    mr[i,] <- c(post_ctl, post_trt, post_ratio, post_ctl2, post_trt2, post_ratio2)
   }
   
-  mres2 <- mres
-  mres2[,1] <- log(2)/mres[,1]
-  mres2[,2] <- log(2)/mres[,2]
-  hist(mres2[,1])
-  abline(v = 30)
-  abline(v = mean(mres2[,1]))
-  hist(mres2[,2])
-  abline(v = 35)
-  abline(v = mean(mres2[,2]))
+  pdf(file = "test-orvac-censoring.pdf")
+  par(mfrow = c(1, 3))
+  hist(mr[,1], prob = T)
+  lines(density(mr[,4]))
+  hist(mr[,2], prob = T)
+  lines(density(mr[,5]))
+  hist(mr[,3], prob = T)
+  lines(density(mr[,6]))
+  par(mfrow = c(1, 1))
+  dev.off()
   
+  res <- log(2)/colMeans(mr)
   
+  expect_equal(res[1], 30, tolerance = 0.5)
+  expect_equal(res[2], 35, tolerance = 0.5)
+  expect_equal(res[4], 30, tolerance = 0.5)
+  expect_equal(res[5], 35, tolerance = 0.5)
   
 })
 
-test_that("clinical endpoint ppos", {
+test_that("clinical endpoint ppos - does the posterior make any sense?", {
   
 
   library(testthat)
@@ -1438,77 +1567,26 @@ test_that("clinical endpoint ppos", {
   library(data.table)
   library(survival)
   source("util.R")
-  source("LogRank2.r")
-  cfg <- readRDS("tests/cfg-example.RDS")
-  look <- 2
+  cfg <- readRDS("tests/cfg-example.RDS"); look = 31
+  cfg$max_age_fu_months <- 36
+  cfg$use_alt_censoring <- 0
+
   d <- rcpp_dat(cfg)
-  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look))
+  lsuffstat <- rcpp_clin_set_obst(d, cfg, look)
   d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
-
-  z1 = d2$obst[d2$trt == 0];    z1 <- z1[!is.na(z1)]
-  delta1 = 1-d2$cen[d2$trt == 0]; delta1 <- delta1[!is.na(delta1)]
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                         lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                         cfg$post_draw, cfg);
+  plot_tte_hist(m)
   
-  z2 = d2$obst[d2$trt == 1];    z2 <- z2[!is.na(z2)]
-  delta2 = 1-d2$cen[d2$trt == 1]; delta2 <- delta2[!is.na(delta2)]
+  d_new <- copy(d)
+  (nimpute = max(cfg$looks) - cfg$looks[look])
+  lres <- rcpp_clin_interim_ppos(d_new, m, nimpute, look, cfg)
+  str(lres)
+  mean(lres$pvalue < 0.05)
   
-  (t1 <- z1[delta1 == 1])
-  (t2 <- z2[delta2 == 1])
-  (risk1t1 <- psum( t( outer(z1, t1, FUN=">=") ) ))
-  (risk1t2 <- psum( t( outer(z1, t2, FUN=">=") ) ))
-  (risk2t1 <- psum( t( outer(z2, t1, FUN=">=") ) ))
-  (risk2t2 <- psum( t( outer(z2, t2, FUN=">=") ) ))
-  k=1
-  
-  num <- sum(risk2t1/(risk1t1+k*risk2t1))-sum(risk1t2/(risk1t2+k*risk2t2))
-  var2 <- sum(risk1t1*risk2t1/(risk1t1+k*risk2t1)^2) + 
-    sum(risk1t2*risk2t2/(risk1t2+k*risk2t2)^2)
-  
-  # As far as SAS Wilcoxson test inside the lifetest,  when there is no tie 
-  #    numGH <- sum(risk2t1)-sum(risk1t2)                    This version 
-  #    varGH <- sum(risk1t1*risk2t1) + sum(risk1t2*risk2t2)  agrees with SAS.
-  #    varGH1 <- sum(risk2t1^2) + sum(risk1t2^2)             Not this version
-  # Ref. for use this version of var est.?  Gill 1981 (V2) (4.1.21) 
-  # This agrees with Splus when there is no tie.
-  
-  temp2 <- num/sqrt(var2)
-  pval <- 1-pchisq((temp2)^2, df=1)
-  
-  list(VarA2=var2, Logrank=temp2, ApproxPvalue2side=pval)
-
-  rcpp_logrank(d, look, cfg)
-  
-  z1 <- c(1, 2, 3, 4, 5)
-  t1 <- c(2, 3, 4)
-  mout <- matrix(0, nrow = length(z1), ncol = length(t1))
-  psum(t(outer(z1, t1, ">=")))
-  rcpp_outer(z1, t1, mout)
-  
-  
-  
-  rcpp_logrank(d, look, cfg)
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  library(survival)
-  source("util.R")
-  i = 0
-  cfg <- readRDS("tests/cfg-example.RDS")
-  look <- 8
-  cfg$looks[look]
-  cfg$interimmnths
-  cfg$interimmnths[look]
-  cfg$b1tte <- compute_exp_rate(39) - compute_exp_rate(30)
   # get data
   
   # hazard is equal to lambda, => hazard ratio = 

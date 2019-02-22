@@ -1,5 +1,5 @@
 ---
-title: "Orvac - Discrete surveillance leads to unreliable median survival estimates"
+title: "Orvac - impacts of surveillance visit"
 output:
   html_document:
     number_sections: yes
@@ -26,29 +26,75 @@ suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(orvacsim))
 ggplot2::theme_set(theme_bw())
-```
-
-# Preamble
-
-Further to the report on discrete surveillance periods, here we look at the impact this approach might have on parameter estimates derived from the data that we collect.
-
-# Data generating process
-
-Is as before -- exponential distribution generated with rates such that the medians are 30 and 35 months in the control and treatment arms respectively.
-
-```{r, echo = F, fig.cap="Figure 1. Underlying time to event data (solid vertical is true value, dashed is sample estimate)"}
-
-dnames <- c("id", "trt", "accrt", "age", 
-            "serot2", "serot3", "probt3", 
-            "evtt", "fu1", "fu2", "cen", "obst")
 
 
 cbp <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 
+plot_tte_hist <- function(m){
+  
+  par(mfrow = c(2, 2))
+  
+  med0 <- log(2)/m[, 1]
+  med1 <- log(2)/m[, 2]
+  
+  hist(med0, probability = T, main = "")
+  abline(v = 30, col = "red", lwd = 2)
+  abline(v = median(med0), col = "blue", lwd = 2)
+  hist(med1, probability = T, main = "")
+  abline(v = 35, col = "red", lwd = 2)
+  abline(v = median(med1), col = "blue", lwd = 2)
+  hist(m[, 3], probability = T, main = "")
+  abline(v = 35/30, col = "red", lwd = 2)
+  abline(v = median(med1/med0) , col = "blue", lwd = 2)
+  plot(c(0, 10), c(0, 10))
+  legend(0, 5, legend=c("true med", "sample med"),
+         col=c("red", "blue"), lty=1:2, cex=0.8)
+  par(mfrow = c(1, 1))
+}
+
+
+tte_suff_stats <- function(obst, trt, cen, n){
+  
+  obst <- obst[1:n]
+  trt <- trt[1:n]
+  cen <- cen[1:n]
+  
+  n_uncen_0 <- sum(1-cen[trt == 0])
+  n_uncen_1 <- sum(1-cen[trt == 1])
+  
+  tot_obst_0 <- sum(obst[trt == 0])
+  tot_obst_1 <- sum(obst[trt == 1])
+  
+  
+  return(list(n_uncen_0 = n_uncen_0,
+              n_uncen_1 = n_uncen_1,
+              tot_obst_0 = tot_obst_0,
+              tot_obst_1 = tot_obst_1))
+}
+
+```
+
+# Preamble
+
+Further to the brief document on the surveillance visits in ORVAC, here we look at the impact this approach has on parameter estimates derived from the data that we collect.
+
+# Data generating process
+
+Is as before -- exponential distribution generated with rates such that the medians are around 30 and 35 months in the control and treatment arms respectively.
+
+```{r, echo = F, fig.cap="Figure 1. Underlying time to event data (solid vertical is true value, dashed is sample estimate)", fig.align="center", fig.width=7, fig.height=5}
+
+dnames <- c("id", "trt", "accrt", "age", 
+            "serot2", "serot3", "probt3", 
+            "evtt", "fu1", "fu2", "cen", "obst")
 
 cfg <- readRDS("../sim_01/tests/cfg-example.RDS")
 
+cfg$b0tte <- log(2)/30
+cfg$b1tte <- log(2)/39 - log(2)/30
+
+set.seed(2)
 d <- rcpp_dat(cfg)
 d2 <- as.data.frame(copy(d))
 colnames(d2) <- dnames
@@ -66,205 +112,422 @@ abline(v = median(v1), col = cbp[3], lwd = 2, lty = 3)
 legend(0, 5, legend=c("true med", "sample med"),
        col=c(cbp[2], cbp[3]), lty=1:2, cex=0.8)
 par(mfrow = c(1, 1))
-  
 ```
 
-# Excess Censored Values
+# Censoring
 
-Naive censoring based solely on the maximum follow up age of 36 months introduces a probability mass weighted towards 36 months and an unreliable median time to event due to a high proportion (>50% of sample) of censored values.
+As a simplistic starting point, here is the effect of censoring based solely on the maximum follow up age of 36 months and assuming that all participants were accrued simultaneously - this isn't what we implement in the ORVAC code, it is just useful as a simple starting point.
 
-```{r, echo = F, fig.cap="Figure 2. Censoring at 36 months"}
-set.seed(345)
-nsim <- 100
-m <- matrix(0, nrow = nsim, ncol = 3)
-
-for(i in 1:nsim){
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(copy(d))
-  colnames(d2) <- dnames
+```{r, echo = F, fig.cap="Figure 2. Censoring at 36 months", fig.align="center", fig.width=5, fig.height=4}
+look <- 31
+d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+ 
+# 
+d2$cen2 <- NA
+d2$cen2 <- ifelse(d2$evtt > cfg$max_age_fu_months &
+                    as.numeric(rownames(d2)) <= cfg$looks[look], 1, d2$cen2)
+d2$cen2 <- ifelse(d2$evtt <= cfg$max_age_fu_months &
+                    as.numeric(rownames(d2)) <= cfg$looks[look], 0, d2$cen2)
+d2$obst2 <- NA
+d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 0, d2$evtt, d2$obst2)
+d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 1, 
+                   pmin(cfg$max_age_fu_months, d2$age + d2$evtt ), d2$obst2)
+hist(d2$obst2, main = "", xlab = "Time")
+```
   
-  d2$testcen <- ifelse(d2$evtt + d2$age > 36, 1, 0)
-  d2$testobst <- ifelse(d2$testcen == 1, 36, d2$evtt)
-  
-  m[i, 3] <- sum(d2$testcen)/nrow(d2)
-  
-  v0 <- d2$testobst[d2$trt == 0]
-  v1 <- d2$testobst[d2$trt == 1]
-  
-  m[i, 1] <- median(v0)
-  m[i, 2] <- median(v1)
-}
+The above lets us derive sufficient statistics which in turn give the posteriors for both groups. The ORVAC code has two implementations of censoring. The first is similar to the above, except that it also considers the time of the interim and time of accrual as well as age. Below are histograms from the really age-based censoring shown above overlayed with a density kernel of the posteriors from the simple ORVAC censoring implementation. 
 
-v0 <- d2$testobst[d2$trt == 0]
-v1 <- d2$testobst[d2$trt == 1]
+Note - the histograms and kernels are quite similar but not an exact match.
+  
+```{r, echo = F, fig.cap="Figure 3. Parameter posteriors from censored data", results = "hide", fig.align="center", fig.width=8, fig.height=4}  
+lsuff <- tte_suff_stats(obst = d2$obst2, 
+               trt = d2$trt, 
+               cen = d2$cen2, 
+               n = cfg$looks[look])
 
-par(mfrow = c(1, 2))
-hist(v0, probability = T, main = "Ctl")
-abline(v = log(2)/cfg$b0tte, col = cbp[2], lwd = 2)
-abline(v = median(v0), col = cbp[3], lwd = 2, lty = 3)
-hist(v1, probability = T, main = "Trt")
-abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = cbp[2], lwd = 2)
-abline(v = median(v1), col = cbp[3], lwd = 2, lty = 3)
-legend(0, 5, legend=c("true med", "sample med"),
-       col=c(cbp[2], cbp[3]), lty=1:2, cex=0.8)
+m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+ 
+m[,1] <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_0,   cfg$prior_gamma_b + lsuff$tot_obst_0)
+m[,2] <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_1,  cfg$prior_gamma_b + lsuff$tot_obst_1)
+m[,3] <- m[,1]/m[,2]
+
+cfg$use_alt_censoring <- 1
+lsuffstat <- rcpp_clin_set_obst(d, cfg, look)
+
+m2 <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+rcpp_clin_interim_post(m2, 
+                       lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                       lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                       cfg$post_draw, cfg);
+
+par(mfrow = c(1, 3))
+hist(m[,1], prob = T, main = "control", xlim = c(0.01, 0.03), xlab = "mu0")
+lines(density(m2[,1]), col = cbp[2], lwd = 2)
+hist(m[,2], prob = T, main = "treatment", xlim = c(0.01, 0.03), xlab = "mu1")
+lines(density(m2[,2]), col = cbp[2], lwd = 2)
+hist(m[,3], prob = T, main = "ratio", xlim = c(0.6, 1.5), xlab = "ratio")
+lines(density(m2[,3]), col = cbp[2], lwd = 2)
 par(mfrow = c(1, 1))
 ```
 
-Increasing the follow up time to 48 months leads to a more stable estimate of the median time to event. In this case a max follow up of 48 months works, but if the underlying data were generated with a median time to above 40 months then we would see the median time to event start to jump around again due to excessive censoring. Fundamentally, under the parameteric assumptions we follow here, having a maximum follow up time approximately equal to the true parameter that was used to generate the data will lead to high levels of censoring and therefore unreliable point estimates for the median time to event.
+The trial design is such that participants will be followed up at approximately 14-21 and 28-55 days and thereafter every 6 months (approximately) from randomisation. This logic (including the stochastic aspects) is implemented in the ORVAC code to replicate the true form of censoring implicit in the design (aside - the type of censoring that is used in the simulations can be easily configured).
 
-```{r, echo = F, fig.cap="Figure 3. Censoring at 48 months"}
-set.seed(2)
-nsim <- 100
-m <- matrix(0, nrow = nsim, ncol = 3)
+One of the implications of the visiting mechanism is that if the event occurred after the latest visit but before the interim, we won't have any knowledge of the event - there are other effects too. Overall, we have a systematic underestimate of the number of events at every interim and therefore our posteriors reflect this lower event rate as shown below which suggests a higher median time to event in each arm than is actually the case. The figures below give an insight into the kind of bias (for want of a better word) that might arise.
 
-for(i in 1:nsim){
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(copy(d))
-  colnames(d2) <- dnames
-  maxfu <- 48
-  d2$testcen <- ifelse(d2$evtt + d2$age > maxfu, 1, 0)
-  d2$testobst <- ifelse(d2$testcen == 1, maxfu, d2$evtt)
-  
-  m[i, 3] <- sum(d2$testcen)/nrow(d2)
-  
-  v0 <- d2$testobst[d2$trt == 0]
-  v1 <- d2$testobst[d2$trt == 1]
-  
-  m[i, 1] <- median(v0)
-  m[i, 2] <- median(v1)
-}
+```{r, echo = F, fig.cap="Figure 4. Parameter posteriors from censored data", results = "hide", fig.align="center", fig.width=8, fig.height=4}  
+set.seed(23) 
+cfg$use_alt_censoring <- 0
+lsuffstat <- rcpp_clin_set_obst(d, cfg, look)
 
-v0 <- d2$testobst[d2$trt == 0]
-v1 <- d2$testobst[d2$trt == 1]
+m2 <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+rcpp_clin_interim_post(m2, 
+                       lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                       lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                       cfg$post_draw, cfg);
 
-par(mfrow = c(1, 2))
-hist(v0, probability = T, main = "Ctl")
-abline(v = log(2)/cfg$b0tte, col = cbp[2], lwd = 2)
-abline(v = median(v0), col = cbp[3], lwd = 2, lty = 3)
-hist(v1, probability = T, main = "Trt")
-abline(v = log(2)/(cfg$b0tte+cfg$b1tte), col = cbp[2], lwd = 2)
-abline(v = median(v1), col = cbp[3], lwd = 2, lty = 3)
-legend(0, 5, legend=c("true med", "sample med"),
-       col=c(cbp[2], cbp[3]), lty=1:2, cex=0.8)
+par(mfrow = c(1, 3))
+hist(m[,1], prob = T, main = "control", xlim = c(0.01, 0.03), xlab = "mu0")
+lines(density(m2[,1]), col = cbp[2], lwd = 2)
+hist(m[,2], prob = T, main = "treatment", xlim = c(0.01, 0.03), xlab = "mu1")
+lines(density(m2[,2]), col = cbp[2], lwd = 2)
+hist(m[,3], prob = T, main = "ratio", xlim = c(0.6, 1.5), xlab = "ratio")
+lines(density(m2[,3]), col = cbp[2], lwd = 2)
 par(mfrow = c(1, 1))
 ```
 
-# Estimating parameters of interest
+The estimates for the two arms look wildly different from the histograms that show the results from the simplistic censoring that was shown originally. However, the ratio of the two arms seems to be fairly closely aligned to the actual values. Additionally, this was just one simulated dataset, it could be a freak occurrence, but it is not. Below are the results when the data generation and analysis are run 1000 times and the mean value of the posterior computed - it shows the systematic nature of the bias and also the fact that the ratio estimate are robust.
 
-Using a gamma conjugate prior with an exponential distribution parameterised with a rate, the sufficient statistics are the total number of uncensored events and the total observed time. The posterior estimates for the rate parameter (which give us a posterior view of the median time to event) are unreliable.
+Note **this is not a estimation issue** -- you get identical results if you use MCMC. The effects arise due to the manner in which we observe the data such that we will systematically underestimate the true event rate.
 
-```{r, echo = F, fig.cap="Figure 4. Posterior estimats of medians"}
-set.seed(34)
+> The effects arise due to the manner in which we observe the data such that we will systematically underestimate the true event rate.
+
+```{r, echo = F, results = "hide", fig.cap="Figure 5. Parameter posteriors from censored data simulated 1000 times", results = "hide", fig.align="center", fig.width=8, fig.height=4}
+
+cfg$use_alt_censoring <- 0
+nsim <- 1000
+mr <- matrix(0, ncol = 6, nrow = nsim)
+
+for(i in 1:nsim){
+  
+  d <- rcpp_dat(cfg)
+  lsuffstat <- rcpp_clin_set_obst(d, cfg, look)
+  d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+  # 
+  d2$cen2 <- NA
+  d2$cen2 <- ifelse(d2$evtt > cfg$max_age_fu_months &
+                      as.numeric(rownames(d2)) <= cfg$looks[look], 1, d2$cen2)
+  d2$cen2 <- ifelse(d2$evtt <= cfg$max_age_fu_months &
+                      as.numeric(rownames(d2)) <= cfg$looks[look], 0, d2$cen2)
+  d2$obst2 <- NA
+  d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 0, d2$evtt, d2$obst2)
+  d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 1, 
+                     pmin(cfg$max_age_fu_months, d2$age + d2$evtt ), d2$obst2)
+  
+  lsuff <- tte_suff_stats(obst = d2$obst2, 
+                          trt = d2$trt, 
+                          cen = d2$cen2, 
+                          n = cfg$looks[look])
+  
+  post_ctl <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_0,   cfg$prior_gamma_b + lsuff$tot_obst_0)
+  post_trt <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_1,  cfg$prior_gamma_b + lsuff$tot_obst_1)
+  post_ratio <- post_ctl / post_trt
+  
+  post_ctl <- mean(post_ctl)
+  post_trt <- mean(post_trt)
+  post_ratio <- mean(post_ratio)
+  
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m, 
+                         lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                         lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                         cfg$post_draw, cfg);
+  
+  post_ctl2 <- mean(m[,1])
+  post_trt2 <- mean(m[,2])
+  post_ratio2 <- mean(m[,3])
+  
+  mr[i,] <- c(post_ctl, post_trt, post_ratio, post_ctl2, post_trt2, post_ratio2)
+}
+
+
+par(mfrow = c(1, 3))
+hist(mr[,1], prob = T, main = "control", xlim = c(0.01, 0.03), xlab = "mu0")
+lines(density(mr[,4]), col = cbp[2], lwd = 2)
+hist(mr[,2], prob = T, main = "treatment", xlim = c(0.01, 0.03), xlab = "mu1")
+lines(density(mr[,5]), col = cbp[2], lwd = 2)
+hist(mr[,3], prob = T, main = "ratio", xlim = c(0.6, 1.5), xlab = "ratio")
+lines(density(mr[,6]), col = cbp[2], lwd = 2)
+par(mfrow = c(1, 1))
+
+```
+
+Given that the ratio is robust to the way that we observe the data, the superiority check in the simulations should be ok. This is because, when make a superiority decision at the interim, it is only based on the posterior distribution for the ratio of the parameters. However, for the futility checks, we must use the posterior estimate for the rate parameter from each of the arms in order to obtain the posterior predictive distributions. 
+
+# Posterior predictive distribution
+
+We can generate the posterior predictive by sampling from the posteriors then using these draws to generate data under the exponential distribution. The predictive distributions serve as a means to simulate future data. In turn, the simulated data is used to assess how many trials would end up successful if we ran the current trial to its maximum sample size.
+
+Simulation comparing the results derived from simplistic censoring versus the ORVAC visit-based censoring suggests that a much larger number of trials would designated as futile under the ORVAC censoring. In a comparison of a single dataset with median tte of 30 versus 40 months, around 78% of trials were designated as successful under the simple censoring and only 49% of the trials designated as successful under the ORVAC censoring. The difference in the posterior distributions for the ratio of the exponential rates (obtained after using the posterior predictive distributions to simulate data) are shown below (ORVAC is in grey, simple is yellow dashes).
+
+
+```{r, echo = F}
+set.seed(37)
+look = 20
+cfg$b0tte <- log(2)/30
+cfg$b1tte <- log(2)/40 - log(2)/30
 d <- rcpp_dat(cfg)
 d2 <- as.data.frame(copy(d))
 colnames(d2) <- dnames
-d2$testcen <- ifelse(d2$evtt + d2$age > 36, 1, 0)
-d2$testobst <- ifelse(d2$testcen == 1, 36, d2$evtt)
+d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
 
-uc0 <- sum(d2$testcen[d2$trt == 0] == 0)
-uc1 <- sum(d2$testcen[d2$trt == 1] == 0)
+d2$cen2 <- NA
+d2$cen2 <- ifelse(d2$evtt > cfg$max_age_fu_months &
+                    as.numeric(rownames(d2)) <= cfg$looks[look], 1, d2$cen2)
+d2$cen2 <- ifelse(d2$evtt <= cfg$max_age_fu_months &
+                    as.numeric(rownames(d2)) <= cfg$looks[look], 0, d2$cen2)
+d2$obst2 <- NA
+d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 0, d2$evtt, d2$obst2)
+d2$obst2 <- ifelse(!is.na(d2$cen2) & d2$cen2 == 1, 
+                   pmin(cfg$max_age_fu_months, d2$age + d2$evtt ), d2$obst2)
 
-obst0 <- sum(d2$testobst[d2$trt == 0])
-obst1 <- sum(d2$testobst[d2$trt == 1])
+# compute posterior
+lsuff <- tte_suff_stats(obst = d2$obst2, 
+               trt = d2$trt, 
+               cen = d2$cen2, 
+               n = cfg$looks[look])
 
+m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+m[,1] <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_0,   cfg$prior_gamma_b + lsuff$tot_obst_0)
+m[,2] <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_1,  cfg$prior_gamma_b + lsuff$tot_obst_1)
 
-post0 <- rgamma(1000, 1 + uc0, 50 + obst0)
-post1 <- rgamma(1000, 1 + uc1, 50 + obst1)
+# par(mfrow = c(1, 2))
+# hist(m[,1], prob = T, main = "control", xlim = c(0.01, 0.03), xlab = "mu0")
+# hist(m[,2], prob = T, main = "treatment", xlim = c(0.01, 0.03), xlab = "mu1")
+# par(mfrow = c(1, 1))
 
-par(mfrow = c(1, 2))
-hist(log(2)/post0, prob = T, main = "Ctl", xlim = c(20, 60))
-abline(v = log(2)/cfg$b0tte, col = cbp[2], lwd = 2)
+# use posterior to derive pp
+impute <- (1000 - cfg$looks[look])/2
 
-hist(log(2)/post1, prob = T, main = "Trt", xlim = c(20, 60))
-abline(v = log(2)/(cfg$b0tte + cfg$b1tte), col = cbp[2], lwd = 2)
-par(mfrow = c(1, 1))
-```
+# simulate 1000 trials
+win <- numeric(1000)
+mrat1 <- matrix(0, ncol = 1000, nrow = 1000)
+mevt1 <- matrix(0, ncol = 1000, nrow = 1000)
+matsuff1 <- matrix(0, ncol = 4, nrow = 1000)
 
-But the ratio remains surprisingly robust. Here is a plot derived from conducting the above analysis 1000 times and working out the ratio of median time to event in the treatment versus control arms. The true value is plotted as the vertical line. Note the ratio of exponential rates is an equivalent picture.
-
-```{r, echo = F, fig.cap="Figure 5. Posterior of ratio of medians"}
-nsim <- 1000
-rat <- numeric(nsim)
-for(i in 1:nsim){
+for(i in 1:1000){
   
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(copy(d))
-  colnames(d2) <- dnames
-  d2$testcen <- ifelse(d2$evtt + d2$age > 36, 1, 0)
-  d2$testobst <- ifelse(d2$testcen == 1, 36, d2$evtt)
+  pp <- matrix(0, nrow = impute, ncol = 2)
+  pp[, 1] <- rexp(impute, m[i, 1])
+  pp[, 2] <- rexp(impute, m[i, 2])
   
-  uc0 <- sum(d2$testcen[d2$trt == 0] == 0)
-  uc1 <- sum(d2$testcen[d2$trt == 1] == 0)
-  
-  obst0 <- sum(d2$testobst[d2$trt == 0])
-  obst1 <- sum(d2$testobst[d2$trt == 1])
-  
-  post0 <- rgamma(1000, 1 + uc0, 50 + obst0)
-  post1 <- rgamma(1000, 1 + uc1, 50 + obst1)
-  med0 <- log(2)/post0
-  med1 <- log(2)/post1
+  # splice altenating together
+  evtt_rep <- c(d2$evtt[1:cfg$looks[look]],   c(rbind(pp[, 2], pp[, 1])))
+  mevt1[, i] <- evtt_rep
 
-  rat[i] <- median(med1/med0)
+  cen2_rep <- NA
+  cen2_rep <- ifelse(evtt_rep > cfg$max_age_fu_months , 1, cen2_rep)
+  cen2_rep <- ifelse(evtt_rep <= cfg$max_age_fu_months , 0, cen2_rep)
+  
+  obst2_rep <- NA
+  obst2_rep <- ifelse(cen2_rep == 0, evtt_rep, obst2_rep)
+  obst2_rep <- ifelse(cen2_rep == 1, pmin(cfg$max_age_fu_months, d2$age + d2$evtt ), obst2_rep)
+
+  lsuff <- tte_suff_stats(obst = obst2_rep, 
+               trt = d2$trt, 
+               cen = cen2_rep, 
+               n = max(cfg$looks))
+  #lsuff
+  matsuff1[i, ] <- c(lsuff$n_uncen_0, lsuff$n_uncen_1, 
+                     lsuff$tot_obst_0, lsuff$tot_obst_1)
+
+  m_rep <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  m_rep[,1] <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_0,   
+                      cfg$prior_gamma_b + lsuff$tot_obst_0)
+  m_rep[,2] <- rgamma(1000, cfg$prior_gamma_a + lsuff$n_uncen_1,  
+                      cfg$prior_gamma_b + lsuff$tot_obst_1)
+
+  mrat1[, i] <- m_rep[, 1] / m_rep[, 2]
+  
+  win[i] <- ifelse(mean(m_rep[, 1] / m_rep[, 2] > 1) > 0.975, 1, 0)
+  
 }
+mean(win)
 
-truerat = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
-
-par(mfrow = c(1, 1))
-hist(rat, prob = T, main = "Ratio of median time to event", xlab = "")
-abline(v = truerat, col = cbp[2], lwd = 2)
-abline(v = mean(rat), col = cbp[3], lwd = 2, lty = 3)
-
-par(mfrow = c(1, 1))
 ```
 
-# Orvac Censoring
 
-Is more involved because we observe the data at discrete times that do not necessarily align with the interim analyses. Again, the median time to event estimates are  unreliable. However, the ratio continues to hold up. Below is a histogram of the ratio of medians from 1000 simulations of the data and censoring as used in the Orvac simulations.
 
-```{r, echo = F, fig.cap="Figure 6. Ratio of meds from Orvac"}
-set.seed(5343534)
-look <- 32
-nsim <- 1000
-v <- numeric(nsim)
-  
-for(i in 1:nsim){
-  
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(copy(d))
-  colnames(d2) <- dnames
-  
-  # get sufficieitn stats
-  lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look)
-  
-  d2 <- as.data.frame(copy(d))
-  colnames(d2) <- dnames
+```{r, echo = F}
+set.seed(37)
+look = 20
+cfg$b0tte <- log(2)/30
+cfg$b1tte <- log(2)/40 - log(2)/30
+d <- rcpp_dat(cfg)
 
-  # obtain posterior based on current look 
-  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
-  rcpp_clin_interim_post(m, 
-                         lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
-                         lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
+lsuffstat <- rcpp_clin_set_obst(d, cfg, look)
+d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
+
+m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+rcpp_clin_interim_post(m, 
+                         lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                         lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
                          cfg$post_draw, cfg);
-  v[i] <- mean(m[, 1]/m[, 2])
+
+# par(mfrow = c(1, 2))
+# hist(m[,1], prob = T, main = "control", xlim = c(0.01, 0.03), xlab = "mu0")
+# hist(m[,2], prob = T, main = "treatment", xlim = c(0.01, 0.03), xlab = "mu1")
+# par(mfrow = c(1, 1))
+
+# use posterior to derive pp
+impute <- (1000 - cfg$looks[look])/2
+
+mevt2 <- matrix(0, ncol = 1000, nrow = 1000)
+mrat2 <- matrix(0, ncol = 1000, nrow = 1000)
+matsuff2 <- matrix(0, ncol = 4, nrow = 1000)
+
+# simulate 1000 trials
+win <- numeric(1000)
+for(i in 1:1000){
   
-  # should be (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
+  d3 <- as.data.frame(copy(d)); colnames(d3) <- dnames
+  
+  pp <- matrix(0, nrow = impute, ncol = 2)
+  pp[, 1] <- rexp(impute, m[i, 1])
+  pp[, 2] <- rexp(impute, m[i, 2])
+  
+  # splice altenating together
+  d3$evtt <- c(d3$evtt[1:cfg$looks[look]], c(rbind(pp[, 2], pp[, 1])))
+  
+  mevt2[, i] <- d3$evtt
+  
+  lsuffstat <- rcpp_clin_set_obst(as.matrix(d3), cfg, length(cfg$looks))
+  #lsuffstat
+  matsuff2[i, ] <- c(lsuffstat$n_uncen_0, lsuffstat$n_uncen_1, 
+                     lsuffstat$tot_obst_0, lsuffstat$tot_obst_1)
+  
+  m_rep <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m_rep, 
+                         lsuffstat$n_uncen_0, lsuffstat$tot_obst_0,
+                         lsuffstat$n_uncen_1, lsuffstat$tot_obst_1,
+                         cfg$post_draw, cfg);
+  
+  mrat2[, i] <- m_rep[, 1] / m_rep[, 2]
+  
+  win[i] <- ifelse(mean(m_rep[, 1] / m_rep[, 2] > 1) > 0.975, 1, 0)
+  
 }
-
-truerat = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
-
-par(mfrow = c(1, 1))
-hist(v, prob = T, main = "Ratio of median time to event", xlab = "")
-abline(v = truerat, col = cbp[2], lwd = 2)
-abline(v = mean(v), col = cbp[3], lwd = 2, lty = 3)
+mean(win)
 
 ```
+
+
+```{r, echo = F, results = "hide", fig.cap="Figure 6. Ratios estimated from simulated trials using the posterior predictive distributions for time to events", results = "hide", fig.align="center", fig.width=7, fig.height=5}
+
+# dfig0 <- data.frame(Simple = colMeans(mrat1), 
+#                     ORVAC = colMeans(mrat2))
+# dfig0 <- dfig0 %>%
+#   tidyr::gather(key = "censoring", value = "mu")
+
+dfig1 <- as.data.frame(mrat1) %>%
+  tidyr::gather(key = "sim", value = "mu")
+dfig1$sim <- as.numeric(gsub("V", "", dfig1$sim))
+dfig1$censoring <- "Simple"
+
+
+dfig2 <- as.data.frame(mrat2) %>%
+  tidyr::gather(key = "sim", value = "mu")
+dfig2$sim <- as.numeric(gsub("V", "", dfig2$sim))
+dfig2$censoring <- "ORVAC"
+
+
+dfig <- rbind(dfig1, dfig2)
+
+idx1 <- sample(1:100, 100, replace = F)
+
+ggplot(dfig %>% dplyr::filter(sim %in% idx1) ) +
+  geom_line(aes(x=mu, colour = censoring, linetype = censoring , 
+                group = factor(paste0(sim, censoring))), 
+            stat="density", size=0.5, alpha=0.25) + 
+  # geom_density(data = dfig0,
+  #           aes(x=mu, colour = censoring, weight=mu/sum(mu)), size=0.5) +
+  scale_x_continuous("Estimate for ratio of posteriors") +
+  scale_y_continuous("Probability density") +
+  scale_color_manual(values = cbp)
+```
+
+
+Figure 7 shows the distribution of sufficient statistics under differing censoring mechanisms obtained through simumlating a single trial which included predictive check on futility. 
+
+
+
+```{r, echo = F, results = "hide", fig.cap="Figure 7. Sufficient stats under differing censoring", results = "hide", fig.align="center", fig.width=7, fig.height=5}
+
+
+dfig1 <- as.data.frame(matsuff1)
+dfig1$censoring <- "Simple"
+dfig2 <- as.data.frame(matsuff2)
+dfig2$censoring <- "ORVAC"
+
+dfig <-rbind(dfig1, dfig2)
+colnames(dfig) <- c("nobs0", "nobs1", "totobst0", "totobst1", "censoring")
+
+dfig <- dfig %>%
+  tidyr::gather(key = "variable", value = "value", -censoring)
+
+dfig$variable <- factor(dfig$variable, 
+                        levels = c("nobs0", "nobs1", "totobst0", "totobst1"),
+                        labels = c("Num events (ctl)", "Num events (trt)", 
+                                   "Total time (ctl)", "Total time (trt)"))
+
+ggplot(dfig) +
+  geom_line(aes(x=value, colour = censoring, linetype = censoring , 
+                group = censoring), 
+            stat="density", size=0.5) + 
+  scale_x_continuous("Distributions of sufficient stats") +
+  scale_y_continuous("Probability density") +
+  scale_color_manual(values = cbp) +
+  facet_wrap(~variable, scales = "free")
+
+
+
+```
+
+
 
 
 # Conclusion
 
-Excess censoring as we are likely to see in the Orvac trial leads to unreliable median time to event estimates. However, the ratio of the medians appears to remain robust. Conclusion - (1) reporting of median time to events should be caveated to indicate that they are probably unreliable (2) ratio of time to events looks to be within about +/- 2% of the true values.
+The ORVAC visit-based data observation leads to unreliable posterior estimates each arm, but on average the ratio is robut. Therefore superiority assessments will continue to function as previously.
+
+The futility checks are based on data that is simulated using the posterior predictive distributions in each arm. These do not function as previously documented and the differences simple censoring and ORVAC censoring are stark. In the initial tests conducted here (and also based on the current results from ongoing simulations) a much lower proportion of trials will be deemed successful and therefore futility rates are much higher.
 
 
+<!--
+```{r, echoh = F, results = "hide", fig.cap="Figure 6. Simulated event data from posterior predictives simulated trials", results = "hide", fig.align="center", fig.width=5, fig.height=5}
 
+dfig1 <- as.data.frame(mevt1) %>%
+  tidyr::gather(key = "sim", value = "mu")
+dfig1$sim <- as.numeric(gsub("V", "", dfig1$sim))
+dfig1$censoring <- "Simple"
 
+dfig2 <- as.data.frame(mevt2) %>%
+  tidyr::gather(key = "sim", value = "mu")
+dfig2$sim <- as.numeric(gsub("V", "", dfig2$sim))
+dfig2$censoring <- "ORVAC"
+
+dfig <- rbind(dfig1, dfig2)
+
+idx1 <- sample(1:100, 100, replace = F)
+
+ggplot(dfig %>% dplyr::filter(sim %in% idx1) ) +
+  geom_line(aes(x=mu, colour = censoring, linetype = censoring , 
+                group = factor(paste0(sim, censoring))), 
+            stat="density", size=0.5, alpha=0.2) + 
+  # geom_density(data = dfig0,
+  #           aes(x=mu, colour = censoring, weight=mu/sum(mu)), size=0.5) +
+  scale_x_continuous("Estimate for ratio of posteriors", lim = c(0, 200)) +
+  scale_y_continuous("Probability density") +
+  scale_color_manual(values = cbp)
+```
+-->
 
