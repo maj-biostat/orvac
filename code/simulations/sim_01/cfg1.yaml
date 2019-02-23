@@ -122,11 +122,8 @@ use_alt_censoring: 0
 # posterior and posterior predictive thresholds
 # superiority/futility thresholds for futility checks
 
-post_sero_thresh: 0.975
-
-post_tte_thresh: 0.975
-# post_tte_thresh_start: 0.999
-# post_tte_thresh_end: 0.975
+post_sero_thresh: 0.95
+post_tte_thresh: 0.95
 
 # futility test
 rule1_sero_pp_fut_thresh: 0.05
@@ -142,20 +139,6 @@ rule3_sero_pp_sup_thresh: 0.975
 
 
 
-# rule1_sero_dens_lwr: 0.025
-# rule1_sero_ppos_sup_thresh: 0.05
-# rule1_sero_pp_fut_thresh: 0.05
-# rule1_sero_ppos_fut_thresh: 0.05
-# 
-# rule1_tte_postthresh: 0.95
-# rule1_tte_ppthresh: 0.05
-# rule1_tte_pposthresh: 0.025
-# 
-# rule2_tte_postthresh: 0.975
-# 
-# rule3_sero_postthresh: 0.95
-# rule3_tte_postthresh: 0.975
-# rule3_sero_ppos_thresh: 0.95
 
 
 # conjugate posterior
