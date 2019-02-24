@@ -231,6 +231,7 @@ results <- foreach(i = 1:cfg$nsims,
 
       }
       
+      # m_clin_res$ppn actually refers to the posterior probability rather than post predictive.
       if (m_clin_res$ppn > cfg$rule2_tte_pp_sup_thresh[look] &&
           !trial_state$stop_clin_fut){
         flog.info("Clin ep superior: ppn = %s threshold %s (pgt1 = %s l0 = %s l1 = %s ratio = %s n0 = %s n1 = %s t0 = %s t1 = %s), sim = %s look = %s", 

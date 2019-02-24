@@ -122,20 +122,35 @@ use_alt_censoring: 0
 # posterior and posterior predictive thresholds
 # superiority/futility thresholds for futility checks
 
-post_sero_thresh: 0.9
-post_tte_thresh: 0.9
+# these are used to assess the posterior distributions generated from analyses that are
+# based on data drawn from the posterior predictive. for example, if the empirical probability that
+# the difference between seroconversion in the two arms is > 0 is above 0.9 then we consider that
+# simulated dataset to have yielded a successful trial.
+
+post_sero_thresh: 0.85
+post_tte_thresh: 0.85
 
 # futility test
+# these correspond to the minimum proportion of simulated trial results that need to have been 
+# successful for us to continue the trial. if less than 5% of the trials are successful then we 
+# abandon the trial for futility
 rule1_sero_pp_fut_thresh: 0.05
 rule1_tte_pp_fut_thresh: 0.05
 
+# stop v sampling test
+# this is the thresholds used to assess the posterior predictive in the case of the
+# immunological endpoint at the time of the interim. we need to see >= 97.5% prob of success to 
+# cease serum sampling
+rule3_sero_pp_sup_thresh: 0.95
+
 # superiority test
-rule2_tte_pp_sup_thresh_start: 0.9
-rule2_tte_pp_sup_thresh_end: 0.9
+# these are the thresholds used to assess the posterior at the time of the interim. we need 
+# to see >= 90% prob of success to cease clinical endpoint for superiority.
+rule2_tte_pp_sup_thresh_start: 0.98
+rule2_tte_pp_sup_thresh_end: 0.8
 # rule2_tte_pp_sup_thresh: 0.975
 
-# stop v sampling test
-rule3_sero_pp_sup_thresh: 0.975
+
 
 
 
