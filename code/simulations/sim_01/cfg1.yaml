@@ -47,7 +47,7 @@ sero_info_delay: 0.75
 # max number of venous samp
 nmaxsero: 250
 # n when we start assessing the clinical endpoint
-nstartclin: 250
+nstartclin: 200
 
 
 
@@ -122,16 +122,16 @@ use_alt_censoring: 0
 # posterior and posterior predictive thresholds
 # superiority/futility thresholds for futility checks
 
-post_sero_thresh: 0.95
-post_tte_thresh: 0.95
+post_sero_thresh: 0.9
+post_tte_thresh: 0.9
 
 # futility test
 rule1_sero_pp_fut_thresh: 0.05
 rule1_tte_pp_fut_thresh: 0.05
 
 # superiority test
-rule2_tte_pp_sup_thresh_start: 0.95
-rule2_tte_pp_sup_thresh_end: 0.95
+rule2_tte_pp_sup_thresh_start: 0.9
+rule2_tte_pp_sup_thresh_end: 0.9
 # rule2_tte_pp_sup_thresh: 0.975
 
 # stop v sampling test
