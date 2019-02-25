@@ -43,7 +43,7 @@
 
 
 
-#define _DEBUG 0
+#define _DEBUG 1
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -143,10 +143,60 @@ void rcpp_test_1(arma::mat& d);
 void rcpp_test_sub_1(arma::mat& d);
 arma::mat rcpp_test_2(const arma::mat& d) ;
 arma::mat rcpp_test_sub_2(arma::mat& d);
+Rcpp::List rcpp_dotrial(const Rcpp::List& cfg);
 // end function prototypes
 
 
 
+
+class Trial {
+private:
+  int stop_ven_samp = 0;
+  int stop_immu_fut = 0;
+  int stop_clin_fut = 0;
+  int stop_clin_sup = 0;
+  int inconclusive = 0;
+
+  int nmaxsero = 200;
+  int look = 1;
+public:
+
+  Trial(Rcpp::List& cfg) // normal non-default constructor
+  {
+    nmaxsero = cfg["nmaxsero"];
+  }
+
+  int maxsero(){
+    return nmaxsero;
+  }
+};
+
+
+// dotrial loop
+Rcpp::List rcpp_dotrial(const Rcpp::List& cfg){
+
+  Rcpp::NumericVector looks = cfg["looks"];
+  Rcpp::NumericVector months = cfg["interimmnths"];
+
+  Trial t(cfg);
+
+  arma::mat d = rcpp_dat(cfg);
+
+  DBG(Rcpp::Rcout, "nmaxsero " << t.maxsero());
+
+
+  // for(int i = 0; i < max(looks); i++){
+  //
+  //   if(t.test_immu())
+  //
+  //
+  //
+  // }
+
+
+  Rcpp::List ret;
+  return ret;
+}
 
 
 
