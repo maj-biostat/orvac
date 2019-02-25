@@ -126,6 +126,7 @@ void rcpp_immu_interim_post(const arma::mat& d,
                              const Rcpp::List& lnsero);
 Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
                              const arma::mat& m,
+                             const int look,
                              const int nobs,
                              const int nimpute,
                              const int post_draw,
@@ -144,6 +145,7 @@ void rcpp_test_sub_1(arma::mat& d);
 arma::mat rcpp_test_2(const arma::mat& d) ;
 arma::mat rcpp_test_sub_2(arma::mat& d);
 Rcpp::List rcpp_dotrial(const Rcpp::List& cfg);
+void rcpp_testtrial(const Rcpp::List& cfg);
 // end function prototypes
 
 
@@ -156,45 +158,249 @@ private:
   int stop_clin_fut = 0;
   int stop_clin_sup = 0;
   int inconclusive = 0;
-
   int nmaxsero = 200;
-  int look = 1;
-public:
+  int nstartclin = 200;
+  int immu_ss = 0;
+  int clin_ss = 0;
 
-  Trial(Rcpp::List& cfg) // normal non-default constructor
+  bool i_final_win = 0;
+  bool c_final_win = 0;
+
+public:
+  Trial(Rcpp::List cfg)
   {
     nmaxsero = cfg["nmaxsero"];
+    nstartclin = cfg["nstartclin"];
   }
-
-  int maxsero(){
-    return nmaxsero;
+  Trial(Rcpp::List cfg, int vstop, int ifut, int cfut, int csup, int inc)
+  {
+    nmaxsero = cfg["nmaxsero"];
+    nstartclin = cfg["nstartclin"];
+    stop_ven_samp = vstop;
+    stop_immu_fut = ifut;
+    stop_clin_fut = cfut;
+    stop_clin_sup = csup;
+    inconclusive = inc;
   }
+  int maxsero();
+  int startclin_at_n();
+  bool do_immu(int n_current);
+  bool do_clin(int n_current);
+  void immu_state();
+  int getstop_ven_samp(){return stop_ven_samp;}
+  int getstop_immu_fut(){return stop_immu_fut;}
+  int getstop_clin_fut(){return stop_clin_fut;}
+  int getstop_clin_sup(){return stop_clin_sup;}
+  int getinconclusive(){return inconclusive;}
+  int getnmaxsero(){return nmaxsero;}
+  int getnstartclin(){return nstartclin;}
+  void immu_stopv();
+  void immu_fut();
+  void clin_fut();
+  void clin_sup();
+  void immu_set_ss(int n);
+  void clin_set_ss(int n);
+  void immu_final_win(bool won);
+  void clin_final_win(bool won);
 };
+int Trial::maxsero(){
+  return nmaxsero;
+}
+int Trial::startclin_at_n(){
+  return nstartclin;
+}
+bool Trial::do_immu(int n_current){
+  if(stop_ven_samp == 1){
+    return false;
+  }
+  if(n_current > nmaxsero){
+    return false;
+  }
+  if(stop_immu_fut == 1){
+    return false;
+  }
+  if(stop_clin_fut == 1){
+    return false;
+  }
+  if(stop_clin_sup == 1){
+    return false;
+  }
+  return true;
+}
+bool Trial::do_clin(int n_current){
+
+  if(n_current < nstartclin){
+    return false;
+  }
+  if(stop_clin_fut == 1){
+    return false;
+  }
+  if(stop_clin_sup == 1){
+    return false;
+  }
+  if(stop_immu_fut == 1){
+    return false;
+  }
+  return true;
+}
+void Trial::immu_stopv(){stop_ven_samp = 1;}
+void Trial::immu_fut(){
+  stop_immu_fut = 1;
+  return;
+}
+void Trial::clin_fut(){stop_clin_fut = 1;}
+void Trial::clin_sup(){stop_clin_sup = 1;}
+void Trial::immu_set_ss(int n){immu_ss = n;}
+void Trial::clin_set_ss(int n){clin_ss = n;}
+void Trial::immu_final_win(bool won){
+  i_final_win = won;
+}
+void Trial::clin_final_win(bool won){
+  c_final_win = won;
+}
+void Trial::immu_state(){
+  DBG(Rcpp::Rcout, "immu endpoint state vsamp " << stop_ven_samp <<
+    " fut " << stop_immu_fut << " final " << i_final_win);
+}
 
 
 // dotrial loop
+
+
+// [[Rcpp::export]]
+void rcpp_testtrial(const Rcpp::List& cfg){
+
+  //Trial t(cfg, vstop, ifut, cfut, csup, inc);
+  Trial t(cfg);
+  DBG(Rcpp::Rcout, "nmaxsero            " << t.maxsero());
+  DBG(Rcpp::Rcout, "startclin_at_n      " << t.startclin_at_n());
+  DBG(Rcpp::Rcout, "getstop_ven_samp    " << t.getstop_ven_samp());
+  DBG(Rcpp::Rcout, "getstop_immu_fut    " << t.getstop_immu_fut());
+  DBG(Rcpp::Rcout, "getstop_clin_fut    " << t.getstop_clin_fut());
+  DBG(Rcpp::Rcout, "getstop_clin_sup    " << t.getstop_clin_sup());
+  DBG(Rcpp::Rcout, "getinconclusive     " << t.getinconclusive());
+
+  // DBG(Rcpp::Rcout, "t.analyse_immu 30    " << t.analyse_immu(30));
+  // DBG(Rcpp::Rcout, "t.analyse_immu 300   " << t.analyse_immu(300));
+  //
+  // DBG(Rcpp::Rcout, "t.analyse_clin 30    " << t.analyse_clin(30));
+  // DBG(Rcpp::Rcout, "t.analyse_clin 300   " << t.analyse_clin(300));
+  //
+  // Trial t2(cfg, 1, 0, 0, 0, 0);
+  // DBG(Rcpp::Rcout, "stop v samp    " );
+  // DBG(Rcpp::Rcout, "t.analyse_immu 30    " << t2.analyse_immu(30));
+  // DBG(Rcpp::Rcout, "t.analyse_clin 300   " << t2.analyse_clin(300));
+  //
+  // Trial t3(cfg, 0, 1, 0, 0, 0);
+  // DBG(Rcpp::Rcout, "ifut    " );
+  // DBG(Rcpp::Rcout, "t.analyse_immu 30    " << t3.analyse_immu(30));
+  // DBG(Rcpp::Rcout, "t.analyse_clin 300   " << t3.analyse_clin(300));
+  //
+  // Trial t4(cfg, 1, 0, 1, 0, 0);
+  // DBG(Rcpp::Rcout, "stop v samp  cfut  " );
+  // DBG(Rcpp::Rcout, "t.analyse_immu 30    " << t4.analyse_immu(30));
+  // DBG(Rcpp::Rcout, "t.analyse_clin 300   " << t4.analyse_clin(300));
+  //
+  // //Trial t(cfg, vstop, ifut, cfut, csup, inc);
+  // Trial t5(cfg, 0, 0, 0, 1, 0);
+  // DBG(Rcpp::Rcout, "csup    " );
+  // DBG(Rcpp::Rcout, "t.analyse_immu 30    " << t5.analyse_immu(30));
+  // DBG(Rcpp::Rcout, "t.analyse_clin 300   " << t5.analyse_clin(300));
+  //
+  // Trial t6(cfg, 1, 0, 0, 1, 0);
+  // DBG(Rcpp::Rcout, "vstop csup    " );
+  // DBG(Rcpp::Rcout, "t.analyse_immu 30    " << t6.analyse_immu(30));
+  // DBG(Rcpp::Rcout, "t.analyse_clin 300   " << t6.analyse_clin(300));
+  //
+  // Trial t7(cfg, 0, 0, 0, 0, 1);
+  // DBG(Rcpp::Rcout, "inc    " );
+  // DBG(Rcpp::Rcout, "t.analyse_immu 30    " << t7.analyse_immu(30));
+  // DBG(Rcpp::Rcout, "t.analyse_clin 300   " << t7.analyse_clin(300));
+
+}
+
+
+// [[Rcpp::export]]
 Rcpp::List rcpp_dotrial(const Rcpp::List& cfg){
 
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
-
-  Trial t(cfg);
-
+  Rcpp::List m_immu_res;
+  Rcpp::List m_clin_res;
+  double current_sup;
   arma::mat d = rcpp_dat(cfg);
+  int nobs = 0;
 
-  DBG(Rcpp::Rcout, "nmaxsero " << t.maxsero());
+  //Trial t(cfg, vstop, ifut, cfut, csup, inc);
+  Trial t(cfg);
+  int look;
+  for(int i = 0; i < looks.length(); i++){
+    // look is here because all the original methods were called from R with r indexing
+    look = i + 1;
+    nobs = 0;
+
+    if(t.do_immu(looks[i])){
+      DBG(Rcpp::Rcout, "doing immu, samp size is " << looks[i]);
+      m_immu_res = rcpp_immu(d, cfg, look);
+
+      if((double)m_immu_res["ppos_max"] < (double)cfg["rule1_sero_pp_fut_thresh"]){
+        nobs = rcpp_n_obs(d, look, looks, months, (double)cfg["sero_info_delay"]);
+        DBG(Rcpp::Rcout, "immu futile, ppos_max " << (double)m_immu_res["ppos_max"] << " obs with results " << nobs);
+        t.immu_fut();
+        t.immu_set_ss(nobs);
+      }
+
+      if ((double)m_immu_res["ppos_n"] > (double)cfg["rule3_sero_pp_sup_thresh"] && !t.getstop_immu_fut()){
+        nobs = rcpp_n_obs(d, look, looks, months, (double)cfg["sero_info_delay"]);
+        DBG(Rcpp::Rcout, "immu stop v samp, ppos_n " << (double)m_immu_res["ppos_n"] << " obs with results " << nobs);
+        t.immu_stopv();
+        t.immu_set_ss(nobs);
+      }
+    }
+
+    // if(t.do_clin(looks[i])){
+    //   DBG(Rcpp::Rcout, "doing clin, samp size is " << looks[i]);
+    //   m_clin_res = rcpp_clin(d, cfg, look);
+    // if((double)m_clin_res["ppmax"] < (double)cfg["rule1_tte_pp_fut_thresh"]){
+    //   DBG(Rcpp::Rcout, "immu futile " << (double)m_clin_res["ppmax"]);
+    //   immu_fut();
+    // }
+    //
+    //
+    // if ((double)m_clin_res["ppn"] > (double)cfg["rule2_tte_pp_sup_thresh"]   m_clin_res$> cfg$rule2_tte_pp_sup_thresh[look] &&
+    //     !trial_state$stop_clin_fut){
+    // }
+
+  }
 
 
-  // for(int i = 0; i < max(looks); i++){
-  //
-  //   if(t.test_immu())
-  //
-  //
-  //
-  // }
+  // final analysis for sero
+  // how many successes in each arm?
+  Rcpp::List lnsero = rcpp_lnsero(d, (int)cfg["nmaxsero"]);
+
+  // posterior at this interim
+  arma::mat m = arma::zeros((int)cfg["post_draw"] , 3);
+  rcpp_immu_interim_post(d, m, (int)cfg["nmaxsero"], (int)cfg["post_draw"], lnsero);
+
+  arma::uvec tmp = arma::find(m.col(COL_DELTA) > 0);
+  double post_prob_gt0 =  (double)tmp.n_elem / (double)cfg["post_draw"];
+
+  DBG(Rcpp::Rcout, "final analysis - immu posterior: mean theta0 " << arma::mean(m.col(COL_THETA0)) <<
+    " mean theta1 " << arma::mean(m.col(COL_THETA1)) <<
+      " mean delta " << arma::mean(m.col(COL_DELTA)) <<
+        " n delta gt0 " << tmp.n_elem  <<
+        " post_prob_gt0 " << post_prob_gt0);
+
+  if(post_prob_gt0 > (double)cfg["post_final_thresh"]){
+    t.immu_final_win(true);
+  } else{
+    t.immu_final_win(false);
+  }
+  t.immu_state();
 
 
-  Rcpp::List ret;
+  Rcpp::List ret = Rcpp::List::create(Rcpp::Named("m") = m,
+                                      Rcpp::Named("d") = d);
   return ret;
 }
 
@@ -419,6 +625,7 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
   int post_draw = (int)cfg["post_draw"];
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
+  Rcpp::NumericVector post_tte_thresh = cfg["post_tte_thresh"];
   Rcpp::List lsuffstat;
   Rcpp::List llr;
 
@@ -494,12 +701,16 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
     // empirical posterior probability that ratio_lamb > 1
     arma::uvec tmp = arma::find(m_new.col(COL_RATIO) > 1);
     postprob_ratio_gt1(i) =  (double)tmp.n_elem / (double)post_draw;
-    if(postprob_ratio_gt1(i) > (double)cfg["post_tte_thresh"]){
+    if(postprob_ratio_gt1(i) > post_tte_thresh[mylook]){
       win++;
     }
   }
 
   //DBG(Rcpp::Rcout, "pow " << std::pow((float)post_draw, 2.0) );
+  DBG(Rcpp::Rcout, "clin posterior threshold for win " << post_tte_thresh[mylook] );
+
+  // DBG(Rcpp::Rcout, "immu ppos num wins " << win << " mean num gt0 " << arma::mean(n_gt0) << " threshold " <<
+  //   " posterior threshold for win " << post_sero_thresh[mylook] );
 
   double ppos = (double)win / (double)post_draw;
 
@@ -1140,14 +1351,14 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
     // therefore how many do we need to impute?
     nimpute1 = looks[mylook] - nobs;
     // predicted prob of success at interim
-    pp1 = rcpp_immu_interim_ppos(d, m,
+    pp1 = rcpp_immu_interim_ppos(d, m, look,
                                   nobs, nimpute1,
                                   (int)cfg["post_draw"],
                                   lnsero, cfg);
 
     // predicted prob of success at nmaxsero
     nimpute2 = (int)cfg["nmaxsero"] - nobs;
-    pp2 = rcpp_immu_interim_ppos(d, m, nobs, nimpute2,
+    pp2 = rcpp_immu_interim_ppos(d, m, look, nobs, nimpute2,
                                     (int)cfg["post_draw"],
                                             lnsero, cfg);
 
@@ -1267,12 +1478,14 @@ void rcpp_immu_interim_post(const arma::mat& d,
 // [[Rcpp::export]]
 Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
                                   const arma::mat& m,
+                                  const int look,
                                   const int nobs,
                                   const int nimpute,
                                   const int post_draw,
                                   const Rcpp::List& lnsero,
                                   const Rcpp::List& cfg){
 
+  int mylook = look - 1;
   int n_sero_ctl = 0;
   int n_sero_trt = 0;
   int win = 0;
@@ -1280,6 +1493,11 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
   arma::vec t1 = arma::zeros(post_draw);
   arma::vec delta1 = arma::zeros(post_draw);
   arma::vec postprobdelta_gt0 = arma::zeros(post_draw);
+
+  Rcpp::NumericVector post_sero_thresh = cfg["post_sero_thresh"];
+
+  arma::vec n_gt0 = arma::zeros(post_draw);
+
   int ntarget = nobs + nimpute;
 
   // create 1000 phony interims conditional on our current understanding
@@ -1301,8 +1519,9 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
 
     // empirical posterior probability that ratio_lamb > 1
     arma::uvec tmp = arma::find(delta1 > 0);
+    n_gt0(i) = (double)tmp.n_elem;
     postprobdelta_gt0(i) =  (double)tmp.n_elem / (double)post_draw;
-    if(postprobdelta_gt0(i) > (double)cfg["post_sero_thresh"]){
+    if(postprobdelta_gt0(i) > post_sero_thresh[mylook]){
       win++;
     }
   }
@@ -1316,6 +1535,9 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
   //DBG(Rcpp::Rcout, "win " << (double)win );
   //DBG(Rcpp::Rcout, "post_draw " << (double)post_draw);
   //DBG(Rcpp::Rcout, "mean wins " << (double)win / (double)post_draw );
+
+  DBG(Rcpp::Rcout, "immu ppos num wins " << win << " mean num gt0 " << arma::mean(n_gt0) << " threshold " <<
+    " posterior threshold for win " << post_sero_thresh[mylook] );
 
   Rcpp::List res = Rcpp::List::create(Rcpp::Named("ppos") = (double)win / (double)post_draw);
 

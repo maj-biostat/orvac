@@ -314,9 +314,35 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$surveillance_mnths <- 6
   
   
-  # for significance testing of a win in the pp section 
-  l$post_tte_thresh <- tt$post_tte_thresh
-  l$post_sero_thresh <- tt$post_sero_thresh 
+  # for final analysis test
+  l$post_final_thresh <- tt$post_final_thresh
+  
+  
+  
+  # for significance testing of a win in the ppos section 
+  l$post_tte_thresh_start <- tt$post_tte_thresh_start 
+  l$post_tte_thresh_end <- tt$post_tte_thresh_end
+  n1 <- length(l$looks[l$looks < l$nstartclin])
+  n2 <- length(l$looks) - n1
+  l$post_tte_thresh <- c(rep(l$post_tte_thresh_start, n1), 
+                         seq(from = l$post_tte_thresh_start,
+                             to = l$post_tte_thresh_end,
+                             length.out = n2))
+  stopifnot(length(l$post_tte_thresh) == length(l$looks))
+    
+
+  
+  # for significance testing of a win in the ppos section 
+  l$post_sero_thresh_start <- tt$post_sero_thresh_start 
+  l$post_sero_thresh_end <- tt$post_sero_thresh_end
+  n_sero_looks <- length(l$looks[l$looks <= l$nmaxsero])
+  
+  l$post_sero_thresh <- seq(from = l$post_sero_thresh_start,
+                            to = l$post_sero_thresh_end,
+                            length.out = n_sero_looks)
+        
+  
+                    
   
   # thresholds for interim decisions
   
@@ -324,7 +350,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$rule1_sero_pp_fut_thresh <- tt$rule1_sero_pp_fut_thresh
   l$rule1_tte_pp_fut_thresh <- tt$rule1_tte_pp_fut_thresh
   
-  # superiority test
+  # superiority test - ramps
   l$rule2_tte_pp_sup_thresh_start  <- tt$rule2_tte_pp_sup_thresh_start
   l$rule2_tte_pp_sup_thresh_end  <- tt$rule2_tte_pp_sup_thresh_end
   

@@ -2269,7 +2269,50 @@ test_that("clin tte data - tmp", {
 })
 
 
-
+test_that("dotrial", {
+  
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("util.R")
+  source("sim.R")
+  library(truncnorm)
+  
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  cfg$baselineprobsero
+  cfg$trtprobsero <- 0.5
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+  
+  l <- rcpp_dotrial(cfg)
+  
+  df <- as.data.frame(l$d)
+  names(df) <- dnames
+  df <- df[1:cfg$nmaxsero, ]
+  
+  lm1 <- glm(serot3 ~ trt, data = df, family = binomial)
+  confint(lm1)["trt", ]
+  
+  # instead of final analysis - immu posterior: mean theta0 0.387026 mean theta1 0.489018 mean delta 0.101992 n delta gt0 950 post_prob_gt0 0.95
+  # report lwr and upr 95% ci
+  
+  
+  
+  mym <- mean(l$m[,3])
+  mysd <- sd(l$m[,3])
+  
+  x <- rnorm(10000, mym, mysd)
+  dens <- density(x)
+  
+  hist(l$m[,3], prob = T, main = "", ylim = c(0, max(dens$y)))
+  lines(density(x), col = "red")
+  quantile(l$m[,3], probs = 0.025)
+  
+  err <- qnorm(0.975)*mysd/sqrt(nrow(l$m))
+  mym + c(err, -err)
+  
+  
+})
 
 
 
