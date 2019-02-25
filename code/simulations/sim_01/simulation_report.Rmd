@@ -152,6 +152,7 @@ for(fname in resfiles){
     dplyr::filter(stop_v_samp == 1) 
   
   n <- c(table(df_res$trial_outcome),   nrow(df_stopv))
+  names(n) <- c("Futile","Superior","Inconclusive", "StopV"    )
   prob <- c(prop.table(table(df_res$trial_outcome)),   nrow(df_stopv)/max(df_res$idxsim))
   names(prob) <- c(names(prob)[1:3], "StopV")
   
@@ -252,7 +253,7 @@ datatable(df_0, options = list(pageLength = 100, autoWidth = TRUE,  columnDefs =
 
 ## Null Scenarios
 
-### No seroconversion effect, no immunological effect
+### No immunological effect, no time to event effect
 
 Trials are indicated as futile > 95% of the time with a type i error < 0.05.
 
@@ -293,7 +294,7 @@ if(sum(df_0$idsim == currentsimid ) > 0) {
 
 ## Immunological effect scenarios
 
-### Small seroconversion effect, no immunological effect
+### Small immunological effect, no time to event effect
 
 Table 2 shows the results from simulating with a 25% increase in seroconversion rates and no difference across the arms in the clinical endpoint. Accrual at both 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -328,7 +329,7 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
 
 ## Clinical effect scenarios
 
-### No seroconversion effect, small immunological effect
+### No immunological effect, small time to event effect
 
 Table 3 shows the results from simulating zero difference in seroconversion rate. Median survival time is assumed to increase by 5 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -358,7 +359,8 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
 }
 ```
 
-### No seroconversion effect, large immunological effect
+
+### No immunological effect, large time to event effect
 
 Table 4 shows the results from simulating zero difference in seroconversion rates. Median survival time is assumed to increase by 9 months. Accrual is 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -395,7 +397,7 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
 
 ## Combined effect scenarios
 
-### Small seroconversion effect, small immunological effect
+### Small immunological effect, small time to event effect
 
 Table 5 shows the results from simulating a 25% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 5 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -425,7 +427,8 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
 }
 ```
 
-### Large seroconversion effect, small immunological effect
+
+### Large immunological effect, small time to event effect
 
 Table 6 shows the results from simulating a 45% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 5 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -464,7 +467,7 @@ if(sum(df_0$idsim == currentsimid ) > 0) {
 # mean(df_tmp$prob_sup)
 ```
 
-### Small seroconversion effect, large immunological effect
+### Small immunological effect, large time to event effect
 
 Table 7 shows the results from simulating a 25% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 9 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
@@ -494,7 +497,7 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -i
 }
 ```
 
-### Large seroconversion effect, large immunological effect
+### Large immunological effect, large time to event effect
 
 Table 8 shows the results from simulating a 45% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 9 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 

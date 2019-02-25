@@ -128,7 +128,7 @@ use_alt_censoring: 0
 # simulated dataset to have yielded a successful trial.
 
 post_sero_thresh: 0.85
-post_tte_thresh: 0.85
+post_tte_thresh: 0.80
 
 # futility test
 # these correspond to the minimum proportion of simulated trial results that need to have been 
@@ -146,7 +146,7 @@ rule3_sero_pp_sup_thresh: 0.95
 # superiority test
 # these are the thresholds used to assess the posterior at the time of the interim. we need 
 # to see >= 90% prob of success to cease clinical endpoint for superiority.
-rule2_tte_pp_sup_thresh_start: 0.98
+rule2_tte_pp_sup_thresh_start: 0.94
 rule2_tte_pp_sup_thresh_end: 0.8
 # rule2_tte_pp_sup_thresh: 0.975
 
