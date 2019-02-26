@@ -314,66 +314,99 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$surveillance_mnths <- 6
   
   
+  
+  
+  
   # for final analysis test
   l$post_final_thresh <- tt$post_final_thresh
   
   
   
+  
+  
+  
+  
   # for significance testing of a win in the ppos section 
-  l$post_tte_thresh_start <- tt$post_tte_thresh_start 
-  l$post_tte_thresh_end <- tt$post_tte_thresh_end
+  l$post_tte_win_thresh_start <- tt$post_tte_win_thresh_start 
+  l$post_tte_win_thresh_end <- tt$post_tte_win_thresh_end
   n1 <- length(l$looks[l$looks < l$nstartclin])
   n2 <- length(l$looks) - n1
-  l$post_tte_thresh <- c(rep(l$post_tte_thresh_start, n1), 
-                         seq(from = l$post_tte_thresh_start,
-                             to = l$post_tte_thresh_end,
+  l$post_tte_win_thresh <- c(rep(l$post_tte_win_thresh_start, n1), 
+                             seq(from = l$post_tte_win_thresh_start,
+                             to = l$post_tte_win_thresh_end,
                              length.out = n2))
-  stopifnot(length(l$post_tte_thresh) == length(l$looks))
+  stopifnot(length(l$post_tte_win_thresh) == length(l$looks))
     
 
   
+  
+  
+  
+  
   # for significance testing of a win in the ppos section 
-  l$post_sero_thresh_start <- tt$post_sero_thresh_start 
-  l$post_sero_thresh_end <- tt$post_sero_thresh_end
+  l$post_sero_win_thresh_start <- tt$post_sero_win_thresh_start 
+  l$post_sero_win_thresh_end <- tt$post_sero_win_thresh_end
   n_sero_looks <- length(l$looks[l$looks <= l$nmaxsero])
   
-  l$post_sero_thresh <- seq(from = l$post_sero_thresh_start,
-                            to = l$post_sero_thresh_end,
+  l$post_sero_win_thresh <- seq(from = l$post_sero_win_thresh_start,
+                            to = l$post_sero_win_thresh_end,
                             length.out = n_sero_looks)
         
   
-                    
+             
+  
+  
+         
   
   # thresholds for interim decisions
   
-  # futility tests
-  l$rule1_sero_pp_fut_thresh <- tt$rule1_sero_pp_fut_thresh
-  l$rule1_tte_pp_fut_thresh <- tt$rule1_tte_pp_fut_thresh
+  # futility tests - proportion of trials that must succeed else deemed futile
+  l$pp_sero_fut_thresh <- tt$pp_sero_fut_thresh
+  l$pp_tte_fut_thresh <- tt$pp_tte_fut_thresh
   
-  # superiority test - ramps
-  l$rule2_tte_pp_sup_thresh_start  <- tt$rule2_tte_pp_sup_thresh_start
-  l$rule2_tte_pp_sup_thresh_end  <- tt$rule2_tte_pp_sup_thresh_end
+  
+  
+  
+  
+  
+  # stop v sampling test
+  l$pp_sero_sup_thresh <- tt$pp_sero_sup_thresh
+  
+  
+  
+  
+  
+  # superiority tte test - can ramp
+  l$post_tte_sup_thresh_start  <- tt$post_tte_sup_thresh_start
+  l$post_tte_sup_thresh_end  <- tt$post_tte_sup_thresh_end
   
   clin_looks <- l$looks[l$looks >= l$nstartclin]
-  l$rule2_tte_pp_sup_thresh <- seq(from = l$rule2_tte_pp_sup_thresh_start,
-                                   to = l$rule2_tte_pp_sup_thresh_end,
+  l$post_tte_sup_thresh <- seq(from = l$post_tte_sup_thresh_start,
+                                   to = l$post_tte_sup_thresh_end,
                                    length.out = ceiling(length(clin_looks)))
   
-  l$rule2_tte_pp_sup_thresh <- c(rep(l$rule2_tte_pp_sup_thresh[1],
+  l$post_tte_sup_thresh <- c(rep(l$post_tte_sup_thresh[1],
                                      length(l$looks[l$looks < l$nstartclin])), 
                                  
-                                 l$rule2_tte_pp_sup_thresh,
+                                 l$post_tte_sup_thresh,
                                  
-                                 rep(l$rule2_tte_pp_sup_thresh[ceiling(length(clin_looks))],
+                                 rep(l$post_tte_sup_thresh[ceiling(length(clin_looks))],
                                      length(l$looks) - 
                                        length(l$looks[l$looks < l$nstartclin]) - 
                                        ceiling(length(clin_looks)))
                                  )
   
-  stopifnot(length(l$rule2_tte_pp_sup_thresh) == length(l$looks))
+  stopifnot(length(l$post_tte_sup_thresh) == length(l$looks))
   
-  # stop v sampling test
-  l$rule3_sero_pp_sup_thresh <- tt$rule3_sero_pp_sup_thresh
+  
+  
+  
+  
+
+  
+  
+  
+  
   
   
   # bayesian model control parameters
@@ -481,25 +514,24 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       
       
       clin_looks <- l$looks[l$looks >= l$nstartclin]
+      l$post_tte_sup_thresh <- seq(from = l$post_tte_sup_thresh_start,
+                                   to = l$post_tte_sup_thresh_end,
+                                   length.out = ceiling(length(clin_looks)))
       
-      l$rule2_tte_pp_sup_thresh <- seq(from = l$rule2_tte_pp_sup_thresh_start,
-                                       to = l$rule2_tte_pp_sup_thresh_end,
-                                       length.out = ceiling(length(clin_looks)))
-      
-      l$rule2_tte_pp_sup_thresh <- c(rep(l$rule2_tte_pp_sup_thresh[1],
-                                         length(l$looks[l$looks < l$nstartclin])), 
-                                     
-                                     l$rule2_tte_pp_sup_thresh,
-                                     
-                                     rep(l$rule2_tte_pp_sup_thresh[ceiling(length(clin_looks))],
-                                         length(l$looks) - 
-                                           length(l$looks[l$looks < l$nstartclin]) - 
-                                           ceiling(length(clin_looks)))
+      l$post_tte_sup_thresh <- c(rep(l$post_tte_sup_thresh[1],
+                                     length(l$looks[l$looks < l$nstartclin])), 
+                                 
+                                 l$post_tte_sup_thresh,
+                                 
+                                 rep(l$post_tte_sup_thresh[ceiling(length(clin_looks))],
+                                     length(l$looks) - 
+                                       length(l$looks[l$looks < l$nstartclin]) - 
+                                       ceiling(length(clin_looks)))
       )
       
-      stopifnot(length(l$rule2_tte_pp_sup_thresh) == length(l$looks))
-      
-      flog.info("Updated rule2_tte_pp_sup_thresh: %s.", paste0(l$rule2_tte_pp_sup_thresh, collapse = ", "))
+      stopifnot(length(l$post_tte_sup_thresh) == length(l$looks))
+
+      flog.info("Updated post_tte_sup_thresh: %s.", paste0(l$post_tte_sup_thresh, collapse = ", "))
       
       
     }

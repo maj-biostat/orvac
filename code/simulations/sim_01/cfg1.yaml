@@ -129,33 +129,40 @@ use_alt_censoring: 0
 
 post_final_thresh: 0.975
 
-# this needs to be ramped up towards the end
-post_sero_thresh_start: 0.9
-post_sero_thresh_end: 0.975
-
-post_tte_thresh_start: 0.8
-post_tte_thresh_end: 0.975
-
+# these are to assess futility along with the proportion of required 'wins' (defined below)
+# ramping up towards the end ensures a bit more stability
+post_sero_win_thresh_start: 0.9
+post_sero_win_thresh_end: 0.975
+post_tte_win_thresh_start: 0.8
+post_tte_win_thresh_end: 0.975
 
 # futility test
 # these correspond to the minimum proportion of simulated trial results that need to have been 
 # successful for us to continue the trial. if less than 5% of the trials are successful then we 
 # abandon the trial for futility
-rule1_sero_pp_fut_thresh: 0.05
-rule1_tte_pp_fut_thresh: 0.05
+pp_sero_fut_thresh: 0.05
+pp_tte_fut_thresh: 0.05
+
 
 # stop v sampling test
 # this is the thresholds used to assess the posterior predictive in the case of the
 # immunological endpoint at the time of the interim. we need to see >= 97.5% prob of success to 
 # cease serum sampling
-rule3_sero_pp_sup_thresh: 0.975
+# rule3_sero_pp_sup_thresh: 0.975
+pp_sero_sup_thresh: 0.975
+
+
 
 # superiority test
 # these are the thresholds used to assess the posterior at the time of the interim. we need 
 # to see >= 90% prob of success to cease clinical endpoint for superiority.
-rule2_tte_pp_sup_thresh_start: 0.94
-rule2_tte_pp_sup_thresh_end: 0.8
+#rule2_tte_pp_sup_thresh_start: 0.94
+#rule2_tte_pp_sup_thresh_end: 0.8
 # rule2_tte_pp_sup_thresh: 0.975
+
+post_tte_sup_thresh_start: 0.975
+post_tte_sup_thresh_end: 0.975
+
 
 
 

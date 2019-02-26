@@ -2284,6 +2284,24 @@ test_that("dotrial", {
     return(res)
   }
   
+  doexp <- function(df){
+    rci <- function(data, indices) {
+      d <- data[indices,] # allows boot to select sample
+      # aft - in aft (expon), +ve param est imply increasing surv time and longer exp durn
+      fit1 <- survreg(Surv(obst, cen == 0) ~ trt, data = d, dist = "exponential")
+      summary(fit1)
+      r <- exp(coef(fit1)[2])
+      # # ph
+      # fit1 <- phreg(Surv(obst, cen == 0) ~ trt, data = df, dist = "weibull", shape = 1)
+      # summary(fit1)
+      return(r)
+    } 
+    res <- boot(data=df, statistic=rci, R=1000)
+    return(res)
+  }
+  
+  library(eha)
+  library(survival)
   library(boot)
   library(testthat)
   library(orvacsim)
@@ -2302,9 +2320,10 @@ test_that("dotrial", {
   
   df <- as.data.frame(l$d)
   names(df) <- dnames
-  df <- df[1:cfg$nmaxsero, ]
+  boot.ci(doglm(df[1:cfg$nmaxsero, ]), type="norm")
+  boot.ci(doexp(df), type="norm")
+ 
   
-  boot.ci(doglm(df), type="norm")
   
   # instead of final analysis - immu posterior: mean theta0 0.387026 mean theta1 0.489018 mean delta 0.101992 n delta gt0 950 post_prob_gt0 0.95
   # report lwr and upr 95% ci
