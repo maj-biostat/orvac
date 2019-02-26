@@ -106,13 +106,13 @@
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_03.log -n 1000 -s 1170 -a 50 -d 0.50 -b 0.5 -p 0.625 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_04.log -n 1000 -s 2061 -a 50 -d 0.50 -b 0.3 -p 0.375 -m 35 -t 44
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_05.log -n 1000 -s 7560 -a 50 -d 0.50 -b 0.4 -p 0.500 -m 35 -t 44
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_06.log -n 1000 -s 1652 -a 50 -d 0.50 -b 0.5 -p 0.625 -m 35 -t 44
+#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_06.log -n 1000 -s 1652 -a 50 -d 0.50 -b 0.5 -p 0.625 -m 35 -t 44
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_07.log -n 1000 -s 3625 -a 50 -d 0.50 -b 0.3 -p 0.375 -m 40 -t 49
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_08.log -n 1000 -s 2290 -a 50 -d 0.50 -b 0.4 -p 0.500 -m 40 -t 49
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_09.log -n 1000 -s 6147 -a 50 -d 0.50 -b 0.5 -p 0.625 -m 40 -t 49
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_10.log -n 1000 -s 7850 -a 30 -d 0.50 -b 0.3 -p 0.375 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_11.log -n 1000 -s 4565 -a 30 -d 0.50 -b 0.4 -p 0.500 -m 30 -t 39
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_12.log -n 1000 -s 2414 -a 30 -d 0.50 -b 0.5 -p 0.625 -m 30 -t 39
+#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_12.log -n 1000 -s 2414 -a 30 -d 0.50 -b 0.5 -p 0.625 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_13.log -n 1000 -s 6037 -a 30 -d 0.50 -b 0.3 -p 0.375 -m 35 -t 44
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_14.log -n 1000 -s 6523 -a 30 -d 0.50 -b 0.4 -p 0.500 -m 35 -t 44
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_15.log -n 1000 -s 8620 -a 30 -d 0.50 -b 0.5 -p 0.625 -m 35 -t 44
@@ -134,11 +134,11 @@
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_11.log -n 1000 -s 7026 -a 30 -d 0.50 -b 0.4 -p 0.580 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_12.log -n 1000 -s 2122 -a 30 -d 0.50 -b 0.5 -p 0.725 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_13.log -n 1000 -s 1030 -a 30 -d 0.75 -b 0.3 -p 0.435 -m 30 -t 46
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_14.log -n 1000 -s 4221 -a 30 -d 0.75 -b 0.4 -p 0.580 -m 30 -t 46
+#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_14.log -n 1000 -s 4221 -a 30 -d 0.75 -b 0.4 -p 0.580 -m 30 -t 46
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_15.log -n 1000 -s 8250 -a 30 -d 0.50 -b 0.5 -p 0.725 -m 30 -t 46
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_16.log -n 1000 -s 2762 -a 30 -d 0.50 -b 0.3 -p 0.435 -m 30 -t 52
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_17.log -n 1000 -s 9919 -a 30 -d 0.50 -b 0.4 -p 0.580 -m 30 -t 52
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_18.log -n 1000 -s 8119 -a 30 -d 0.50 -b 0.5 -p 0.725 -m 30 -t 52
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_19.log -n 1000 -s 4221 -a 30 -d 0.75 -b 0.4 -p 0.580 -m 30 -t 50
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_20.log -n 1000 -s 4221 -a 30 -d 0.75 -b 0.4 -p 0.580 -m 15 -t 50
+#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_19.log -n 1000 -s 4221 -a 30 -d 0.75 -b 0.4 -p 0.580 -m 30 -t 50
+#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_20.log -n 1000 -s 4221 -a 30 -d 0.75 -b 0.4 -p 0.580 -m 15 -t 50
 
