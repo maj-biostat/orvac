@@ -385,11 +385,22 @@ Rcpp::List rcpp_dotrial(const Rcpp::List& cfg){
   arma::uvec tmp = arma::find(m.col(COL_DELTA) > 0);
   double post_prob_gt0 =  (double)tmp.n_elem / (double)cfg["post_draw"];
 
-  DBG(Rcpp::Rcout, "final analysis - immu posterior: mean theta0 " << arma::mean(m.col(COL_THETA0)) <<
-    " mean theta1 " << arma::mean(m.col(COL_THETA1)) <<
-      " mean delta " << arma::mean(m.col(COL_DELTA)) <<
-        " n delta gt0 " << tmp.n_elem  <<
-        " post_prob_gt0 " << post_prob_gt0);
+  double mym = arma::mean(m.col(COL_DELTA));
+  double mysd = arma::stddev(m.col(COL_DELTA));
+  double lwr = mym - 1.96 * mysd;
+  double upr = mym + 1.96 * mysd;
+  mym = round(mym * 1000) / 1000;
+  lwr = round(lwr * 1000) / 1000;
+  upr = round(upr * 1000) / 1000;
+
+  DBG(Rcpp::Rcout, "final analysis: - immu posterior:");
+
+  DBG(Rcpp::Rcout, "  mean theta0 " << arma::mean(m.col(COL_THETA0)) <<
+    "  mean theta1 " << arma::mean(m.col(COL_THETA1)) <<
+      "  mean delta " << mym << " (" << lwr << ", " << upr << ") ");
+
+  DBG(Rcpp::Rcout, "  n delta gt0 " << tmp.n_elem  <<
+          "  post_prob_gt0 " << post_prob_gt0);
 
   if(post_prob_gt0 > (double)cfg["post_final_thresh"]){
     t.immu_final_win(true);

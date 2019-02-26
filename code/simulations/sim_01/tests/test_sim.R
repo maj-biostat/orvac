@@ -2269,8 +2269,22 @@ test_that("clin tte data - tmp", {
 })
 
 
+
+
 test_that("dotrial", {
   
+  doglm <- function(df){
+    pci <- function(data, indices) {
+      d <- data[indices,] # allows boot to select sample
+      fit <- glm(serot3 ~ trt, data = d, family = binomial)
+      p <- predict(fit, type = "response", newdata = data.frame(trt = 0:1))
+      return(p[2]-p[1])
+    } 
+    res <- boot(data=df, statistic=pci, R=1000)
+    return(res)
+  }
+  
+  library(boot)
   library(testthat)
   library(orvacsim)
   library(data.table)
@@ -2290,26 +2304,13 @@ test_that("dotrial", {
   names(df) <- dnames
   df <- df[1:cfg$nmaxsero, ]
   
-  lm1 <- glm(serot3 ~ trt, data = df, family = binomial)
-  confint(lm1)["trt", ]
+  boot.ci(doglm(df), type="norm")
   
   # instead of final analysis - immu posterior: mean theta0 0.387026 mean theta1 0.489018 mean delta 0.101992 n delta gt0 950 post_prob_gt0 0.95
   # report lwr and upr 95% ci
   
   
   
-  mym <- mean(l$m[,3])
-  mysd <- sd(l$m[,3])
-  
-  x <- rnorm(10000, mym, mysd)
-  dens <- density(x)
-  
-  hist(l$m[,3], prob = T, main = "", ylim = c(0, max(dens$y)))
-  lines(density(x), col = "red")
-  quantile(l$m[,3], probs = 0.025)
-  
-  err <- qnorm(0.975)*mysd/sqrt(nrow(l$m))
-  mym + c(err, -err)
   
   
 })
