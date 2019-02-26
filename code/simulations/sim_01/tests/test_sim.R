@@ -2295,7 +2295,7 @@ test_that("dotrial", {
   cfg <- readRDS("tests/cfg-example.RDS")
   
   cfg$baselineprobsero
-  cfg$trtprobsero <- 0.5
+  cfg$trtprobsero <- 0.55
   cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
   
   l <- rcpp_dotrial(cfg)
