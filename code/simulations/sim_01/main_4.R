@@ -109,10 +109,7 @@ results <- foreach(i = 1:cfg$nsims,
                    #.options.snow=opts,
                    .combine = 'rbind'
                    ) %dopar%{
-
-                     
-                     
-                     
+    
   # i = 1
   #flog.info("Starting trial: i = %s", i)
   set.seed(cfg$seed + i)
@@ -123,6 +120,49 @@ results <- foreach(i = 1:cfg$nsims,
   flog.threshold(DEBUG)
   
   res <- rcpp_dotrial(i, cfg)
+
+  # lr <- list(idxsim = NA,
+  #             look = NA,
+  #             ss_immu = NA,
+  #             ss_clin = NA,
+  #             stop_v_samp = NA,
+  #             stop_i_fut = NA,
+  #             stop_c_fut = NA,
+  #             stop_c_sup = NA,
+  #             i_final = NA,
+  #             c_final = NA,
+  #             i_ppn = NA,
+  #             i_ppmax = NA,
+  #             c_ppn = NA,
+  #             c_ppmax = NA,
+  #             i_mean = NA,
+  #             i_lwr = NA,
+  #             i_upr = NA,
+  #             c_mean = NA,
+  #             c_lwr = NA,
+  #             c_upr = NA)
+  # 
+  # lr$idxsim <- res$idxsim
+  # lr$look <- res$look
+  # lr$ss_immu <- res$ss_immu
+  # lr$ss_clin <- res$ss_clin
+  # lr$stop_v_samp <- res$stop_v_samp
+  # lr$stop_i_fut <- res$stop_i_fut
+  # lr$stop_c_fut <- res$stop_c_fut
+  # lr$stop_c_sup <- res$stop_c_sup
+  # lr$i_final <- res$i_final
+  # lr$c_final <- res$c_final
+  # lr$i_ppn <- res$i_ppn
+  # lr$i_ppmax <- res$i_ppmax
+  # lr$c_ppn <- res$c_ppn
+  # lr$c_ppmax <- res$c_ppmax
+  # lr$i_mean <- res$i_mean
+  # lr$i_lwr <- res$i_lwr
+  # lr$i_upr <- res$i_upr
+  # lr$c_mean <- res$c_mean
+  # lr$c_lwr <- res$c_lwr
+  # lr$c_upr <- res$c_upr
+  
 
   # flog.info("Finished trial: sim = %s", i)
   return(unlist(res))
@@ -138,6 +178,7 @@ results <- foreach(i = 1:cfg$nsims,
 
 # save results to file
 results <- as.data.frame(results)
+rownames(results) <- NULL
 end <- proc.time()
 
 duration <- end - start

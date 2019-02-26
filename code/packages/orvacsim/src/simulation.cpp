@@ -56,11 +56,11 @@
 #define _INFO  1
 
 #if _INFO
-#define INFO( os, msg )                                \
+#define INFO( os, i, msg )                                \
    (os) << "INFO: " << __FILE__ << "(" << __LINE__ << ") "\
-        << msg << std::endl
+        << " sim = " << i << " " << msg << std::endl
 #else
-#define INFO( os, msg )
+#define INFO( os, i, msg )
 #endif
 
 // function prototypes
@@ -305,14 +305,14 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   //Trial t(cfg, vstop, ifut, cfut, csup, inc);
   Trial t(cfg);
   int look;
-  int i;
+  int i = 0;
   for(i = 0; i < looks.length(); i++){
     // look is here because all the original methods were called from R with r indexing
     look = i + 1;
 
     if(t.do_immu(looks[i])){
       nobs = rcpp_n_obs(d, look, looks, months, (double)cfg["sero_info_delay"]);
-      INFO(Rcpp::Rcout, "doing immu, with " << looks[i]
+      INFO(Rcpp::Rcout, idxsim, "doing immu, with " << looks[i]
             << " enrolled and " << nobs << " test results."
             << " sup thresh (stop v samp) " << (double)cfg["pp_sero_sup_thresh"]
             << ", win thresh " << (double)post_sero_win_thresh[i]
@@ -321,7 +321,7 @@ Rcpp::List rcpp_dotrial(const int idxsim,
       m_immu_res = rcpp_immu(d, cfg, look);
 
       if((double)m_immu_res["ppos_max"] < (double)cfg["pp_sero_fut_thresh"]){
-        INFO(Rcpp::Rcout, "immu futile, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
+        INFO(Rcpp::Rcout, idxsim, "immu futile, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
         t.immu_fut();
         t.immu_set_ss(nobs);
         break;
@@ -329,14 +329,14 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
       if ((double)m_immu_res["ppos_n"] > (double)cfg["pp_sero_sup_thresh"] && !t.is_immu_fut()){
         nobs = rcpp_n_obs(d, look, looks, months, (double)cfg["sero_info_delay"]);
-        INFO(Rcpp::Rcout, "immu stop v samp, ppos_n " << (double)m_immu_res["ppos_n"] << " with " << nobs << " test results.");
+        INFO(Rcpp::Rcout, idxsim, "immu stop v samp, ppos_n " << (double)m_immu_res["ppos_n"] << " with " << nobs << " test results.");
         t.immu_stopv();
       }
       t.immu_set_ss(nobs);
     }
 
     if(t.do_clin(looks[i])){
-      INFO(Rcpp::Rcout, "doing clin, with " << looks[i]
+      INFO(Rcpp::Rcout, idxsim, "doing clin, with " << looks[i]
             << " enrolled and superiority thresh " << (double)post_tte_sup_thresh[i]
             << ", win thresh " << (double)post_tte_win_thresh[i]
             << ", fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
@@ -344,14 +344,14 @@ Rcpp::List rcpp_dotrial(const int idxsim,
       m_clin_res = rcpp_clin(d, cfg, look);
 
       if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
-        INFO(Rcpp::Rcout, "clin futile, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
+        INFO(Rcpp::Rcout, idxsim, "clin futile, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
         t.clin_fut();
         t.clin_set_ss(looks[i]);
         break;
       }
 
       if ((double)m_clin_res["ppn"] > (double)post_tte_sup_thresh[i]  && !t.is_clin_fut()){
-        INFO(Rcpp::Rcout, "clin stop sup, ppn " << (double)m_clin_res["ppn"] << " sup thresh " << (double)post_tte_sup_thresh[i] );
+        INFO(Rcpp::Rcout, idxsim, "clin stop sup, ppn " << (double)m_clin_res["ppn"] << " sup thresh " << (double)post_tte_sup_thresh[i] );
         t.clin_sup();
         t.clin_set_ss(looks[i]);
         break;
@@ -382,11 +382,11 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   i_mym = round(i_mym * 1000) / 1000;
   i_lwr = round(i_lwr * 1000) / 1000;
   i_upr = round(i_upr * 1000) / 1000;
-  INFO(Rcpp::Rcout, std::endl << "final analysis: - immu posterior:");
-  INFO(Rcpp::Rcout, "  mean theta0 " << arma::mean(m.col(COL_THETA0)) <<
+  INFO(Rcpp::Rcout, idxsim, std::endl << "final analysis: - immu posterior:");
+  INFO(Rcpp::Rcout, idxsim, "  mean theta0 " << arma::mean(m.col(COL_THETA0)) <<
     "  mean theta1 " << arma::mean(m.col(COL_THETA1)) <<
       "  mean delta " << i_mym << " (" << i_lwr << ", " << i_upr << ") ");
-  INFO(Rcpp::Rcout, "  n delta gt0 " << tmp.n_elem  <<
+  INFO(Rcpp::Rcout, idxsim, "  n delta gt0 " << tmp.n_elem  <<
     "  post_prob_gt0 " << post_prob_gt0);
   if(post_prob_gt0 > (double)cfg["post_final_thresh"]){
     t.immu_final_win(true);
@@ -420,11 +420,11 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   c_mym = round(c_mym * 1000) / 1000;
   c_lwr = round(c_lwr * 1000) / 1000;
   c_upr = round(c_upr * 1000) / 1000;
-  INFO(Rcpp::Rcout, std::endl << "final analysis: - clin posterior:");
-  INFO(Rcpp::Rcout, "  mean lamb0 " << arma::mean(m.col(COL_LAMB0)) <<
+  INFO(Rcpp::Rcout, idxsim, std::endl << "final analysis: - clin posterior:");
+  INFO(Rcpp::Rcout, idxsim, "  mean lamb0 " << arma::mean(m.col(COL_LAMB0)) <<
     "  mean lamb1 " << arma::mean(m.col(COL_LAMB1)) <<
       "  mean ratio " << c_mym << " (" << c_lwr << ", " << c_upr << ") ");
-  INFO(Rcpp::Rcout, "  n delta gt1 " << tmp.n_elem  <<
+  INFO(Rcpp::Rcout, idxsim, "  n delta gt1 " << tmp.n_elem  <<
     "  post_prob_gt1 " << post_prob_gt1);
   if(post_prob_gt1 > (double)cfg["post_final_thresh"]){
     t.clin_final_win(true);
@@ -437,28 +437,32 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
   //Rcpp::List ret;
   Rcpp::List ret = Rcpp::List::create(Rcpp::Named("idxsim") = idxsim,
-                                      Rcpp::Named("look") = looks[i],
+                                      Rcpp::Named("i") = i,
+                                      Rcpp::Named("look") = i < looks.length() ? looks[i] : max(looks),
                                       Rcpp::Named("ss_immu") = t.get_immu_ss(),  // enrolled with sero results
                                       Rcpp::Named("ss_clin") = t.get_clin_ss(),
                                       Rcpp::Named("stop_v_samp") = t.is_v_samp_stopped(),
                                       Rcpp::Named("stop_i_fut") = t.is_immu_fut(),
                                       Rcpp::Named("stop_c_fut") = t.is_clin_fut(),
                                       Rcpp::Named("stop_c_sup") = t.is_clin_sup(),
+                                      Rcpp::Named("inconclu") = t.is_inconclusive(),
                                       Rcpp::Named("i_final") = t.immu_final(),
-                                      Rcpp::Named("c_final") = t.clin_final(),
-                                      Rcpp::Named("i_ppn") = (double)m_immu_res["ppos_max"],
-                                      Rcpp::Named("i_ppmax") = (double)m_immu_res["ppos_n"],
-                                      Rcpp::Named("c_ppn") = (double)m_clin_res["ppn"],
-                                      Rcpp::Named("c_ppmax") = (double)m_clin_res["ppmax"],
-                                      Rcpp::Named("i_mean") = (double)i_mym,
-                                      Rcpp::Named("i_lwr") = (double)i_lwr,
-                                      Rcpp::Named("i_upr") = (double)i_upr,
-                                      Rcpp::Named("c_mean") = (double)c_mym,
-                                      Rcpp::Named("c_lwr") = (double)c_lwr,
-                                      Rcpp::Named("c_upr") = (double)c_upr);
+                                      Rcpp::Named("c_final") = t.clin_final());
 
+  ret["i_ppn"] = m_immu_res.length() > 0 ? (double)m_immu_res["ppos_n"] : NA_REAL;
+  ret["i_ppmax"] = m_immu_res.length() > 0 ? (double)m_immu_res["ppos_max"] : NA_REAL;
+  ret["c_ppn"] = m_clin_res.length() > 0 ? (double)m_clin_res["ppn"] : NA_REAL;
+  ret["c_ppmax"] = m_clin_res.length() > 0 ? (double)m_clin_res["ppmax"] : NA_REAL;
+  ret["i_mean"] = (double)i_mym;
+  ret["i_lwr"] = (double)i_lwr;
+  ret["i_upr"] = (double)i_upr;
+  ret["c_mean"] = (double)c_mym;
+  ret["c_lwr"] = (double)c_lwr;
+  ret["c_upr"] = (double)c_upr;
 
-
+  if(ret.length() != 22){
+    Rcpp::stop("Return value is not 22 in length.");
+  }
 
   return ret;
 }
