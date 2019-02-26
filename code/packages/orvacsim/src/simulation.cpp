@@ -286,6 +286,8 @@ void Trial::clin_state(){
 Rcpp::List rcpp_dotrial(const int idxsim,
                         const Rcpp::List& cfg){
 
+  INFO(Rcpp::Rcout, idxsim, " STARTED.");
+
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
 
@@ -463,6 +465,8 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   if(ret.length() != 22){
     Rcpp::stop("Return value is not 22 in length.");
   }
+
+  INFO(Rcpp::Rcout, idxsim, " FINISHED.");
 
   return ret;
 }

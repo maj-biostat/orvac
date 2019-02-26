@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # null case
-#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_01.log -n 1000 -s 9676 -a 50 -d 0.50 -b 0.3 -p 0.3 -m 30 -t 30
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_01.log -n 1000 -s 9676 -a 50 -d 0.50 -b 0.3 -p 0.3 -m 30 -t 30
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_02.log -n 1000 -s 1170 -a 50 -d 0.50 -b 0.5 -p 0.5 -m 30 -t 30
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_03.log -n 1000 -s 3625 -a 50 -d 0.50 -b 0.3 -p 0.3 -m 40 -t 40
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_04.log -n 1000 -s 6147 -a 50 -d 0.50 -b 0.5 -p 0.5 -m 40 -t 40
-#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_05.log -n 1000 -s 9676 -a 50 -d 0.75 -b 0.3 -p 0.3 -m 30 -t 30
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_05.log -n 1000 -s 9676 -a 50 -d 0.75 -b 0.3 -p 0.3 -m 30 -t 30
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_06.log -n 1000 -s 1170 -a 50 -d 0.75 -b 0.5 -p 0.5 -m 30 -t 30
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_07.log -n 1000 -s 3625 -a 50 -d 0.75 -b 0.3 -p 0.3 -m 40 -t 40
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "Null01" -l null_01_08.log -n 1000 -s 6147 -a 50 -d 0.75 -b 0.5 -p 0.5 -m 40 -t 40
@@ -101,8 +101,8 @@
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt02" -l clin_sero_trt02_18.log -n 1000 -s 9951 -a 30 -d 0.50 -b 0.5 -p 0.725 -m 40 -t 45
 
 # 25% increase in prob of conversio, 9 month increase in tte
-#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_01.log -n 1000 -s 9676 -a 50 -d 0.50 -b 0.3 -p 0.375 -m 30 -t 39
-#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_02.log -n 1000 -s 1426 -a 50 -d 0.50 -b 0.4 -p 0.500 -m 30 -t 39
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_01.log -n 1000 -s 9676 -a 50 -d 0.50 -b 0.3 -p 0.375 -m 30 -t 39
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_02.log -n 1000 -s 1426 -a 50 -d 0.50 -b 0.4 -p 0.500 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_03.log -n 1000 -s 1170 -a 50 -d 0.50 -b 0.5 -p 0.625 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_04.log -n 1000 -s 2061 -a 50 -d 0.50 -b 0.3 -p 0.375 -m 35 -t 44
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_05.log -n 1000 -s 7560 -a 50 -d 0.50 -b 0.4 -p 0.500 -m 35 -t 44
@@ -110,7 +110,7 @@
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_07.log -n 1000 -s 3625 -a 50 -d 0.50 -b 0.3 -p 0.375 -m 40 -t 49
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_08.log -n 1000 -s 2290 -a 50 -d 0.50 -b 0.4 -p 0.500 -m 40 -t 49
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_09.log -n 1000 -s 6147 -a 50 -d 0.50 -b 0.5 -p 0.625 -m 40 -t 49
-#/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_10.log -n 1000 -s 7850 -a 30 -d 0.50 -b 0.3 -p 0.375 -m 30 -t 39
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_10.log -n 1000 -s 7850 -a 30 -d 0.50 -b 0.3 -p 0.375 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_11.log -n 1000 -s 4565 -a 30 -d 0.50 -b 0.4 -p 0.500 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_12.log -n 1000 -s 2414 -a 30 -d 0.50 -b 0.5 -p 0.625 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_13.log -n 1000 -s 6037 -a 30 -d 0.50 -b 0.3 -p 0.375 -m 35 -t 44
@@ -121,7 +121,7 @@
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt03" -l clin_sero_trt03_18.log -n 1000 -s 9951 -a 30 -d 0.50 -b 0.5 -p 0.625 -m 40 -t 49
 
 # 45% increase in prob of conversio,  9 month increase in tte
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_01.log -n 100 -s 6887 -a 50 -d 0.50 -b 0.3 -p 0.435 -m 30 -t 39
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_01.log -n 1000 -s 6887 -a 50 -d 0.50 -b 0.3 -p 0.435 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_02.log -n 1000 -s 7513 -a 50 -d 0.50 -b 0.4 -p 0.580 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_03.log -n 1000 -s 8823 -a 50 -d 0.50 -b 0.5 -p 0.725 -m 30 -t 39
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "ClinSeroTrt04" -l clin_sero_trt04_04.log -n 1000 -s 1348 -a 50 -d 0.50 -b 0.3 -p 0.435 -m 30 -t 46
