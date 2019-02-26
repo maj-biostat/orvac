@@ -2316,7 +2316,7 @@ test_that("dotrial", {
   cfg$trtprobsero <- 0.55
   cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
   
-  l <- rcpp_dotrial(cfg)
+  l <- rcpp_dotrial(1, cfg)
   
   df <- as.data.frame(l$d)
   names(df) <- dnames
@@ -2325,8 +2325,9 @@ test_that("dotrial", {
  
   
   
-  # instead of final analysis - immu posterior: mean theta0 0.387026 mean theta1 0.489018 mean delta 0.101992 n delta gt0 950 post_prob_gt0 0.95
-  # report lwr and upr 95% ci
+  # SORT OUT RETURN VALUES FROM DOTRIAL
+  # SET OFF SIM
+  # WHY IS TTE TAKING SO LONG?
   
   
   

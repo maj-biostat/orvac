@@ -7,13 +7,14 @@
 using namespace Rcpp;
 
 // rcpp_dotrial
-Rcpp::List rcpp_dotrial(const Rcpp::List& cfg);
-RcppExport SEXP _orvacsim_rcpp_dotrial(SEXP cfgSEXP) {
+Rcpp::List rcpp_dotrial(const int idxsim, const Rcpp::List& cfg);
+RcppExport SEXP _orvacsim_rcpp_dotrial(SEXP idxsimSEXP, SEXP cfgSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const int >::type idxsim(idxsimSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_dotrial(cfg));
+    rcpp_result_gen = Rcpp::wrap(rcpp_dotrial(idxsim, cfg));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -336,7 +337,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_orvacsim_rcpp_dotrial", (DL_FUNC) &_orvacsim_rcpp_dotrial, 1},
+    {"_orvacsim_rcpp_dotrial", (DL_FUNC) &_orvacsim_rcpp_dotrial, 2},
     {"_orvacsim_rcpp_dat", (DL_FUNC) &_orvacsim_rcpp_dat, 1},
     {"_orvacsim_rcpp_dat_small", (DL_FUNC) &_orvacsim_rcpp_dat_small, 5},
     {"_orvacsim_rcpp_clin", (DL_FUNC) &_orvacsim_rcpp_clin, 3},
