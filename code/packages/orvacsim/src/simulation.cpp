@@ -5,6 +5,13 @@
 #include <cmath>
 #include <algorithm>
 
+// ese Makevars
+// compiler flags
+// https://stackoverflow.com/questions/42328346/changing-the-left-most-optimization-flag-during-compilation-of-code-from-rcpp
+
+// file.path(R.home("etc"), "Makeconf")
+// [1] "/usr/lib64/R/etc/Makeconf"
+
 
 //#include <mcmc.hpp>
 
