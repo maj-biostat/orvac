@@ -131,9 +131,9 @@ post_final_thresh: 0.95
 
 # these are to assess futility along with the proportion of required 'wins' (defined below)
 # ramping up towards the end ensures a bit more stability
-post_sero_win_thresh_start: 0.9
+post_sero_win_thresh_start: 0.95
 post_sero_win_thresh_end: 0.95
-post_tte_win_thresh_start: 0.8
+post_tte_win_thresh_start: 0.95
 post_tte_win_thresh_end: 0.95
 
 # futility test
