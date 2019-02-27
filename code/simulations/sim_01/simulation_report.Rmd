@@ -143,12 +143,20 @@ From left to right:
 
 
 ```{r, echo = F}
+warningsPresent <- FALSE
+
+post_final_thresh <- 0
+
 resfiles <- list.files("out", pattern = "*.RDS")
 
 df_all <- data.frame(stringsAsFactors = F)
+df_fig1 <- data.frame(stringsAsFactors = F)
 for(fname in resfiles){
   d1 <- readRDS(file.path(getwd(), "out", fname))
   # d1 <- readRDS(file.path(getwd(), "out", resfiles[1]))
+  
+  warningsPresent <- ifelse(warningsPresent == FALSE && length(d1$warnings) > 0, TRUE, FALSE)
+  
   
   df_res <- as.data.frame(d1$results)
   
@@ -170,37 +178,43 @@ for(fname in resfiles){
   info_delay <- d1$cfg$sero_info_delay
   alt_cen <- d1$cfg$use_alt_censoring
   
+  # thresholds
+  post_final_thresh <- d1$cfg$post_final_thresh
+  
+  # what did we conclude from interims
   outcome_labs <- c("Futile", "Superior", "Inconclusive")
-  df_res$trial_outcome <- NA
-  df_res$trial_outcome <- ifelse(df_res$stop_i_fut == 1 | df_res$stop_c_fut == 1, 1, df_res$trial_outcome)
-  df_res$trial_outcome <- ifelse(df_res$stop_c_sup == 1, 2, df_res$trial_outcome)
-  df_res$trial_outcome <- ifelse(df_res$inconclusive == 1, 3, df_res$trial_outcome)
+  df_res$interim_outcome <- NA
+  df_res$interim_outcome <- ifelse(df_res$stop_i_fut == 1 | df_res$stop_c_fut == 1, 1, df_res$interim_outcome)
+  df_res$interim_outcome <- ifelse(df_res$stop_c_sup == 1, 2, df_res$interim_outcome)
+  df_res$interim_outcome <- ifelse(df_res$inconclu == 1, 3, df_res$interim_outcome)
+  df_res$interim_outcome <- factor(df_res$interim_outcome, levels = 1:3, labels = outcome_labs)
   
-  # (dftmp <- df_res[df_res$idxsim == 9,])
-  
-  df_res$trial_outcome <- factor(df_res$trial_outcome, levels = 1:3, labels = outcome_labs)
-
-  # df_res$trial_outcome <- ifelse(stop_v_samp == 1, 3, df_res$trial_outcome)
-
   # trials are either futile or superior 
   df_outcome <- df_res %>%
-    dplyr::filter(trial_outcome %in% c("Futile", "Superior", "Inconclusive") )
+    dplyr::filter(interim_outcome %in% c("Futile", "Superior", "Inconclusive") )
     
   df_stopv <- df_res %>%
     dplyr::filter(stop_v_samp == 1) 
   
-  n <- c(table(df_res$trial_outcome),   nrow(df_stopv))
+  n <- c(table(df_res$interim_outcome),   nrow(df_stopv))
   names(n) <- c("Futile","Superior","Inconclusive", "StopV"    )
-  prob <- c(prop.table(table(df_res$trial_outcome)),   nrow(df_stopv)/max(df_res$idxsim))
+  prob <- c(prop.table(table(df_res$interim_outcome)),   nrow(df_stopv)/max(df_res$idxsim))
   names(prob) <- c(names(prob)[1:3], "StopV")
+
+  # sample sizes associated with each outcome
+  df_outcome$ss_clin <- ifelse(df_outcome$inconclu == 1 & df_outcome$ss_clin == 0, df_outcome$look, df_outcome$ss_clin)
   
-  df_ss <- df_outcome %>% 
-    dplyr::group_by(trial_outcome) %>%
-    dplyr::summarise(ss_mean = mean(n_obs), 
-                     ss_sd = sd(n_obs)) %>%
-    tidyr::complete(trial_outcome, fill = list(ss_mean = 0))
+  df_ss_clin <- df_outcome %>% 
+    dplyr::summarise(ss_mean = mean(ss_clin), 
+                     ss_sd = sd(ss_clin)) 
   
+  df_ss_immu <- df_outcome %>% 
+    dplyr::summarise(ss_mean = mean(ss_immu), 
+                     ss_sd = sd(ss_immu)) 
   
+  # what did the final analysis say?
+  probimmi <- sum(df_res$i_final) / max(df_res$idxsim)
+  probclin <- sum(df_res$c_final) / max(df_res$idxsim)
 
   dtmp <- data.frame(idsim = d1$cfg$idsim,
                      nsim = nsim,
@@ -221,34 +235,43 @@ for(fname in resfiles){
                      n_fut = n["Futile"],
                      n_incon = n["Inconclusive"],
                      n_stopv = n["StopV"],
-                                         
-                     ss_fut_mean = unlist(df_ss[df_ss$trial_outcome == "Futile", "ss_mean"]), 
-                     ss_fut_sd = unlist(df_ss[df_ss$trial_outcome == "Futile", "ss_sd"]), 
-                     
-                     ss_sup_mean = unlist(df_ss[df_ss$trial_outcome == "Superior", "ss_mean"]), 
-                     ss_sup_sd = unlist(df_ss[df_ss$trial_outcome == "Superior", "ss_sd"]), 
-                    
-                     ss_incon_mean = unlist(df_ss[df_ss$trial_outcome == "Inconclusive", "ss_mean"]), 
-                     ss_incon_sd = unlist(df_ss[df_ss$trial_outcome == "Inconclusive", "ss_sd"]), 
-                     
-                     ss_stopv_mean = mean(df_stopv$n_obs),
-                     ss_stopv_sd = sd(df_stopv$n_obs),
+    
+                     # overall mean ss for clin and immu
+    
+                     ss_clin_mean = as.numeric(df_ss_clin["ss_mean"]),
+                     ss_clin_sd = as.numeric(df_ss_clin["ss_sd"]),
+    
+                     ss_immu_mean = as.numeric(df_ss_immu["ss_mean"]),
+                     ss_immu_sd = as.numeric(df_ss_immu["ss_sd"]),
 
+                     # probability of success at the final analysis 
+                     # (proportion of trials where final analysis showed a difference b/w groups)
+                     # the rest did not show a difference
+                     prob_fin_immi = probimmi,
+                     prob_fin_clin = probclin,
+    
                      fname = fname, stringsAsFactors = F, 
                      alt_cen = alt_cen)
   
+  # summary data
   dtmp <- dtmp %>%
-    dplyr::mutate(f_prob_sup = sprintf("%.3f (%d)", prob_sup, n_sup),
-                  f_prob_fut = sprintf("%.3f (%d)", prob_fut, n_fut),
-                  f_prob_incon = sprintf("%.3f (%d)", prob_incon, n_incon),
-                  f_prob_stopv = sprintf("%.3f (%d)", prob_stopv, n_stopv),
+    dplyr::mutate(f_prob_sup = sprintf("%.3f", prob_sup, n_sup),
+                  f_prob_fut = sprintf("%.3f", prob_fut, n_fut),
+                  f_prob_stopv = sprintf("%.3f", prob_stopv, n_stopv),
+                  f_prob_incon = sprintf("%.3f", prob_incon, n_incon),
                   
-                  f_ss_sup = sprintf("%.0f (%.1f)", ss_sup_mean, ss_sup_sd),
-                  f_ss_fut = sprintf("%.0f (%.1f)", ss_fut_mean, ss_fut_sd),
-                  f_ss_incon = sprintf("%.0f (%.1f)", ss_incon_mean, ss_incon_sd),
-                  f_ss_stopv = sprintf("%.0f (%.1f)", ss_stopv_mean, ss_stopv_sd) )
+                  f_ss_clin = sprintf("%.0f (%.1f)", ss_clin_mean, ss_clin_sd),
+                  f_ss_immu = sprintf("%.0f (%.1f)", ss_immu_mean, ss_immu_sd),
+      
+                  f_prob_fin_immi = sprintf("%.3f", prob_fin_immi),
+                  f_prob_fin_clin = sprintf("%.3f", prob_fin_clin))
 
   df_all <- rbind(df_all,  dtmp, stringsAsFactors  = F)
+  
+  # figures
+  df_outcome$fname <- fname
+  df_outcome$simname <- d1$cfg$idsim
+  df_fig1 <- rbind(df_fig1,  df_outcome, stringsAsFactors  = F)
 
 }
 
@@ -262,13 +285,15 @@ df_0 <- df_all %>%
   dplyr::arrange(-accrual, baseclin, basesero) %>%
   dplyr::mutate(row = 1:n()) %>%
   dplyr::select(row, nsim, 
-                basesero, trtsero, baseclin, trtclin, accrual,info_delay,
-                f_prob_sup, f_prob_fut, f_prob_incon, f_prob_stopv, 
-                f_ss_sup, f_ss_fut, f_ss_incon, f_ss_stopv,
+                baseclin, trtclin, basesero, trtsero, accrual,info_delay,
+                f_prob_sup, f_prob_fut, f_prob_stopv, f_prob_incon, 
+                f_ss_clin, f_ss_immu, 
+                f_prob_fin_clin, f_prob_fin_immi, 
                 fname, idsim, alt_cen) %>%
   dplyr::select(-row)
 
 df_blank <- df_0 %>% dplyr::slice(1L) 
+
 
 
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
@@ -283,8 +308,83 @@ digits <- c(2, 2, 0, 0, 0, 2,
 options(knitr.kable.NA = '-')
 ```
 
+<!--
 ```{r, echo = F, eval = F}
 datatable(df_0, options = list(pageLength = 100, autoWidth = TRUE,  columnDefs = list(list(width = '600px', targets = 16))), rownames = FALSE, filter = 'top')
+
+```
+-->
+
+## All results
+
+```{r, eval=warningsPresent}
+print("WARNINGS PRESENT IN DATA!!")
+```
+
+
+```{r, echo = F, eval = T}
+
+kable(df_0 %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
+        dplyr::arrange(basesero, baseclin, -accrual, info_delay),
+      caption = "Table 1. Simulation Null Scenarios",
+      col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
+                    "e.s.", "e.f", "s.v.", "n.d", 
+                    "clin", "immu", 
+                    "clin", "immu"),
+      digits = digits) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",
+                font_size = 11,
+                latex_options = "hold_position") %>%
+  add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
+                     "Info rate" = 2, 
+                     "Interim" = 4,
+                     "Mean (SD) SS" = 2, 
+                     "Proportion wins (final)" = 2))
+
+```
+
+
+```{r, echo = F, eval = T}
+df_tmp <- df_fig1 %>% 
+  dplyr::filter(simname == "Null01")
+ggplot(df_tmp, aes(x = ss_clin))+
+  geom_histogram()
+
+ggplot(df_tmp, aes(x = ss_immu))+
+  geom_histogram()
+
+```
+
+
+
+
+```{r, echo = F, eval = T}
+
+#stopifnot(nrow(df_0) == 24)
+# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
+
+currentsimid <- "Null01"
+if(sum(df_0$idsim == currentsimid ) > 0) {
+
+  kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
+        dplyr::arrange(basesero, baseclin, -accrual, info_delay),
+      caption = "Table 1. Simulation Null Scenarios",
+      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
+                    "superiority", "futility", "inconclusive", "stop v samp",
+                    "superiority", "futility", "inconclusive", "stop v samp"),
+      digits = digits) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",
+                font_size = 11,
+                latex_options = "hold_position") %>%
+  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
+                     " " = 1, " " = 1,
+                     "Probability (number of trials)" = 4,
+                     "Mean sample size (sd)" = 4))
+}
+
+
 
 ```
 
@@ -667,7 +767,7 @@ Note - we stop venous sampling at 250 participants.
 
 # Medical attendance modelling
 ***
-Note - we do not start modelling medical attendance until we have at least 150 participants. If we start the time to event analyses from 50 then we are going to get ridiculous results because we will see no events.
+Note - we do not start modelling medical attendance until we have 200 enrolled. If we start the time to event analyses from 50 then we are going to get ridiculous results because we will see no events.
 
 The approach is similar to the one adopted for modelling seroconversion. Obviously the modelling assumptions are somewhat different and censoring is also involved.
 
@@ -681,11 +781,11 @@ The key points are that (1) the trial may be stopped due to futility based on an
 
 + To declare superiority in the immunological endpoint (and cease venous sampling but continue enrolling for the clinical endpoint) we require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\delta_{interim} >0)>0.975) > 0.975$ where $n_{post}$ is the number of posterior draws used in imputing the pending observations, $\delta_{interim} = p_{trt} - p_{ctl}$ is the difference between the probability of seroconversion in the treatment and control arms calculated using the observed and imputed seroconversions results to the time of the interim analysis.
 
-+ To declare futility in the immunological endpoint we require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\delta_{max n} >0)>0.975) < 0.05$. In other words, if less than 5% of our simulated datasets result in a successful trial we declare futility.
++ To declare futility in the immunological endpoint we require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\delta_{max n} >0)>0.975) < 0.05$ assessed. In other words, if less than 5% of our simulated datasets result in a successful trial we declare futility and abandon the trial.
 
 + To declare superiority in the clinical endpoint (and therefore in the trial) we require $Pr(\gamma >0) > 0.975$ where $\gamma = t_{trt} / t_{ctl}$, where $t$ is the median survival time. In other words, if gamma is the ratio in the median survival times then we require that the probability that this difference is in excess of zero be greater than 0.975.
 
-+ To declare futility in the clinical endpoint require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\gamma >0)>0.975) < 0.05$. In other words, if less than 5% of our simulated datasets result in a successful trial we declare futility.
++ To declare futility in the clinical endpoint require $\frac{1}{k}\sum_{i=1}^{n_{post}}I(Pr(\gamma >0)>0.975) < 0.05$ assess at the time when the youngest enrolled child is 36 months (i.e. we include a followup period after the time of maximum participants). In other words, if less than 5% of our simulated datasets result in a successful trial we declare futility.
 
 # Nuance/Limitations
 ***

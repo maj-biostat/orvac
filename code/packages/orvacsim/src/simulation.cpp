@@ -371,6 +371,7 @@ Rcpp::List rcpp_dotrial(const int idxsim,
     // if at last look set inconclusive
     if(i == looks.length()-1){
       t.inconclusive();
+      t.clin_set_ss(looks[i]);
     }
 
   }
@@ -443,10 +444,13 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   t.clin_state(idxsim);
 
 
-
   //Rcpp::List ret;
   Rcpp::List ret = Rcpp::List::create(Rcpp::Named("idxsim") = idxsim,
                                       Rcpp::Named("i") = i,
+                                      Rcpp::Named("p0") = (double)cfg["baselineprobsero"],
+                                      Rcpp::Named("p1") = (double)cfg["trtprobsero"],
+                                      Rcpp::Named("m0") = log(2)/(double)cfg["b0tte"],
+                                      Rcpp::Named("m1") = log(2)/((double)cfg["b0tte"] + (double)cfg["b1tte"]),
                                       Rcpp::Named("look") = i < looks.length() ? looks[i] : max(looks),
                                       Rcpp::Named("ss_immu") = t.get_immu_ss(),  // enrolled with sero results
                                       Rcpp::Named("ss_clin") = t.get_clin_ss(),
@@ -469,8 +473,8 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   ret["c_lwr"] = (double)c_lwr;
   ret["c_upr"] = (double)c_upr;
 
-  if(ret.length() != 22){
-    Rcpp::stop("Return value is not 22 in length.");
+  if(ret.length() != 26){
+    Rcpp::stop("Return value is not 26 in length.");
   }
 
   INFO(Rcpp::Rcout, idxsim, " FINISHED.");
