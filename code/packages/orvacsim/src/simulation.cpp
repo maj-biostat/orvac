@@ -345,12 +345,12 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
       m_clin_res = rcpp_clin(d, cfg, look);
 
-      if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
-        INFO(Rcpp::Rcout, idxsim, "clin futile, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
-        t.clin_fut();
-        t.clin_set_ss(looks[i]);
-        break;
-      }
+      // if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
+      //   INFO(Rcpp::Rcout, idxsim, "clin futile, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
+      //   t.clin_fut();
+      //   t.clin_set_ss(looks[i]);
+      //   break;
+      // }
 
       if ((double)m_clin_res["ppn"] > (double)post_tte_sup_thresh[i]  && !t.is_clin_fut()){
         INFO(Rcpp::Rcout, idxsim, "clin stop sup, ppn " << (double)m_clin_res["ppn"] << " sup thresh " << (double)post_tte_sup_thresh[i] );
@@ -1282,7 +1282,8 @@ Rcpp::List rcpp_clin_interim_ppos(arma::mat& d_new,
     // changes evtt, fu1, fu2
     rcpp_dat_small(d_new, cfg, look, m[i, COL_LAMB0], m[i, COL_LAMB1]);
 
-    lsuffstat = rcpp_clin_set_obst(d_new, cfg, looks.size(), false);
+    // we project to the final analysis of the trial
+    lsuffstat = rcpp_clin_set_obst(d_new, cfg, looks.size(), true);
 
     //llr = rcpp_logrank(d_new, looks.size(), cfg);
     //lrp(i) = (double)llr["pvalue"];
