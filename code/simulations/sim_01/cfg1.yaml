@@ -127,14 +127,14 @@ use_alt_censoring: 0
 # the difference between seroconversion in the two arms is > 0 is above 0.9 then we consider that
 # simulated dataset to have yielded a successful trial.
 
-post_final_thresh: 0.975
+post_final_thresh: 0.95
 
 # these are to assess futility along with the proportion of required 'wins' (defined below)
 # ramping up towards the end ensures a bit more stability
 post_sero_win_thresh_start: 0.9
-post_sero_win_thresh_end: 0.975
+post_sero_win_thresh_end: 0.95
 post_tte_win_thresh_start: 0.8
-post_tte_win_thresh_end: 0.975
+post_tte_win_thresh_end: 0.95
 
 # futility test
 # these correspond to the minimum proportion of simulated trial results that need to have been 
@@ -148,7 +148,7 @@ pp_tte_fut_thresh: 0.05
 # immunological endpoint at the time of the interim. we need to see >= 97.5% prob of success to 
 # cease serum sampling
 # rule3_sero_pp_sup_thresh: 0.975
-pp_sero_sup_thresh: 0.975
+pp_sero_sup_thresh: 0.95
 
 # superiority test
 # these are the thresholds used to assess the posterior at the time of the interim. we need 
@@ -157,8 +157,8 @@ pp_sero_sup_thresh: 0.975
 #rule2_tte_pp_sup_thresh_end: 0.8
 # rule2_tte_pp_sup_thresh: 0.975
 
-post_tte_sup_thresh_start: 0.99
-post_tte_sup_thresh_end: 0.975
+post_tte_sup_thresh_start: 0.999
+post_tte_sup_thresh_end: 0.95
 
 
 
