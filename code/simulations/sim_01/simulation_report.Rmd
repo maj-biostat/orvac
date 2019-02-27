@@ -79,6 +79,44 @@ ggplot2::theme_update(axis.text.y = element_text(size = 10))
 ```
 
 
+# Overview
+
+Start with frequentist properties of single analysis log rank test (one sided 0.05) at 1000 with survival times (30, 35), (30, 39) etc. Adding assumptions on accrual ltfo etc reduces power.
+
+t0, t1, hr,   , power
+15, 20, 0.75,   0.998
+15, 25, 0.6,    1
+30, 35, 0.8571, 0.785
+30, 39, 0.7692, 0.993
+30, 45, 0.6667, 1.0
+40, 45, 0.8889, 0.576
+40, 50, 0.8,    0.963
+
+Binomial (chisq test one sided 0.05) based on n = 250. Note - baseline rate influences power.
+
+p0,   p1,   pwr
+0.05, 0.15, 0.852
+0.2,  0.25, 0.242
+0.2,  0.30, 0.572
+0.3,  0.35, 0.211
+0.3,  0.40, 0.506
+0.3,  0.45, 0.791
+0.3,  0.50, 0.948
+0.4,  0.50, 0.477 
+0.4,  0.55, 0.770
+0.4,  0.60, 0.934
+
+Then trial with no information delay only superiority for both endpoints.
+
+Correct the type i error by adjusting posterior threshold
+
+Add in futility to sero
+
+Add in futility to tte
+
+Add information delay (only relevant to sero)
+
+
 
 # Results from simulation scenarios
 ***

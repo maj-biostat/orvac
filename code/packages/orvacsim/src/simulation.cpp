@@ -214,8 +214,8 @@ public:
   void clin_set_ss(int n);
   void immu_final_win(bool won);
   void clin_final_win(bool won);
-  void immu_state();
-  void clin_state();
+  void immu_state(const int idxsim);
+  void clin_state(const int idxsim);
 };
 int Trial::maxsero(){
   return nmaxsero;
@@ -273,12 +273,12 @@ void Trial::immu_final_win(bool won){
 void Trial::clin_final_win(bool won){
   c_final_win = won;
 }
-void Trial::immu_state(){
-  DBG(Rcpp::Rcout, "  immu endpoint state: interim assessments of stop v samp " << stop_ven_samp <<
+void Trial::immu_state(const int idxsim){
+  INFO(Rcpp::Rcout, idxsim,  "  immu endpoint state: interim assessments of stop v samp " << stop_ven_samp <<
     " fut " << stop_immu_fut << " final analysis win " << i_final_win << " inconclu " << inconclu);
 }
-void Trial::clin_state(){
-  DBG(Rcpp::Rcout, "  clin endpoint state: interim assessments of sup " << stop_clin_sup <<
+void Trial::clin_state(const int idxsim){
+  INFO(Rcpp::Rcout, idxsim, "  clin endpoint state: interim assessments of sup " << stop_clin_sup <<
     " fut " << stop_clin_fut << " final analysis win " << c_final_win << " inconclu " << inconclu);
 }
 
@@ -329,12 +329,12 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
       m_immu_res = rcpp_immu(d, cfg, look);
 
-      if((double)m_immu_res["ppos_max"] < (double)cfg["pp_sero_fut_thresh"]){
-        INFO(Rcpp::Rcout, idxsim, "immu futile, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
-        t.immu_fut();
-        t.immu_set_ss(nobs);
-        break;
-      }
+      // if((double)m_immu_res["ppos_max"] < (double)cfg["pp_sero_fut_thresh"]){
+      //   INFO(Rcpp::Rcout, idxsim, "immu futile, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
+      //   t.immu_fut();
+      //   t.immu_set_ss(nobs);
+      //   break;
+      // }
 
       if ((double)m_immu_res["ppos_n"] > (double)cfg["pp_sero_sup_thresh"] && !t.is_immu_fut()){
         nobs = rcpp_n_obs(d, look, looks, months, (double)cfg["sero_info_delay"]);
@@ -402,7 +402,7 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   } else{
     t.immu_final_win(false);
   }
-  t.immu_state();
+  t.immu_state(idxsim);
 
 
 
@@ -440,7 +440,7 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   } else{
     t.clin_final_win(false);
   }
-  t.clin_state();
+  t.clin_state(idxsim);
 
 
 
@@ -1418,17 +1418,26 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
     // therefore how many do we need to impute?
     nimpute1 = looks[mylook] - nobs;
-    // predicted prob of success at interim
-    pp1 = rcpp_immu_interim_ppos(d, m, look,
-                                  nobs, nimpute1,
-                                  (int)cfg["post_draw"],
-                                  lnsero, cfg);
+
+    // if nimpute > 0 then do the ppos calc
+    double post1gt0 = 0;
+    if(nimpute1 > 0){
+      // predicted prob of success at interim
+      pp1 = rcpp_immu_interim_ppos(d, m, look,nobs, nimpute1,(int)cfg["post_draw"],lnsero, cfg);
+    } else {
+      // else compute the posterior prob that delta > 0
+      arma::uvec tmp = arma::find(m.col(COL_DELTA) > 0);
+      post1gt0 = (double)tmp.n_elem / (double)cfg["post_draw"];
+    }
 
     // predicted prob of success at nmaxsero
+    // if nimpute2 == 0 then we are at nmaxsero with no information delay so just report
+    // the posterior prob that delta is gt 0 (post1gt0)
     nimpute2 = (int)cfg["nmaxsero"] - nobs;
-    pp2 = rcpp_immu_interim_ppos(d, m, look, nobs, nimpute2,
-                                    (int)cfg["post_draw"],
-                                            lnsero, cfg);
+    if(nimpute2 > 0){
+      pp2 = rcpp_immu_interim_ppos(d, m, look, nobs, nimpute2, (int)cfg["post_draw"],lnsero, cfg);
+    }
+
 
     if(_DEBUG == 1){
       ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
@@ -1439,8 +1448,9 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
                                Rcpp::Named("ppos_n") = (double)pp1["ppos"],
                                Rcpp::Named("ppos_max") = (double)pp2["ppos"]);
     } else {
-      ret = Rcpp::List::create(Rcpp::Named("ppos_n") = (double)pp1["ppos"],
-                               Rcpp::Named("ppos_max") = (double)pp2["ppos"]);
+
+      ret = Rcpp::List::create(Rcpp::Named("ppos_n") = nimpute1 > 0 ? (double)pp1["ppos"] : post1gt0,
+                               Rcpp::Named("ppos_max") = nimpute2 > 0 ? (double)pp2["ppos"] : post1gt0);
     }
   }
 
