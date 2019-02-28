@@ -299,18 +299,17 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
-
   Rcpp::NumericVector post_tte_sup_thresh = cfg["post_tte_sup_thresh"];
 
   // used in assessing futility along with pp_tte_fut_thresh
   Rcpp::NumericVector post_tte_win_thresh = cfg["post_tte_win_thresh"];
   Rcpp::NumericVector post_sero_win_thresh = cfg["post_sero_win_thresh"];
-
-
   Rcpp::List m_immu_res;
   Rcpp::List m_clin_res;
   double current_sup;
+
   arma::mat d = rcpp_dat(cfg);
+  arma::mat interim_post = arma::zeros(looks.length() , 6);
   int nobs = 0;
 
   //Trial t(cfg, vstop, ifut, cfut, csup, inc);
@@ -330,6 +329,10 @@ Rcpp::List rcpp_dotrial(const int idxsim,
             << ", fut thresh " << (double)cfg["pp_sero_fut_thresh"]);
 
       m_immu_res = rcpp_immu(d, cfg, look);
+
+      interim_post(i, 0) = (double)m_immu_res["delta"];
+      interim_post(i, 1) = (double)m_immu_res["lwr"];
+      interim_post(i, 2) = (double)m_immu_res["upr"];
 
       if((double)m_immu_res["ppos_max"] < (double)cfg["pp_sero_fut_thresh"]){
         INFO(Rcpp::Rcout, idxsim, "immu futile, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
@@ -360,6 +363,14 @@ Rcpp::List rcpp_dotrial(const int idxsim,
             << ", fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
 
       m_clin_res = rcpp_clin_opt(d, cfg, look);
+
+      // INFO(Rcpp::Rcout, idxsim, "blah " << (double)m_clin_res["ratio"] << " "
+      // << (double)m_clin_res["lwr"] << " "
+      // << (double)m_clin_res["upr"] );
+
+      interim_post(i, 3) = (double)m_clin_res["ratio"];
+      interim_post(i, 4) = (double)m_clin_res["lwr"];
+      interim_post(i, 5) = (double)m_clin_res["upr"];
 
       if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
         INFO(Rcpp::Rcout, idxsim, "clin futile, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
@@ -469,7 +480,6 @@ Rcpp::List rcpp_dotrial(const int idxsim,
                                       Rcpp::Named("inconclu") = t.is_inconclusive(),
                                       Rcpp::Named("i_final") = t.immu_final(),
                                       Rcpp::Named("c_final") = t.clin_final());
-
   ret["i_ppn"] = m_immu_res.length() > 0 ? (double)m_immu_res["ppos_n"] : NA_REAL;
   ret["i_ppmax"] = m_immu_res.length() > 0 ? (double)m_immu_res["ppos_max"] : NA_REAL;
   ret["c_ppn"] = m_clin_res.length() > 0 ? (double)m_clin_res["ppn"] : NA_REAL;
@@ -480,9 +490,10 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   ret["c_mean"] = (double)c_mym;
   ret["c_lwr"] = (double)c_lwr;
   ret["c_upr"] = (double)c_upr;
+  ret["int_post"] = (arma::mat)interim_post;
 
-  if(ret.length() != 26){
-    Rcpp::stop("Return value is not 26 in length.");
+  if(ret.length() != 27){
+    Rcpp::stop("Return value is not 27 in length.");
   }
 
   INFO(Rcpp::Rcout, idxsim, "FINISHED.");
@@ -670,14 +681,25 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
   utmp = arma::find(m.col(COL_RATIO) > 1);
   double post_prob_win =  (double)utmp.n_elem / (double)post_draw;
   double mean_ratio =  arma::mean(m.col(COL_RATIO));
+  double sd_ratio =  arma::stddev(m.col(COL_RATIO));
+  double lwr = mean_ratio - 1.96 * sd_ratio;
+  double upr = mean_ratio + 1.96 * sd_ratio;
+  mean_ratio = round(mean_ratio * 1000) / 1000;
+  lwr = round(lwr * 1000) / 1000;
+  upr = round(upr * 1000) / 1000;
+
 
   // assess results from posterior predictive
   double ppos = (double)win / (double)post_draw;
 
+
   DBG(Rcpp::Rcout, "     win " << win << " post_prob_win " << post_prob_win << " ppos " << ppos);
 
   Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppn") = post_prob_win,
-                                      Rcpp::Named("ppmax") = ppos);
+                                      Rcpp::Named("ppmax") = ppos,
+                                      Rcpp::Named("ratio") = mean_ratio,
+                                      Rcpp::Named("lwr") = lwr,
+                                      Rcpp::Named("upr") = upr);
 
   return ret;
 }
@@ -1557,19 +1579,21 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
     }
 
 
-    if(_DEBUG == 1){
-      ret = Rcpp::List::create(Rcpp::Named("nobs") = nobs,
-                               Rcpp::Named("nimpute1") = nimpute1,
-                               Rcpp::Named("nimpute2") = nimpute2,
-                               Rcpp::Named("lnsero") = lnsero,
-                               Rcpp::Named("posterior") = m,
-                               Rcpp::Named("ppos_n") = (double)pp1["ppos"],
-                               Rcpp::Named("ppos_max") = (double)pp2["ppos"]);
-    } else {
+    // assess posterior
+    double mean_delta =  arma::mean(m.col(COL_DELTA));
+    double sd_delta =  arma::stddev(m.col(COL_DELTA));
+    double lwr = mean_delta - 1.96 * sd_delta;
+    double upr = mean_delta + 1.96 * sd_delta;
+    mean_delta = round(mean_delta * 1000) / 1000;
+    lwr = round(lwr * 1000) / 1000;
+    upr = round(upr * 1000) / 1000;
 
-      ret = Rcpp::List::create(Rcpp::Named("ppos_n") = nimpute1 > 0 ? (double)pp1["ppos"] : post1gt0,
-                               Rcpp::Named("ppos_max") = nimpute2 > 0 ? (double)pp2["ppos"] : post1gt0);
-    }
+    ret = Rcpp::List::create(Rcpp::Named("ppos_n") = nimpute1 > 0 ? (double)pp1["ppos"] : post1gt0,
+                             Rcpp::Named("ppos_max") = nimpute2 > 0 ? (double)pp2["ppos"] : post1gt0,
+                             Rcpp::Named("delta") = mean_delta,
+                             Rcpp::Named("lwr") = lwr,
+                             Rcpp::Named("upr") = upr);
+
   }
 
   return ret;

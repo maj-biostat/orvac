@@ -356,7 +356,7 @@ kable(df_0 %>% dplyr::select(-idsim, -nsim, -alt_cen) %>%
       caption = "Table 1. Simulation Null Scenarios",
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
-                    "enrolled", "bloods", "P(<250)", "P(<500)", "P(<750)", "P(le1k)",
+                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "P(le1k)",
                     "clin", "immu", "clin", "immu", "fname"),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
