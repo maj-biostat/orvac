@@ -13,6 +13,10 @@ rcpp_dat_small <- function(d, cfg, look, l0, l1) {
     invisible(.Call(`_orvacsim_rcpp_dat_small`, d, cfg, look, l0, l1))
 }
 
+rcpp_clin_opt <- function(d, cfg, look) {
+    .Call(`_orvacsim_rcpp_clin_opt`, d, cfg, look)
+}
+
 rcpp_clin <- function(d, cfg, look) {
     .Call(`_orvacsim_rcpp_clin`, d, cfg, look)
 }
@@ -47,6 +51,10 @@ rcpp_clin_interim_post <- function(m, n_uncen_0, tot_obst_0, n_uncen_1, tot_obst
 
 rcpp_clin_interim_ppos <- function(d_new, m, look, cfg) {
     .Call(`_orvacsim_rcpp_clin_interim_ppos`, d_new, m, look, cfg)
+}
+
+rcpp_immu_opt <- function(d, cfg, look) {
+    .Call(`_orvacsim_rcpp_immu_opt`, d, cfg, look)
 }
 
 rcpp_immu <- function(d, cfg, look) {

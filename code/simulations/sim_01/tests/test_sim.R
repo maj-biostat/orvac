@@ -2309,13 +2309,13 @@ test_that("dotrial", {
   source("util.R")
   source("sim.R")
   library(truncnorm)
-  
+
   cfg <- readRDS("tests/cfg-example.RDS")
-  
+
   cfg$baselineprobsero
   cfg$trtprobsero <- 0.55
   cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
-  
+
   l <- rcpp_dotrial(1, cfg)
   
   df <- as.data.frame(l$d)
