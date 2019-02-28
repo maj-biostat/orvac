@@ -157,8 +157,8 @@ pp_sero_sup_thresh: 0.95
 #rule2_tte_pp_sup_thresh_end: 0.8
 # rule2_tte_pp_sup_thresh: 0.975
 
-post_tte_sup_thresh_start: 0.999
-post_tte_sup_thresh_end: 0.99
+post_tte_sup_thresh_start: 0.97
+post_tte_sup_thresh_end: 0.95
 
 
 
@@ -168,7 +168,7 @@ post_tte_sup_thresh_end: 0.99
 
 
 # conjugate posterior
-post_draw: 1000
+post_draw: 500
 
 # mcmc
 mcmcchains: 1

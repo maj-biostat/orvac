@@ -276,12 +276,12 @@ void Trial::clin_final_win(bool won){
   c_final_win = won;
 }
 void Trial::immu_state(const int idxsim){
-  INFO(Rcpp::Rcout, idxsim,  "  immu endpoint state: interim assessments of stop v samp " << stop_ven_samp <<
-    " fut " << stop_immu_fut << " final analysis win " << i_final_win << " inconclu " << inconclu);
+  INFO(Rcpp::Rcout, idxsim,  "immu ep state: intrm stop v samp " << stop_ven_samp <<
+    " fut " << stop_immu_fut << " interm inconclu " << inconclu << " fin analy win " << i_final_win );
 }
 void Trial::clin_state(const int idxsim){
-  INFO(Rcpp::Rcout, idxsim, "  clin endpoint state: interim assessments of sup " << stop_clin_sup <<
-    " fut " << stop_clin_fut << " final analysis win " << c_final_win << " inconclu " << inconclu);
+  INFO(Rcpp::Rcout, idxsim, "clin ep state: intrm sup " << stop_clin_sup <<
+    " fut " << stop_clin_fut << " interm inconclu " << inconclu << " fin analy win " << c_final_win );
 }
 
 
@@ -295,7 +295,7 @@ void Trial::clin_state(const int idxsim){
 Rcpp::List rcpp_dotrial(const int idxsim,
                         const Rcpp::List& cfg){
 
-  INFO(Rcpp::Rcout, idxsim, " STARTED.");
+  INFO(Rcpp::Rcout, idxsim, "STARTED.");
 
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
@@ -324,19 +324,25 @@ Rcpp::List rcpp_dotrial(const int idxsim,
     if(t.do_immu(looks[i])){
       nobs = rcpp_n_obs(d, look, looks, months, (double)cfg["sero_info_delay"]);
       INFO(Rcpp::Rcout, idxsim, "doing immu, with " << looks[i]
-            << " enrolled and " << nobs << " test results."
+            << " enrld and " << nobs << " test results."
             << " sup thresh (stop v samp) " << (double)cfg["pp_sero_sup_thresh"]
-            << ", win thresh " << (double)post_sero_win_thresh[i]
+            << ", pp win thresh " << (double)post_sero_win_thresh[i]
             << ", fut thresh " << (double)cfg["pp_sero_fut_thresh"]);
 
       m_immu_res = rcpp_immu(d, cfg, look);
 
-      // if((double)m_immu_res["ppos_max"] < (double)cfg["pp_sero_fut_thresh"]){
-      //   INFO(Rcpp::Rcout, idxsim, "immu futile, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
-      //   t.immu_fut();
-      //   t.immu_set_ss(nobs);
-      //   break;
-      // }
+      if((double)m_immu_res["ppos_max"] < (double)cfg["pp_sero_fut_thresh"]){
+        INFO(Rcpp::Rcout, idxsim, "immu futile, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
+        t.immu_fut();
+        t.immu_set_ss(nobs);
+
+        // we may not have started analysing the clin ep yet, but
+        // we still need to set ss here otherwise it would just be recorded as 0 and
+        // we would therefore underestimate the avg
+        t.clin_set_ss(looks[i]);
+
+        break;
+      }
 
       if ((double)m_immu_res["ppos_n"] > (double)cfg["pp_sero_sup_thresh"] && !t.is_immu_fut()){
         nobs = rcpp_n_obs(d, look, looks, months, (double)cfg["sero_info_delay"]);
@@ -349,18 +355,18 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
     if(t.do_clin(looks[i])){
       INFO(Rcpp::Rcout, idxsim, "doing clin, with " << looks[i]
-            << " enrolled and superiority thresh " << (double)post_tte_sup_thresh[i]
-            << ", win thresh " << (double)post_tte_win_thresh[i]
+            << " enrld and sup thresh " << (double)post_tte_sup_thresh[i]
+            << ", pp win thresh " << (double)post_tte_win_thresh[i]
             << ", fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
 
       m_clin_res = rcpp_clin_opt(d, cfg, look);
 
-      // if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
-      //   INFO(Rcpp::Rcout, idxsim, "clin futile, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
-      //   t.clin_fut();
-      //   t.clin_set_ss(looks[i]);
-      //   break;
-      // }
+      if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
+        INFO(Rcpp::Rcout, idxsim, "clin futile, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
+        t.clin_fut();
+        t.clin_set_ss(looks[i]);
+        break;
+      }
 
       if ((double)m_clin_res["ppn"] > (double)post_tte_sup_thresh[i]  && !t.is_clin_fut()){
         INFO(Rcpp::Rcout, idxsim, "clin stop sup, ppn " << (double)m_clin_res["ppn"] << " sup thresh " << (double)post_tte_sup_thresh[i] );
@@ -374,6 +380,8 @@ Rcpp::List rcpp_dotrial(const int idxsim,
     // if at last look set inconclusive
     if(i == looks.length()-1){
       t.inconclusive();
+
+      // and set clin ss to the max samp size
       t.clin_set_ss(looks[i]);
     }
 
@@ -395,12 +403,10 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   i_mym = round(i_mym * 1000) / 1000;
   i_lwr = round(i_lwr * 1000) / 1000;
   i_upr = round(i_upr * 1000) / 1000;
-  INFO(Rcpp::Rcout, idxsim, std::endl << "final analysis: - immu posterior:");
-  INFO(Rcpp::Rcout, idxsim, "  mean theta0 " << arma::mean(m.col(COL_THETA0)) <<
-    "  mean theta1 " << arma::mean(m.col(COL_THETA1)) <<
-      "  mean delta " << i_mym << " (" << i_lwr << ", " << i_upr << ") ");
-  INFO(Rcpp::Rcout, idxsim, "  n delta gt0 " << tmp.n_elem  <<
-    "  post_prob_gt0 " << post_prob_gt0);
+  INFO(Rcpp::Rcout, idxsim, "FINAL: immu postr: p0 " << arma::mean(m.col(COL_THETA0))
+  << "  p1 " << arma::mean(m.col(COL_THETA1))
+  << "  delta " << i_mym << " (" << i_lwr << ", " << i_upr
+  << "). n delta gt0 " << tmp.n_elem  <<  " prob_gt0 " << post_prob_gt0);
   if(post_prob_gt0 > (double)cfg["post_final_thresh"]){
     t.immu_final_win(true);
   } else{
@@ -433,12 +439,11 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   c_mym = round(c_mym * 1000) / 1000;
   c_lwr = round(c_lwr * 1000) / 1000;
   c_upr = round(c_upr * 1000) / 1000;
-  INFO(Rcpp::Rcout, idxsim, std::endl << "final analysis: - clin posterior:");
-  INFO(Rcpp::Rcout, idxsim, "  mean lamb0 " << arma::mean(m.col(COL_LAMB0)) <<
-    "  mean lamb1 " << arma::mean(m.col(COL_LAMB1)) <<
-      "  mean ratio " << c_mym << " (" << c_lwr << ", " << c_upr << ") ");
-  INFO(Rcpp::Rcout, idxsim, "  n delta gt1 " << tmp.n_elem  <<
-    "  post_prob_gt1 " << post_prob_gt1);
+  INFO(Rcpp::Rcout, idxsim, "FINAL: clin postr: l0 " << arma::mean(m.col(COL_LAMB0))
+  << "  l1 " << arma::mean(m.col(COL_LAMB1))
+  << "  ratio " << c_mym << " (" << c_lwr << ", " << c_upr
+  << "). n ratio gt1 " << tmp.n_elem  <<  "  prob_gt1 " << post_prob_gt1);
+
   if(post_prob_gt1 > (double)cfg["post_final_thresh"]){
     t.clin_final_win(true);
   } else{
@@ -480,7 +485,7 @@ Rcpp::List rcpp_dotrial(const int idxsim,
     Rcpp::stop("Return value is not 26 in length.");
   }
 
-  INFO(Rcpp::Rcout, idxsim, " FINISHED.");
+  INFO(Rcpp::Rcout, idxsim, "FINISHED.");
 
   return ret;
 }
@@ -562,8 +567,6 @@ void rcpp_dat_small(arma::mat& d,
 
   for(int i = idxStart; i < n; i++){
 
-    //DBG(Rcpp::Rcout, "i " << i << "d(i, COL_TRT) " << d(i, COL_TRT) );
-
     d(i, COL_AGE) = r_truncnorm(cfg["age_months_mean"], cfg["age_months_sd"],
       cfg["age_months_lwr"], cfg["age_months_upr"]);
 
@@ -573,7 +576,6 @@ void rcpp_dat_small(arma::mat& d,
     } else {
       d(i, COL_EVTT) = R::rexp(1/l1)  ;
     }
-
     //DBG(Rcpp::Rcout, "i " << i << "d(i, COL_EVTT) now " << d(i, COL_EVTT) );
 
     // fu 1 and 2 times from time of accrual
@@ -620,9 +622,6 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
   arma::vec postprob_ratio_gt1 = arma::zeros(post_draw);
   arma::vec n_gt1 = arma::zeros(post_draw);
 
-
-  DBG(Rcpp::Rcout, "look before rcpp_clin_set_obst " << look);
-
   // compute suff stats (calls visits and censoring)
   d.col(COL_CEN) = arma::vec(Rcpp::rep(NA_REAL, (int)cfg["nstop"]));
   d.col(COL_OBST) = arma::vec(Rcpp::rep(NA_REAL, (int)cfg["nstop"]));
@@ -637,27 +636,17 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
   // for i in postdraws
   for(int i = 0; i < post_draw; i++){
 
-    //DBG(Rcpp::Rcout, " rgamma before " << m.row(i));
-
     // take single draw from post
     m(i, COL_LAMB0) = R::rgamma(a + n_uncen_0, 1/(b + tot_obst_0));
     m(i, COL_LAMB1) = R::rgamma(a + n_uncen_1, 1/(b + tot_obst_1));
     m(i, COL_RATIO) = m(i, COL_LAMB0) / m(i, COL_LAMB1);
 
-    // DBG(Rcpp::Rcout, " rgamma 1 " << m.row(i));
-    // DBG(Rcpp::Rcout, " rgamma 2 " << " COL_LAMB0 " << COL_LAMB0 << " COL_LAMB1 " << COL_LAMB1);
-    // DBG(Rcpp::Rcout, " rgamma 3 " << " l0 " << m(i, COL_LAMB0) << " l1 " << m(i, COL_LAMB1));
-
     // copy d then compute suff stats (calls visits and censoring)
     arma::mat d_new = arma::mat(d);
     //rcpp_dat_small(d_new, cfg, look, m.row(i)[0], m.row(i)[1]);
     rcpp_dat_small(d_new, cfg, look, (double)m(i, COL_LAMB0), (double)m(i, COL_LAMB1));
-    //DBG(Rcpp::Rcout, " rgamma after 2 " << m.row(i));
-    //DBG(Rcpp::Rcout, " calling rcpp_clin_set_obst d_new " << d_new.col(COL_EVTT));
 
     Rcpp::List lsspp = rcpp_clin_set_obst(d_new, cfg, looks.size(), true);
-
-    //DBG(Rcpp::Rcout, " now back " );
 
     // obtain full post_draw sample from new posterior
     // for j in postdraws
