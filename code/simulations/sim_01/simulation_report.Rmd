@@ -3,6 +3,11 @@ title: "Orvac Simulation Results"
 author: "Mark Jones"
 date: "`r Sys.time()`"
 output:
+  pdf_document:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
   html_document:
     classoption: landscape
     css: style.css
@@ -11,11 +16,6 @@ output:
     theme: united
     toc: yes
     toc_float: true
-  pdf_document:
-    fig_caption: yes
-    number_sections: yes
-    toc: yes
-    toc_depth: 3
   word_document:
     toc: yes
     toc_depth: '3'
@@ -143,7 +143,7 @@ From left to right:
 
 
 ```{r, echo = F}
-warningsPresent <- FALSE
+mywarnings <- list()
 
 post_final_thresh <- 0
 
@@ -151,11 +151,12 @@ resfiles <- list.files("out", pattern = "*.RDS")
 
 df_all <- data.frame(stringsAsFactors = F)
 df_fig1 <- data.frame(stringsAsFactors = F)
+
 for(fname in resfiles){
   d1 <- readRDS(file.path(getwd(), "out", fname))
   # d1 <- readRDS(file.path(getwd(), "out", resfiles[1]))
-  
-  warningsPresent <- ifelse(warningsPresent == FALSE && length(d1$warnings) > 0, TRUE, FALSE)
+
+  mywarnings[[d1$cfg$idsim]] <- d1$warnings
   
   
   df_res <- as.data.frame(d1$results)
@@ -313,7 +314,7 @@ df_0 <- df_all %>%
                 baseclin, trtclin, basesero, trtsero, accrual,info_delay,
                 f_prob_sup, f_prob_fut, f_prob_stopv, f_prob_incon, 
                 f_ss_clin, f_ss_immu, 
-                f_ss_lt1, f_ss_lt2, f_ss_lt3,f_ss_lt4,
+                f_ss_lt1, f_ss_lt2, f_ss_lt3,
                 f_prob_fin_clin, f_prob_fin_immi, 
                 f_c_intrm_vs_fin, f_i_intrm_vs_fin, 
                 fname, idsim, alt_cen) %>%
@@ -329,10 +330,12 @@ df_blank <- df_0 %>% dplyr::slice(1L)
 #   dplyr::select(nsim, idsim, fname) %>%
 #   dplyr::arrange(idsim, fname)
 
-digits <- c(2, 2, 0, 0, 0, 2,
-            0, 0, 0, 0, 0,0,0,0,
+digits <- c(0, 0, 2, 2, 0, 2,
+            0, 0, 0, 0, 0,0,0,
             0, 0, 0, 0, 0, 0, 0)
 options(knitr.kable.NA = '-')
+showwarn <- length(mywarnings > 0)
+
 ```
 
 <!--
@@ -344,7 +347,7 @@ datatable(df_0, options = list(pageLength = 100, autoWidth = TRUE,  columnDefs =
 
 ## All results
 
-```{r, eval=warningsPresent}
+```{r, echo = showwarn, eval=showwarn}
 print("WARNINGS PRESENT IN DATA!!")
 ```
 
@@ -356,23 +359,23 @@ kable(df_0 %>% dplyr::select(-idsim, -nsim, -alt_cen) %>%
       caption = "Table 1. Simulation Null Scenarios",
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
-                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "P(le1k)",
+                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)",
                     "clin", "immu", "clin", "immu", "fname"),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11,
+                font_size = 10,
                 latex_options = "hold_position") %>%
   add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
                      "Info rate" = 2, 
                      "Interim" = 4,
-                     "SS" = 6, 
+                     "SS" = 5, 
                      "Wins @ final" = 2, "!Flip-flop" = 2, " " = 1))
 
 ```
 
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 df_tmp <- df_fig1 %>% 
   dplyr::filter(simname == "Null01")
 ggplot(df_tmp, aes(x = ss_clin))+
@@ -386,7 +389,7 @@ ggplot(df_tmp, aes(x = ss_immu))+
 
 
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 
 #stopifnot(nrow(df_0) == 24)
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
@@ -426,7 +429,7 @@ Average sample size at which futility is announced is 150. Venous sampling is st
 
 
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 
 #stopifnot(nrow(df_0) == 24)
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
@@ -465,7 +468,7 @@ Table 2 shows the results from simulating with a 25% increase in seroconversion 
 
 Futility remains high (mean of 0.9) because superiority can only be determined based on the clinical endpoint. Mean/median type i error are both around 0.08. Venous sampling is more likely to be stopped but, again, most of the trials are deemed futile. Average sample size for declaring futility is approximately 298, i.e. is higher than the null case above. Approximately 1.5% of trials were inconclusive.
 
-```{r, echo = F}
+```{r, echo = F, eval = F}
 currentsimid <- "SeroTrt01"
 if(sum(df_0$idsim == currentsimid ) > 0) {
 
@@ -500,7 +503,7 @@ Table 3 shows the results from simulating zero difference in seroconversion rate
 
 Futility decision is still very likely (mean probability of futility equals 0.93) and power is very low (6%). Venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 
 currentsimid <- "ClinTrt01"
 if(sum(df_0$idsim == currentsimid ) > 0) {
@@ -531,7 +534,7 @@ Table 4 shows the results from simulating zero difference in seroconversion rate
 
 Futility decision is still very likely (mean probability of futility equals 0.9) and power is very low (mean is 9%). Again, venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 
 
 currentsimid <- "ClinTrt02"
@@ -568,7 +571,7 @@ Table 5 shows the results from simulating a 25% increase in probability of seroc
 
 Power has increased but is still low (26%). Probability of a futile outcome is around 0.7. Mean sample size to declare superiority is 520, whereas futility is declared around ss of 281. Venous sampling is stopped more often than earlier scenarios with a mean probability of stopping equal to 0.37. Around 4% of trials are inconclusive.
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 
 currentsimid <- "ClinSeroTrt01"
@@ -600,7 +603,7 @@ Table 6 shows the results from simulating a 45% increase in probability of seroc
 Power has increased again but is still low (40%). Probability of a futile outcome is around 0.5. Mean sample size to declare superiority is 532, whereas futility is declared around ss of 419. Venous sampling is very likely to be stopped (mean probability of stopping 0.73). Around 7% of trials are inconclusive.
 
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 
 currentsimid <- "ClinSeroTrt02"
@@ -638,7 +641,7 @@ Table 7 shows the results from simulating a 25% increase in probability of seroc
 
 Power is still low (42%). Probability of a futile outcome is around 0.55. Mean sample size to declare superiority is 505, whereas futility is declared around ss of 207 Venous sampling is very likely to be stopped (mean probability of stopping 0.36). Around 4% of trials are inconclusive.
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 
 currentsimid <- "ClinSeroTrt03"
@@ -668,7 +671,7 @@ Table 8 shows the results from simulating a 45% increase in probability of seroc
 
 Power now reaches around 82%. Probability of a futile outcome is around 0.17. Mean sample size to declare superiority is 390, whereas futility is declared around ss of 183 Venous sampling is very likely to be stopped (mean probability of stopping 0.73). Around 1% of trials are inconclusive.
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 
 currentsimid <- "ClinSeroTrt04"
@@ -693,7 +696,7 @@ kable(df_0 %>% dplyr::filter(idsim == currentsimid & alt_cen == 0) %>% dplyr::se
 ```
 
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 
 currentsimid <- "ClinSeroTrt04"
