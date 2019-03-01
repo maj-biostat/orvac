@@ -320,6 +320,11 @@ Rcpp::List rcpp_dotrial(const int idxsim,
     // look is here because all the original methods were called from R with r indexing
     look = i + 1;
 
+    // we may not have started analysing the clin ep yet, but
+    // we still need to set ss here otherwise it would just be recorded as 0 and
+    // we would therefore underestimate the avg
+    t.clin_set_ss(looks[i]);
+
     if(t.do_immu(looks[i])){
       nobs = rcpp_n_obs(d, look, looks, months, (double)cfg["sero_info_delay"]);
       INFO(Rcpp::Rcout, idxsim, "doing immu, with " << looks[i]
@@ -385,10 +390,7 @@ Rcpp::List rcpp_dotrial(const int idxsim,
       t.inconclusive();
     }
 
-    // we may not have started analysing the clin ep yet, but
-    // we still need to set ss here otherwise it would just be recorded as 0 and
-    // we would therefore underestimate the avg
-    t.clin_set_ss(looks[i]);
+
   }
 
 
