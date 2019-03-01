@@ -14,6 +14,7 @@ Suggests:
     rmarkdown,
     brms,
     boot,
-    dplyr
+    dplyr,
+    testthat
 LinkingTo: Rcpp, RcppArmadillo, RcppDist, RcppParallel
 VignetteBuilder: knitr
