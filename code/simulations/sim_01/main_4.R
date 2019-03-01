@@ -118,7 +118,7 @@ results <- foreach(i = 1:cfg$nsims,
   flog.appender(appender.file(file.path(getwd(), "logs", cfg$flog_logfile)), name='ROOT')
   flog.threshold(DEBUG)
   
-  res <- rcpp_dotrial(i, cfg)
+  res <- rcpp_dotrial(i, cfg, FALSE)
 
   # flog.info("Finished trial: sim = %s", i)
   return(res)

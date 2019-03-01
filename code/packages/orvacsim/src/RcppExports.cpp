@@ -7,14 +7,15 @@
 using namespace Rcpp;
 
 // rcpp_dotrial
-Rcpp::List rcpp_dotrial(const int idxsim, const Rcpp::List& cfg);
-RcppExport SEXP _orvacsim_rcpp_dotrial(SEXP idxsimSEXP, SEXP cfgSEXP) {
+Rcpp::List rcpp_dotrial(const int idxsim, const Rcpp::List& cfg, const bool rtn_trial_dat);
+RcppExport SEXP _orvacsim_rcpp_dotrial(SEXP idxsimSEXP, SEXP cfgSEXP, SEXP rtn_trial_datSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const int >::type idxsim(idxsimSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_dotrial(idxsim, cfg));
+    Rcpp::traits::input_parameter< const bool >::type rtn_trial_dat(rtn_trial_datSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_dotrial(idxsim, cfg, rtn_trial_dat));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -297,15 +298,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// atest
-void atest();
-RcppExport SEXP _orvacsim_atest() {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    atest();
-    return R_NilValue;
-END_RCPP
-}
 // rcpp_gamma
 arma::vec rcpp_gamma(const int n, const double a, const double b);
 RcppExport SEXP _orvacsim_rcpp_gamma(SEXP nSEXP, SEXP aSEXP, SEXP bSEXP) {
@@ -319,51 +311,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpp_test_1
-void rcpp_test_1(arma::mat& d);
-RcppExport SEXP _orvacsim_rcpp_test_1(SEXP dSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat& >::type d(dSEXP);
-    rcpp_test_1(d);
-    return R_NilValue;
-END_RCPP
-}
-// rcpp_test_sub_1
-void rcpp_test_sub_1(arma::mat& d);
-RcppExport SEXP _orvacsim_rcpp_test_sub_1(SEXP dSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat& >::type d(dSEXP);
-    rcpp_test_sub_1(d);
-    return R_NilValue;
-END_RCPP
-}
-// rcpp_test_2
-arma::mat rcpp_test_2(const arma::mat& d);
-RcppExport SEXP _orvacsim_rcpp_test_2(SEXP dSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type d(dSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_test_2(d));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpp_test_sub_2
-arma::mat rcpp_test_sub_2(arma::mat& d);
-RcppExport SEXP _orvacsim_rcpp_test_sub_2(SEXP dSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat& >::type d(dSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_test_sub_2(d));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_orvacsim_rcpp_dotrial", (DL_FUNC) &_orvacsim_rcpp_dotrial, 2},
+    {"_orvacsim_rcpp_dotrial", (DL_FUNC) &_orvacsim_rcpp_dotrial, 3},
     {"_orvacsim_rcpp_dat", (DL_FUNC) &_orvacsim_rcpp_dat, 1},
     {"_orvacsim_rcpp_dat_small", (DL_FUNC) &_orvacsim_rcpp_dat_small, 5},
     {"_orvacsim_rcpp_clin_opt", (DL_FUNC) &_orvacsim_rcpp_clin_opt, 3},
@@ -384,12 +334,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_immu_interim_ppos", (DL_FUNC) &_orvacsim_rcpp_immu_interim_ppos, 8},
     {"_orvacsim_rcpp_outer", (DL_FUNC) &_orvacsim_rcpp_outer, 3},
     {"_orvacsim_rcpp_logrank", (DL_FUNC) &_orvacsim_rcpp_logrank, 3},
-    {"_orvacsim_atest", (DL_FUNC) &_orvacsim_atest, 0},
     {"_orvacsim_rcpp_gamma", (DL_FUNC) &_orvacsim_rcpp_gamma, 3},
-    {"_orvacsim_rcpp_test_1", (DL_FUNC) &_orvacsim_rcpp_test_1, 1},
-    {"_orvacsim_rcpp_test_sub_1", (DL_FUNC) &_orvacsim_rcpp_test_sub_1, 1},
-    {"_orvacsim_rcpp_test_2", (DL_FUNC) &_orvacsim_rcpp_test_2, 1},
-    {"_orvacsim_rcpp_test_sub_2", (DL_FUNC) &_orvacsim_rcpp_test_sub_2, 1},
     {NULL, NULL, 0}
 };
 
