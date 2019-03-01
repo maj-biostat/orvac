@@ -210,6 +210,9 @@ for(fname in resfiles){
     dplyr::summarise(ss_mean = mean(ss_immu), 
                      ss_sd = sd(ss_immu)) 
   
+  evnts_0 <- mean(df_outcome$n_uncen_0)
+  evnts_1 <- mean(df_outcome$n_uncen_1)
+  
   df_outcome$look_cut <- cut(df_outcome$look, breaks = c(0, 250, 500, 750, 1000), include.lowest = T, right = F)
   
   prob_ss <- prop.table(table(df_outcome$look_cut))
@@ -254,6 +257,9 @@ for(fname in resfiles){
                      ss_immu_mean = as.numeric(df_ss_immu["ss_mean"]),
                      ss_immu_sd = as.numeric(df_ss_immu["ss_sd"]),
     
+                     evnts_0  = evnts_0,
+                     evnts_1  = evnts_1,
+    
                      prob_ss_lt250 <- as.numeric(prob_ss[1]),
                      prob_ss_lt500 <- as.numeric(prob_ss[2]),
                      prob_ss_lt750 <- as.numeric(prob_ss[3]),
@@ -281,6 +287,8 @@ for(fname in resfiles){
                   f_ss_clin = sprintf("%.0f (%.1f)", ss_clin_mean, ss_clin_sd),
                   f_ss_immu = sprintf("%.0f (%.1f)", ss_immu_mean, ss_immu_sd),
       
+                  f_ss_evts = sprintf("%.0f/%.0f", evnts_0, evnts_1),
+
                   f_ss_lt1 = sprintf("%.2f", prob_ss_lt250),
                   f_ss_lt2 = sprintf("%.2f", prob_ss_lt500),
                   f_ss_lt3 = sprintf("%.2f", prob_ss_lt750),
@@ -313,7 +321,7 @@ df_0 <- df_all %>%
   dplyr::select(row, nsim, 
                 baseclin, trtclin, basesero, trtsero, accrual,info_delay,
                 f_prob_sup, f_prob_fut, f_prob_stopv, f_prob_incon, 
-                f_ss_clin, f_ss_immu, 
+                f_ss_clin, f_ss_immu, f_ss_evts,
                 f_ss_lt1, f_ss_lt2, f_ss_lt3,
                 f_prob_fin_clin, f_prob_fin_immi, 
                 f_c_intrm_vs_fin, f_i_intrm_vs_fin, 
@@ -331,7 +339,7 @@ df_blank <- df_0 %>% dplyr::slice(1L)
 #   dplyr::arrange(idsim, fname)
 
 digits <- c(0, 0, 2, 2, 0, 2,
-            0, 0, 0, 0, 0,0,0,
+            0, 0, 0, 0, 0,0,0,0,
             0, 0, 0, 0, 0, 0, 0)
 options(knitr.kable.NA = '-')
 showwarn <- length(mywarnings > 0)
@@ -359,7 +367,7 @@ kable(df_0 %>% dplyr::select(-idsim, -nsim, -alt_cen) %>%
       caption = "Table 1. Simulation Null Scenarios",
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
-                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)",
+                    "enrolled", "blood res", "evnts","P(<250)", "P(<500)", "P(<750)",
                     "clin", "immu", "clin", "immu", "fname"),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
@@ -369,7 +377,7 @@ kable(df_0 %>% dplyr::select(-idsim, -nsim, -alt_cen) %>%
   add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
                      "Info rate" = 2, 
                      "Interim" = 4,
-                     "SS" = 5, 
+                     "SS" = 6, 
                      "Wins @ final" = 2, "!Flip-flop" = 2, " " = 1))
 
 ```

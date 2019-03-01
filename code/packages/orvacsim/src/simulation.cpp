@@ -338,12 +338,6 @@ Rcpp::List rcpp_dotrial(const int idxsim,
         INFO(Rcpp::Rcout, idxsim, "immu futile, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
         t.immu_fut();
         t.immu_set_ss(nobs);
-
-        // we may not have started analysing the clin ep yet, but
-        // we still need to set ss here otherwise it would just be recorded as 0 and
-        // we would therefore underestimate the avg
-        t.clin_set_ss(looks[i]);
-
         break;
       }
 
@@ -375,14 +369,12 @@ Rcpp::List rcpp_dotrial(const int idxsim,
       if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
         INFO(Rcpp::Rcout, idxsim, "clin futile, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
         t.clin_fut();
-        t.clin_set_ss(looks[i]);
         break;
       }
 
       if ((double)m_clin_res["ppn"] > (double)post_tte_sup_thresh[i]  && !t.is_clin_fut()){
         INFO(Rcpp::Rcout, idxsim, "clin stop sup, ppn " << (double)m_clin_res["ppn"] << " sup thresh " << (double)post_tte_sup_thresh[i] );
         t.clin_sup();
-        t.clin_set_ss(looks[i]);
         break;
       }
     }
@@ -391,12 +383,14 @@ Rcpp::List rcpp_dotrial(const int idxsim,
     // if at last look set inconclusive
     if(i == looks.length()-1){
       t.inconclusive();
-
-      // and set clin ss to the max samp size
-      t.clin_set_ss(looks[i]);
     }
 
+    // we may not have started analysing the clin ep yet, but
+    // we still need to set ss here otherwise it would just be recorded as 0 and
+    // we would therefore underestimate the avg
+    t.clin_set_ss(looks[i]);
   }
+
 
 
   // final analysis for sero
@@ -430,6 +424,11 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
 
 
+  // how many events observed during the interim looks
+  int j = look > looks.length() ? looks.length() : look;
+  Rcpp::List lss = rcpp_clin_set_obst(d, cfg, j, false);
+  double n_uncen_0 = (double)lss["n_uncen_0"];
+  double n_uncen_1 = (double)lss["n_uncen_1"];
 
   // final analysis for tte
   d.col(COL_CEN) = arma::vec(Rcpp::rep(NA_REAL, (int)cfg["nstop"]));
@@ -490,10 +489,12 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   ret["c_mean"] = (double)c_mym;
   ret["c_lwr"] = (double)c_lwr;
   ret["c_upr"] = (double)c_upr;
+  ret["n_uncen_0"] = (double)n_uncen_0;
+  ret["n_uncen_1"] = (double)n_uncen_1;
   ret["int_post"] = (arma::mat)interim_post;
 
-  if(ret.length() != 27){
-    Rcpp::stop("Return value is not 27 in length.");
+  if(ret.length() != 29){
+    Rcpp::stop("Return value is not 29 in length.");
   }
 
   INFO(Rcpp::Rcout, idxsim, "FINISHED.");
