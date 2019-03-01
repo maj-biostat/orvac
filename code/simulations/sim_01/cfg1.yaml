@@ -157,8 +157,8 @@ pp_sero_sup_thresh: 0.95
 #rule2_tte_pp_sup_thresh_end: 0.8
 # rule2_tte_pp_sup_thresh: 0.975
 
-post_tte_sup_thresh_start: 0.97
-post_tte_sup_thresh_end: 0.95
+post_tte_sup_thresh_start: 0.96
+post_tte_sup_thresh_end: 0.96
 
 
 
