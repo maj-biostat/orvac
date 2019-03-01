@@ -1,125 +1,156 @@
 library(testthat)
 library(orvacsim)
 library(data.table)
-
-
+source("util.R")
+source("sim.R")
+library(truncnorm)
+library(survival)
+library(boot)
 
 
 context("data generation")
 
 
-test_that("use pass by reference if possible", {
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  
-  mydim <- 1000
-  nsim <- 1000
-  start <- proc.time()
-  for(i in 1:nsim){
-    m1 <- matrix(0, ncol = mydim, nrow = mydim)
-    rcpp_test_1(m1)
-  }
-  end <- proc.time()
-  duration1 <- end - start
-  
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  mydim <- 1000
-  nsim <- 1000
-  start <- proc.time()
-  for(i in 1:nsim){
-    m1 <- matrix(0, ncol = mydim, nrow = mydim)
-    m2 <- rcpp_test_2(m1)
-  }
-  end <- proc.time()
-  duration2 <- end - start
-  
-  
-  summary(duration1)
-  summary(duration2)
-  
-  expect_lt(duration1[3],  duration2[3])
-  # By reference is MUCH quicker!!!
-  #
-  # >   summary(duration1)
-  # user  system elapsed 
-  # 2.556   0.681   3.239 
-  # >   summary(duration2)
-  # user  system elapsed 
-  # 13.974   1.792  15.791 
-  
-})
 
 
-test_that("cpp quicker than data.table", {
+test_that("dgp for sero correct", {
   
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  source("sim.R")
-  library(truncnorm)
-  
-  d <- readRDS("tests/dat-example.RDS")
   cfg <- readRDS("tests/cfg-example.RDS")
-  
-  n_obs_grp <- 170
-  look <- 10
-  
-  expect_equal(cfg$looks, c(70L, 100L, 130L, 160L, 190L, 220L, 250L, 280L, 310L, 340L, 
-                            370L, 400L, 430L, 460L, 490L, 520L, 550L, 580L, 610L, 640L, 670L, 
-                            700L, 730L, 760L, 790L, 820L, 850L, 880L, 910L, 940L, 970L, 1000L))
-  
-  expect_equal(cfg$interimmnths, c(7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 
-                                   52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 
-                                   100))
-  
-  expect_equal(cfg$interimmnths[look], 34)
-  expect_equal(cfg$months_per_person, 0.1)
   
   # cfg$baselineprobsero
   # cfg$trtprobsero
   # compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
-  start <- proc.time()
-  for(i in 1:1000){
-    
-    d <- gen_dat(cfg)
-    
-  }
-  end <- proc.time()
-  duration1 <- end - start
-  summary(duration1)
   
-  start <- proc.time()
+  d <- rcpp_dat(cfg)
+  colnames(d) <- dnames
+  
+  m <- matrix(0, nrow = 1000, ncol = 2)
+  
   for(i in 1:1000){
-    
     d <- rcpp_dat(cfg)
+    d <- d[1:cfg$nmaxsero,]
+    
+    m[i,1] <- mean(d[d[,COL_TRT] == 0, COL_SEROT3])
+    m[i,2] <- mean(d[d[,COL_TRT] == 1, COL_SEROT3])
     
   }
-  end <- proc.time()
-  duration2 <- end - start
-  summary(duration2)
   
-  expect_lt(duration2[3],  duration1[3])
+  expect_equal(cfg$baselineprobsero, mean(m[,1]),  tolerance = cfg$baselineprobsero * 0.01)
+  expect_equal(cfg$trtprobsero, mean(m[,2]),  tolerance = cfg$trtprobsero * 0.01)
+  
+})
+
+
+test_that("retrieves correct number obs - information delay", {
+
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d)
+  names(d2) <- dnames
+  # View(d2)
+  look <- 1
+  info_delay <- 0
+  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), cfg$looks[1])
+  look <- 32
+  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), max(cfg$looks))
+  
+  info_delay <- 1
+  look <- 1
+  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), 
+    (cfg$interimmnths[1]-info_delay)/cfg$months_per_person)
+  
+  # inexact match
+  info_delay <- 0.5
+  look <- 1
+  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), 64)
+  
+  look <- 32
+  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), 994)
+  
+})
+
+
+test_that("correct sero counts", {
+
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  names(d2) <- dnames
+  # View(d2)
+  look <- 1
+  info_delay <- 0
+  nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
+  
+  expect_equal(nobs, cfg$looks[1])
+  
+  d3 <- d2[1:nobs,]
+  
+  nseroctl <- sum(d3$serot3[d3$trt == 0])
+  nserotrt <- sum(d3$serot3[d3$trt == 1])
+
+  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
+  
+  # inexact match
+  info_delay <- 0.5
+  look <- 1
+  nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
+  
+  expect_equal(nobs, 64)
+  d3 <- d2[1:nobs,]
+  
+  nseroctl <- sum(d3$serot3[d3$trt == 0])
+  nserotrt <- sum(d3$serot3[d3$trt == 1])
+  
+  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
   
   
 })
 
 
-test_that("all datas big and small", {
+test_that("dgp for tte correct", {
   
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  source("sim.R")
+  # note that cpp version of rexp uses the scale parameterisation for 
+  # the exponential distribution
+  
+  # ie
+  # f = (1/b) exp (- x/b) rather than f = (lamb) exp (-lamb x)
+  
+  cfg <- readRDS("tests/cfg-example.RDS")
+  
+  look <- 10
 
+  lamb0 <- log(2)/cfg$ctl_med_tte
+  lamb1 <- log(2)/cfg$trt_med_tte
+  
+  nsim <- 1000
+  m <- matrix(0, nrow = nsim, ncol = 2)
+  v <- matrix(0, nrow = nsim, ncol = 2)
+  
+  for(i in 1:nsim){
+    d <- rcpp_dat(cfg)
+    
+    m[i,1] <- median(d[d[,COL_TRT] == 0, COL_EVTT])
+    m[i,2] <- median(d[d[,COL_TRT] == 1, COL_EVTT])
+    
+    v[i,1] <- var(d[d[,COL_TRT] == 0, COL_EVTT])
+    v[i,2] <- var(d[d[,COL_TRT] == 1, COL_EVTT])
+  }
+  
+  expect_equal(cfg$ctl_med_tte,  median(m[,1]), tolerance = 0.3)
+  expect_equal(cfg$trt_med_tte,  median(m[,2]), tolerance = 0.3)
+  
+  
+  expect_equal(1/(lamb0^2), mean(v[,1]),  tolerance = 10)
+  expect_equal(1/(lamb1^2), mean(v[,2]),  tolerance = 10)
+  
+})
+
+
+test_that("all data big and small", {
+  
   look <- 1
   
   cfg <- readRDS("tests/cfg-example.RDS")
@@ -151,7 +182,7 @@ test_that("all datas big and small", {
   expect_false(isTRUE(all.equal(v2, v3)))
   
   # summary statistics of the new evtt should be similar to old
-  nsim <- 100
+  nsim <- 1000
   mymeds <- matrix(0, nrow = nsim, ncol = 2)
   myvars <- matrix(0, nrow = nsim, ncol = 2)
   for(i in 1:nsim){
@@ -163,8 +194,8 @@ test_that("all datas big and small", {
     colnames(d3) <- dnames
     startidx <- cfg$looks[look]+1
     endidx <- max(cfg$looks)
-    v2 <- d2$evtt[startidx:endidx] + d2$age[startidx:endidx]
-    v3 <- d3$evtt[startidx:endidx] + d3$age[startidx:endidx]
+    v2 <- d2$evtt[startidx:endidx] 
+    v3 <- d3$evtt[startidx:endidx] 
     mymeds[i, ] <- c(median(v2), median(v3))
     myvars[i, ] <- c(var(v2), var(v3))
   }
@@ -172,262 +203,13 @@ test_that("all datas big and small", {
   hist(mymeds[,1]-mymeds[,2])
   hist(myvars[,1]-myvars[,2])
   
-  expect_equal(mean(mymeds[,1] - mymeds[,2]), 0, tolerance = 3)
+  expect_equal(mean(mymeds[,1] - mymeds[,2]), 0, tolerance = 1)
   expect_equal(mean(myvars[,1]-myvars[,2]), 0, tolerance = 20)
 
 })
 
-
-test_that("dgp for sero correct", {
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  
-  d <- readRDS("tests/dat-example.RDS")
-  cfg <- readRDS("tests/cfg-example.RDS")
-  
-  n_obs_grp <- 170
-  look <- 10
-  
-
-  expect_equal(cfg$looks, c(70L, 100L, 130L, 160L, 190L, 220L, 250L, 280L, 310L, 340L, 
-                            370L, 400L, 430L, 460L, 490L, 520L, 550L, 580L, 610L, 640L, 670L, 
-                            700L, 730L, 760L, 790L, 820L, 850L, 880L, 910L, 940L, 970L, 1000L))
-  
-  expect_equal(cfg$interimmnths, c(7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 
-                                   52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 
-                                   100))
-  
-  expect_equal(cfg$interimmnths[look], 34)
-  expect_equal(cfg$months_per_person, 0.1)
-  
-  # cfg$baselineprobsero
-  # cfg$trtprobsero
-  # compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
-  
-  m <- matrix(0, nrow = 1000, ncol = 2)
-  
-  for(i in 1:1000){
-    d <- rcpp_dat(cfg)
-    d <- d[1:cfg$nmaxsero,]
-    
-    m[i,1] <- mean(d[d[,COL_TRT] == 0, COL_SEROT3])
-    m[i,2] <- mean(d[d[,COL_TRT] == 1, COL_SEROT3])
-    
-  }
-  
-  expect_equal(abs(cfg$baselineprobsero - mean(m[,1])), 0,  tolerance = cfg$baselineprobsero * 0.01)
-  expect_equal(abs(cfg$trtprobsero - mean(m[,2])), 0,  tolerance = cfg$trtprobsero * 0.01)
-  
-  
-
-  # tests 
-  # - repeat sampling of stochastic elements with summary stats
-  # balance for tretament aloc
-  # linear accrual
-  
-  
-  
-})
-
-
-test_that("dgp for tte correct", {
-  
-  # note that cpp version of rexp uses the scale parameterisation for 
-  # the exponential distribution
-  
-  # ie
-  # f = (1/b) exp (- x/b) rather than f = (lamb) exp (-lamb x)
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  
-  d <- readRDS("tests/dat-example.RDS")
-  cfg <- readRDS("tests/cfg-example.RDS")
-  
-  n_obs_grp <- 170
-  look <- 10
-  
-  
-  stopifnot(cfg$looks == c(70L, 100L, 130L, 160L, 190L, 220L, 250L, 280L, 310L, 340L, 
-                            370L, 400L, 430L, 460L, 490L, 520L, 550L, 580L, 610L, 640L, 670L, 
-                            700L, 730L, 760L, 790L, 820L, 850L, 880L, 910L, 940L, 970L, 1000L))
-  
-  stopifnot(cfg$interimmnths == c(7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 
-                                   52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 
-                                   100))
-  
-  stopifnot(cfg$interimmnths[look] == 34)
-  stopifnot(cfg$months_per_person ==  0.1)
-  
-  stopifnot(cfg$ctl_med_tte == 30)
-  stopifnot(cfg$trt_med_tte == 35)
-  
-  
-  lamb0 <- log(2)/cfg$ctl_med_tte
-  lamb1 <- log(2)/cfg$trt_med_tte
-  
-  nsim <- 1000
-  m <- matrix(0, nrow = nsim, ncol = 2)
-  v <- matrix(0, nrow = nsim, ncol = 2)
-  
-  for(i in 1:nsim){
-    d <- rcpp_dat(cfg)
-    
-    m[i,1] <- median(d[d[,COL_TRT] == 0, COL_EVTT] + d[d[,COL_TRT] == 0, COL_AGE])
-    m[i,2] <- median(d[d[,COL_TRT] == 1, COL_EVTT] + d[d[,COL_TRT] == 1, COL_AGE])
-    
-    v[i,1] <- var(d[d[,COL_TRT] == 0, COL_EVTT] + d[d[,COL_TRT] == 0, COL_AGE])
-    v[i,2] <- var(d[d[,COL_TRT] == 1, COL_EVTT] + d[d[,COL_TRT] == 1, COL_AGE])
-  }
-  
-  expect_equal(cfg$ctl_med_tte,  median(m[,1]), tolerance = 0.3)
-  expect_equal(cfg$trt_med_tte,  median(m[,2]), tolerance = 0.3)
-  
-  
-  expect_equal(1/(lamb0^2), mean(v[,1]),  tolerance = 10)
-  expect_equal(1/(lamb1^2), mean(v[,2]),  tolerance = 10)
-  
-  
-  # tests 
-  # - repeat sampling of stochastic elements with summary stats
-  # balance for tretament aloc
-  # linear accrual
-  
-  
-  
-})
-
-
-test_that("retrieves correct number obs", {
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  source("sim.R")
-  library(truncnorm)
-  
-  d <- readRDS("tests/dat-example.RDS")
-  cfg <- readRDS("tests/cfg-example.RDS")
-  
-  n_obs_grp <- 170
-  look <- 10
-  
-  expect_equal(cfg$looks, c(70L, 100L, 130L, 160L, 190L, 220L, 250L, 280L, 310L, 340L, 
-                            370L, 400L, 430L, 460L, 490L, 520L, 550L, 580L, 610L, 640L, 670L, 
-                            700L, 730L, 760L, 790L, 820L, 850L, 880L, 910L, 940L, 970L, 1000L))
-  
-  expect_equal(cfg$interimmnths, c(7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 
-                                   52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 
-                                   100))
-  
-  expect_equal(cfg$interimmnths[look], 34)
-  expect_equal(cfg$months_per_person, 0.1)
-  
-
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(d)
-  names(d2) <- dnames
-  # View(d2)
-  look <- 1
-  info_delay <- 0
-  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), 70)
-  look <- 32
-  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), 1000)
-  
-  info_delay <- 1
-  look <- 1
-  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), 60)
-  
-  # inexact match
-  info_delay <- 0.5
-  look <- 1
-  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), 64)
-  
-  look <- 32
-  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), 994)
-  
-})
-
-
-test_that("correct sero counts", {
-  
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  source("sim.R")
-  library(truncnorm)
-  
-  d <- readRDS("tests/dat-example.RDS")
-  cfg <- readRDS("tests/cfg-example.RDS")
-  
-  n_obs_grp <- 170
-  look <- 10
-  
-  expect_equal(cfg$looks, c(70L, 100L, 130L, 160L, 190L, 220L, 250L, 280L, 310L, 340L, 
-                            370L, 400L, 430L, 460L, 490L, 520L, 550L, 580L, 610L, 640L, 670L, 
-                            700L, 730L, 760L, 790L, 820L, 850L, 880L, 910L, 940L, 970L, 1000L))
-  
-  expect_equal(cfg$interimmnths, c(7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 
-                                   52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 
-                                   100))
-  
-  expect_equal(cfg$interimmnths[look], 34)
-  expect_equal(cfg$months_per_person, 0.1)
-  
-  
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(copy(d))
-  names(d2) <- dnames
-  # View(d2)
-  look <- 1
-  info_delay <- 0
-  nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
-  
-  expect_equal(nobs, 70)
-  
-  d3 <- d2[1:nobs,]
-  
-  nseroctl <- sum(d3$serot3[d3$trt == 0])
-  nserotrt <- sum(d3$serot3[d3$trt == 1])
-
-  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
-  
-  # inexact match
-  info_delay <- 0.5
-  look <- 1
-  nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
-  
-  expect_equal(nobs, 64)
-  d3 <- d2[1:nobs,]
-  
-  nseroctl <- sum(d3$serot3[d3$trt == 0])
-  nserotrt <- sum(d3$serot3[d3$trt == 1])
-  
-  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
-  
-  
-})
-
-
-
-
-context("clinical endpoint framework")
-
-
 test_that("visit times", {
   
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
   cfg <- readRDS("tests/cfg-example.RDS")
   
   set.seed(4343)
@@ -465,6 +247,9 @@ test_that("visit times", {
   cfg$interimmnths[look]
   visits2 <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
   
+  expect_equal(visits2[1], d2[1, "accrt"] + d2[1, "fu1"])
+  expect_equal(visits2[2], d2[1, "accrt"] + d2[1, "fu2"])
+  expect_lt(max(visits), cfg$max_age_fu_months)
 
   # test assuming at mid interim analysis (look = 7)
   
@@ -486,8 +271,6 @@ test_that("visit times", {
   expect_equal(visits[2], d2[1, "accrt"] + d2[1, "fu2"])
   expect_lt(max(visits) + d2[1, "age"], cfg$max_age_fu_months + 0.0001)
   expect_lt(max(visits), cfg$interimmnths[look] + 0.0001)
-  
-  
   
   # test 4 - test zero visits returned
   
@@ -533,21 +316,128 @@ test_that("visit times", {
   expect_equal(visits2[2], d2[idx, "accrt"] + d2[idx, "fu2"])
   expect_lte(max(visits2) + d2[idx, "age"] - d2[idx, "accrt"], cfg$max_age_fu_months + 1)
   
-  
-  
-  # odd visit
 
-  # cfg <- readRDS("tests/cfg-example.RDS")
-  # d <- readRDS("tests/oddvisit.RDS")
-  # d2 <- as.data.frame(copy(d))
-  # names(d2) <- dnames
-  # look = length(cfg$looks)
-  # 
-  # 
-  # i <- 2
-  # visits <- rcpp_visits(d, i-1, look, cfg)
+})
+
+test_that("censoring at interim", {
+  
+ 
+  # set.seed(4343)
+  cfg <- readRDS("tests/cfg-example.RDS")
+  #cfg$b0tte <- log(2)/35
+  cfg$b1tte <- 0
+  d <- rcpp_dat(cfg)
+  look <- 31
+  cfg$interimmnths[look]
+  
+  for(i in 1:nrow(d)){
+    
+    # i = i + 1
+    (visits <- rcpp_visits(d, i-1, look, cfg))
+    (cens <- rcpp_cens_interim(d, visits, i-1, look, cfg))
+    
+    d[i, COL_CEN] <- cens$cen
+    d[i, COL_OBST] <- cens$obst
+    
+    d2 <- as.data.frame(d)
+    names(d2) <- dnames
+    d2[i,]
+  }
+  
+  expect_equal(max(d[1:cfg$looks[look], COL_OBST] + d[1:cfg$looks[look], COL_AGE]),
+    cfg$max_age_fu_months, tolerance = 0.5)
+  
+  
+  
+  
+  # suffstats
+  e1 <- d[1:cfg$looks[look], COL_EVTT]
+  c1 <- rep(0, length(e1))
+  e2 <- d[1:cfg$looks[look], COL_OBST]
+  c2 <- d[1:cfg$looks[look], COL_CEN]
+  
+  nobs0 <- sum(1-c1)
+  nobs1 <- sum(1-c2)
+  tott0 <- sum(e1)
+  tott1 <- sum(e2)
+  
+  rg0 <- rgamma(1000, shape = 0.01 + nobs0, rate = 0.01 + tott0)
+  rg1 <- rgamma(1000, shape = 0.01 + nobs1, rate = 0.01 + tott1)
+  
+  
+  
+  nsim <- 100
+  myp <- numeric(nsim)
+  for(i in 1:nsim){
+    d <- rcpp_dat(cfg)
+    look <- 31
+    
+    for(j in 1:nrow(d)){
+      visits <- rcpp_visits(d, j-1, look, cfg)
+      cens <- rcpp_cens_interim(d, visits, j-1, look, cfg)
+      d[j, COL_CEN] <- cens$cen
+      d[j, COL_OBST] <- cens$obst
+    }
+    
+    e1 <- d[1:cfg$looks[look], COL_EVTT]
+    c1 <- rep(0, length(e1))
+    e2 <- d[1:cfg$looks[look], COL_OBST]
+    c2 <- d[1:cfg$looks[look], COL_CEN]
+    df <- data.frame(e = c(e1, e2), c = c(c1, c2), g = c(rep(0:1, each = length(e1))))
+    df$e <- df$e + 0.01
+    
+    s1 <- survreg(Surv(e, 1-c)~g, data = df, dist = "exponential")
+    
+    myp[i] <- summary(s1)$table[2, 4]
+  }
+  
+  
+  
+  
+  
+  
+  dos <- function(df){
+    
+
+    s1 <- survreg(Surv(e, 1-c)~g, data = df, dist = "exponential")
+      
+    return(res)
+  }
+  
+  
+  
+ 
+
+  cfg <- readRDS("tests/cfg-example.RDS")
+
+  cfg$baselineprobsero
+  cfg$trtprobsero <- 0.55
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+
+  l <- rcpp_dotrial(1, cfg)
+  
+  df <- as.data.frame(l$d)
+  names(df) <- dnames
+  boot.ci(doglm(df[1:cfg$nmaxsero, ]), type="norm")
+  
+  
+  
+  
+  median(d[1:cfg$looks[look], COL_EVTT])
+  median(d[1:cfg$looks[look], COL_OBST])
+  m <- cbind(d[, COL_EVTT], d[, COL_OBST], 0)
+  plot_tte_meds_hist(m, 30, 30)
+  prop.table(table(d[, COL_CEN]))
+  
+  # i remain unconvince about the feasibility of a 36 month fu when your 
+  # median tte is 30
   
 })
+
+context("clinical endpoint framework")
+
+
+
 
 
 test_that("censoring at final", {
@@ -590,45 +480,7 @@ test_that("censoring at final", {
 })
 
 
-test_that("censoring at interim", {
-  
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("util.R")
-  
-  
-  # set.seed(4343)
-  cfg <- readRDS("tests/cfg-example.RDS")
-  #cfg$b0tte <- log(2)/35
-  cfg$b1tte <- 0
-  d <- rcpp_dat(cfg)
-  look <- 31
-  cfg$interimmnths[look]
-  
-  for(i in 1:nrow(d)){
-    
-    # i = i + 1
-    (visits <- rcpp_visits(d, i-1, look, cfg))
-    (cens <- rcpp_cens_interim(d, visits, i-1, look, cfg))
-    
-    d[i, COL_CEN] <- cens$cen
-    d[i, COL_OBST] <- cens$obst
-    
-    d2 <- as.data.frame(d)
-    names(d2) <- dnames
-    d2[i,]
-  }
-  median(d[1:cfg$looks[look], COL_EVTT])
-  median(d[1:cfg$looks[look], COL_OBST])
-  m <- cbind(d[, COL_EVTT], d[, COL_OBST], 0)
-  plot_tte_meds_hist(m, 30, 30)
-  prop.table(table(d[, COL_CEN]))
-  
-  # i remain unconvince about the feasibility of a 36 month fu when your 
-  # median tte is 30
-  
-})
+
 
 
 test_that("censoring", {
