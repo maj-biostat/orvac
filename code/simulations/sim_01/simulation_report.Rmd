@@ -71,7 +71,7 @@ getsum <- function(x){
 ggplot2::theme_set(ggplot2::theme_bw())
 ggplot2::theme_update(text = element_text(size = 10))
 ggplot2::theme_update(legend.position = "top")
-ggplot2::theme_update(legend.title = element_blank())
+# ggplot2::theme_update(legend.title = element_blank())
 ggplot2::theme_update(axis.text.x = element_text(size = 10))
 ggplot2::theme_update(axis.text.y = element_text(size = 10))
 
@@ -79,8 +79,12 @@ ggplot2::theme_update(axis.text.y = element_text(size = 10))
 # rmarkdown::render("simulation_report.Rmd", clean=TRUE)
 ```
 
+<!--
+# Preamble
 
-# Overview
+TBD
+
+
 
 Start with frequentist properties of single analysis log rank test (one sided 0.05) at 1000 with survival times (30, 35), (30, 39) etc. Adding assumptions on accrual ltfo etc reduces power.
 
@@ -117,11 +121,18 @@ Add in futility to tte
 
 Add information delay (only relevant to sero)
 
-
+-->
 
 # Results from simulation scenarios
 ***
-The following tables and plots summarise the scenarios that were simulated. We use the thresholds as discussed in the "decision rules and thresholds" section towards the end of this report. All scenarios were based on 1000 simulated trials. Filenames that correspond to the results are omitted but are contained in the RDS files associated with this report.
+The following tables and plots summarise the scenarios that were simulated. 
+
+Analysis is all based on conjugate priors (vaguely informative for the time to event). 
+
+For the clinical endpoint we assess whether the probability of the ratio of survival times is greater than 1 (equivalent to ratio or rates). Threshold for deciding superiority was 0.96 at each interim and 0.95 at the final analysis. For the futility check, each trial simulated conditional on the current posterior was assessed against a threshold of 0.95 and if less than 5% of the trials were successful futility is declared.
+
+For the immunological endpoint we assess whether the difference in seroconversion rates is greater than 0 (treatment versus control, i.e. one-sided). Stopping venous sampling was based on a threshold of 0.95, as was the final analysis. For the futility check, each trial simulated conditional on the current posterior was assessed against a threshold of 0.95 and if less than 5% of the trials were successful futility is declared.
+
 
 <!-- ### Todo -->
 
@@ -133,14 +144,29 @@ The following tables and plots summarise the scenarios that were simulated. We u
 
 ## Reading the tables
 
-From left to right:
+From left to right tables show:
 
-+ true seroconversion probabilities (both arms)
 + true median survival time (both arms)
++ true seroconversion probabilities (both arms)
+
 + accrual -- number of people per 3 month period (i.e. time between interims)
 + information delay for seroconversion results
-+ probabilities of trial being declared superior, futile, inconclusive or venous sampling being stopped (number of trials is shown in parentheses)
-+ mean (and sd in parentheses) of sample size at the time when trial stopped
+
++ probabilities of expected success 
++ probabilities of expected futility 
++ probabilities of stopping venous sampling 
++ probabilities of no decision
+
++ mean (sd) of participants enrolled
++ mean (sd) of participants with blood sample results
++ probability that trial stops before 250, 500 and 750 enrolled participants
++ number of events in each arm (ctl/trt) at time trial stopped
+
++ proportion of trials were the final analysis indicated a treatment difference in clinical endpoint
++ proportion of trials were the final analysis indicated a treatment difference in immunological endpoint
+
++ proportion of trials were the interim decision and final analysis were consistent for clinical endpoint
++ proportion of trials were the interim decision and final analysis were consistent for immunological endpoint
 
 
 ```{r, echo = F}
@@ -261,10 +287,10 @@ for(fname in resfiles){
                      evnts_0  = evnts_0,
                      evnts_1  = evnts_1,
     
-                     prob_ss_lt250 <- as.numeric(prob_ss[1]),
-                     prob_ss_lt500 <- as.numeric(prob_ss[2]),
-                     prob_ss_lt750 <- as.numeric(prob_ss[3]),
-                     prob_ss_lt1k <- as.numeric(prob_ss[4]),
+                     prob_ss_lt250 = as.numeric(prob_ss[1]),
+                     prob_ss_lt500 = as.numeric(prob_ss[2]),
+                     prob_ss_lt750 = as.numeric(prob_ss[3]),
+                     prob_ss_lt1k = as.numeric(prob_ss[4]),
 
                      # probability of success at the final analysis 
                      # (proportion of trials where final analysis showed a difference b/w groups)
@@ -288,12 +314,12 @@ for(fname in resfiles){
                   f_ss_clin = sprintf("%.0f (%.1f)", ss_clin_mean, ss_clin_sd),
                   f_ss_immu = sprintf("%.0f (%.1f)", ss_immu_mean, ss_immu_sd),
       
-                  f_ss_evts = sprintf("%.0f/%.0f", evnts_0, evnts_1),
-
                   f_ss_lt1 = sprintf("%.2f", prob_ss_lt250),
                   f_ss_lt2 = sprintf("%.2f", prob_ss_lt500),
                   f_ss_lt3 = sprintf("%.2f", prob_ss_lt750),
                   f_ss_lt4 = sprintf("%.2f", prob_ss_lt1k),
+      
+      f_ss_evts = sprintf("%.0f/%.0f", evnts_0, evnts_1),
       
                   f_prob_fin_immi = sprintf("%.3f", prob_fin_immi),
                   f_prob_fin_clin = sprintf("%.3f", prob_fin_clin), 
@@ -322,8 +348,9 @@ df_0 <- df_all %>%
   dplyr::select(row, nsim, 
                 baseclin, trtclin, basesero, trtsero, accrual,info_delay,
                 f_prob_sup, f_prob_fut, f_prob_stopv, f_prob_incon, 
-                f_ss_clin, f_ss_immu, f_ss_evts,
+                f_ss_clin, f_ss_immu, 
                 f_ss_lt1, f_ss_lt2, f_ss_lt3,
+    f_ss_evts,
                 f_prob_fin_clin, f_prob_fin_immi, 
                 f_c_intrm_vs_fin, f_i_intrm_vs_fin, 
                 fname, idsim, alt_cen) %>%
@@ -354,26 +381,28 @@ datatable(df_0, options = list(pageLength = 100, autoWidth = TRUE,  columnDefs =
 ```
 -->
 
-## All results
+## Type I Error
 
 ```{r, echo = showwarn, eval=showwarn}
 print("WARNINGS PRESENT IN DATA!!")
 ```
-
+Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months. 
 
 ```{r, echo = F, eval = T}
 
-kable(df_0 %>% dplyr::select(-idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(desc(fname)),
+
+kable(df_0 %>% dplyr::filter(idsim %in% c("N01", "N02", "N03", "N04", "N05", "N06")) %>% 
+  dplyr::select(-idsim, -nsim, -alt_cen) %>%
+    dplyr::arrange(desc(fname)),
       caption = "Table 1. Simulation Null Scenarios",
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
-                    "enrolled", "blood res", "evnts","P(<250)", "P(<500)", "P(<750)",
+                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
                     "clin", "immu", "clin", "immu", "fname"),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 10,
+                font_size = 12,
                 latex_options = "hold_position") %>%
   add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
                      "Info rate" = 2, 
@@ -384,351 +413,234 @@ kable(df_0 %>% dplyr::select(-idsim, -nsim, -alt_cen) %>%
 ```
 
 
-```{r, echo = F, eval = F}
-df_tmp <- df_fig1 %>% 
-  dplyr::filter(simname == "Null01")
-ggplot(df_tmp, aes(x = ss_clin))+
-  geom_histogram()
+## Expected Success
 
-ggplot(df_tmp, aes(x = ss_immu))+
-  geom_histogram()
+Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
+```{r, echo = F, eval = T, fig.height=10, fig.width=10}
+
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8)
+
+ggplot(df_tmp, aes(x = delta, y = prob_sup, 
+  group = paste(accrual, ":", info_delay), 
+  linetype = paste0(info_delay, " mnths"))) +
+  geom_line() + 
+  scale_linetype_discrete(name = "Information delay") +
+  scale_x_continuous("Difference median survival time (mnths)") +
+  scale_y_continuous("P(e.s)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) +
+facet_grid(paste0("Accrual = ", accrual, " per qtr") ~ paste0("Diff in sero rate = ", gamma)) 
 ```
 
 
+## (Expected) Futility
 
+Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
-```{r, echo = F, eval = F}
+```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
-#stopifnot(nrow(df_0) == 24)
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8)
 
-currentsimid <- "Null01"
-if(sum(df_0$idsim == currentsimid ) > 0) {
-
-  kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(basesero, baseclin, -accrual, info_delay),
-      caption = "Table 1. Simulation Null Scenarios",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-}
-
-
-
+ggplot(df_tmp, aes(x = delta, y = prob_fut, 
+  group = paste(accrual, ":", info_delay), 
+  linetype = paste0(info_delay, " mnths"))) +
+  geom_line() + 
+  scale_linetype_discrete(name = "Information delay") +
+  scale_x_continuous("Difference median survival time (mnths)") +
+  scale_y_continuous("P(e.f)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) +
+facet_grid(paste0("Accrual = ", accrual, " per qtr") ~ paste0("Diff in sero rate = ", gamma)) 
 ```
 
 
-## Null Scenarios
+## Stop Venous Sampling
 
-### No immunological effect, no time to event effect
+Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
-Trials are indicated as futile > 95% of the time with a type i error < 0.05.
+```{r, echo = F, eval = T, fig.height=5, fig.width=10}
 
-Average sample size at which futility is announced is 150. Venous sampling is stopped less than 5% of the time, but this needs to be considered in the context of the fact that most trials are already identified as futile.
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & delta == 5)
 
-
-
-```{r, echo = F, eval = F}
-
-#stopifnot(nrow(df_0) == 24)
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-
-currentsimid <- "Null01"
-if(sum(df_0$idsim == currentsimid ) > 0) {
-
-  kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(basesero, baseclin, -accrual, info_delay),
-      caption = "Table 1. Simulation Null Scenarios",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-}
-
-
-
+ggplot(df_tmp, aes(x = gamma, y = prob_stopv, 
+  group = paste(accrual, ":", info_delay), 
+  linetype = paste0(info_delay, " mnths"))) +
+  geom_line() + 
+  scale_linetype_discrete(name = "Information delay") +
+  scale_x_continuous("Difference in seroconversion rate") +
+  scale_y_continuous("P(s.v.)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) +
+facet_grid(.~paste0("Accrual = ", accrual, " per qtr")) 
 ```
 
 
+## No Decision (Inconclusive)
 
-## Immunological effect scenarios
+Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
-### Small immunological effect, no time to event effect
+```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
-Table 2 shows the results from simulating with a 25% increase in seroconversion rates and no difference across the arms in the clinical endpoint. Accrual at both 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8)
 
-Futility remains high (mean of 0.9) because superiority can only be determined based on the clinical endpoint. Mean/median type i error are both around 0.08. Venous sampling is more likely to be stopped but, again, most of the trials are deemed futile. Average sample size for declaring futility is approximately 298, i.e. is higher than the null case above. Approximately 1.5% of trials were inconclusive.
-
-```{r, echo = F, eval = F}
-currentsimid <- "SeroTrt01"
-if(sum(df_0$idsim == currentsimid ) > 0) {
-
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(basesero, trtsero),
-      caption = "Table 2. Immunological effect scenario 1",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-}
-
+ggplot(df_tmp, aes(x = delta, y = prob_incon, 
+  group = paste(accrual, ":", info_delay), 
+  linetype = paste0(info_delay, " mnths"))) +
+  geom_line() + 
+  scale_linetype_discrete(name = "Information delay") +
+  scale_x_continuous("Difference median survival time (mnths)") +
+  scale_y_continuous("P(n.d)", breaks = seq(from = 0, to = 0.1, by = 0.01)) +
+facet_grid(paste0("Accrual = ", accrual, " per qtr") ~ paste0("Diff in sero rate = ", gamma)) 
 ```
 
 
+## Sample Size 
 
+Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months. 
 
-## Clinical effect scenarios
+### Total Enrolled 
 
-### No immunological effect, small time to event effect
+Note - information delay is 1 months (zero information delay showed as fainter line).
 
-Table 3 shows the results from simulating zero difference in seroconversion rate. Median survival time is assumed to increase by 5 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
+```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
-Futility decision is still very likely (mean probability of futility equals 0.93) and power is very low (6%). Venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1)
 
-```{r, echo = F, eval = F}
+df_tmp2 <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 0)
 
-currentsimid <- "ClinTrt01"
-if(sum(df_0$idsim == currentsimid ) > 0) {
+ggplot(df_tmp, aes(x = delta, y = ss_clin_mean)) +
+  geom_line() + 
+  geom_point() + 
+  geom_errorbar(aes(ymin = ss_clin_mean - ss_clin_sd, 
+    ymax = ss_clin_mean + ss_clin_sd), size = 0.2, width = 0.5) + 
+  geom_line(data = df_tmp2, aes(x = delta, y = ss_clin_mean), alpha = 0.3, size = 0.5)+
+  scale_linetype_discrete(name = "Information delay") +
+  scale_x_continuous("Difference median survival time (mnths)") +
+  scale_y_continuous("SS (mean +/- sd)", breaks = seq(from = 0, to = 1000, by = 100), lim = c(0, 1000)) +
+  facet_grid(paste0("Accrual = ", accrual, " per qtr") ~ paste0("Diff in sero rate = ", gamma)) 
+```
 
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(baseclin, trtclin),
-      caption = "Table 3. Clinical Scenario",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-}
+### Cohort with Bloods Taken
+
+```{r, echo = F, eval = T, fig.height=5, fig.width=6}
+
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & delta == 5)
+
+df_tmp2 <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 0 & delta == 5)
+
+ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean, group = accrual,
+  linetype = paste0(accrual)))  +
+  geom_line() + 
+  geom_point() + 
+  #geom_errorbar(aes(ymin = ss_immu_mean - ss_immu_sd, 
+   # ymax = ss_immu_mean + ss_immu_sd), size = 0.2, width = 0.5) + 
+  #geom_line(data = df_tmp2, aes(x = delta, y = ss_immu_mean), alpha = 0.3, size = 0.5)+
+  scale_linetype_discrete(name = "Accrual (n per qtr)") +
+  scale_x_continuous("Difference seroconversion rate") +
+  scale_y_continuous("SS (mean)", breaks = seq(from = 0, to = 250, by = 100), lim = c(0, 250)) 
 ```
 
 
-### No immunological effect, large time to event effect
+## Consistency of Interim Decision with Final Analysis (flip-flop)
 
-Table 4 shows the results from simulating zero difference in seroconversion rates. Median survival time is assumed to increase by 9 months. Accrual is 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
+Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months. 
 
-Futility decision is still very likely (mean probability of futility equals 0.9) and power is very low (mean is 9%). Again, venous sampling is unlikely to be stopped. Average sample size for declaring futility is approximately 135.
+### Clinical
 
-```{r, echo = F, eval = F}
+```{r, echo = F, eval = T, fig.height=5, fig.width=10}
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1)
 
 
-currentsimid <- "ClinTrt02"
-if(sum(df_0$idsim == currentsimid ) > 0) {
+ggplot(df_tmp, aes(x = delta, y = p_c_intrm_vs_fin, 
+  group = paste0(accrual), 
+  linetype = paste0(accrual)))  +
+  geom_line() + 
+  scale_linetype_discrete(name = "Accrual (n per qtr)") +
+  scale_x_continuous("Difference median survival time (mnths)") +
+  scale_y_continuous("Probability final analysis aligns with interim decision", 
+    breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) +
+  facet_grid(~ paste0("Diff in sero rate = ", gamma)) 
+```
 
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(baseclin, trtclin),
-      caption = "Table 4. Clinical Scenario",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
+### Immunological
+
+```{r, echo = F, eval = T, fig.height=5, fig.width=6}
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & delta == 5)
+
+
+ggplot(df_tmp, aes(x = gamma, y = p_i_intrm_vs_fin, 
+  group = paste0(accrual), 
+  linetype = paste0(accrual)))  +
+  geom_line() + 
+  scale_linetype_discrete(name = "Accrual (n per qtr)") +
+  scale_x_continuous("Difference seroconversion rate") +
+  scale_y_continuous("Probability final analysis aligns with interim decision", 
+    breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) 
   
-} 
-
-
 ```
 
 
-## Combined effect scenarios
+## Combined Results
 
-### Small immunological effect, small time to event effect
+```{r, echo = showwarn, eval=showwarn}
+print("WARNINGS PRESENT IN DATA!!")
+```
 
-Table 5 shows the results from simulating a 25% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 5 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
 
-Power has increased but is still low (26%). Probability of a futile outcome is around 0.7. Mean sample size to declare superiority is 520, whereas futility is declared around ss of 281. Venous sampling is stopped more often than earlier scenarios with a mean probability of stopping equal to 0.37. Around 4% of trials are inconclusive.
+```{r, echo = F, eval = T}
 
-```{r, echo = F, eval = F}
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 
-currentsimid <- "ClinSeroTrt01"
-if(sum(df_0$idsim == currentsimid ) > 0) {
-
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(basesero, trtsero, baseclin, trtclin),
-      caption = "Table 5. Combined Scenario",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
+kable(df_0 %>% 
+  dplyr::select(-idsim, -nsim, -alt_cen) %>%
+    dplyr::arrange(desc(fname)),
+      caption = "Table 2. Combined Simulation Results",
+      col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
+                    "e.s.", "e.f", "s.v.", "n.d", 
+                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
+                    "clin", "immu", "clin", "immu", "fname"),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
-                font_size = 11,
+                font_size = 12,
                 latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-}
+  add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
+                     "Info rate" = 2, 
+                     "Interim" = 4,
+                     "SS" = 6, 
+                     "Wins @ final" = 2, "!Flip-flop" = 2, " " = 1))
+
 ```
 
 
-### Large immunological effect, small time to event effect
-
-Table 6 shows the results from simulating a 45% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 5 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
-
-Power has increased again but is still low (40%). Probability of a futile outcome is around 0.5. Mean sample size to declare superiority is 532, whereas futility is declared around ss of 419. Venous sampling is very likely to be stopped (mean probability of stopping 0.73). Around 7% of trials are inconclusive.
 
 
-```{r, echo = F, eval = F}
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
 
-currentsimid <- "ClinSeroTrt02"
-if(sum(df_0$idsim == currentsimid ) > 0) {
-  
-  kable(df_0 %>% dplyr::filter(idsim == "ClinSeroTrt02") %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(basesero, trtsero, baseclin, trtclin),
-      caption = "Table 6. Combined Scenario",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-  
-}
-
-# df_tmp <- df_all %>%
-#   dplyr::arrange(-accrual, baseclin, basesero) %>%
-#   dplyr::mutate(row = 1:n()) %>%
-#   dplyr::filter(idsim == "ClinSeroTrt02") 
-# 
-# mean(df_tmp$prob_sup)
-```
-
-### Small immunological effect, large time to event effect
-
-Table 7 shows the results from simulating a 25% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 9 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
-
-Power is still low (42%). Probability of a futile outcome is around 0.55. Mean sample size to declare superiority is 505, whereas futility is declared around ss of 207 Venous sampling is very likely to be stopped (mean probability of stopping 0.36). Around 4% of trials are inconclusive.
-
-```{r, echo = F, eval = F}
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-
-currentsimid <- "ClinSeroTrt03"
-if(sum(df_0$idsim == currentsimid ) > 0) {
-
-kable(df_0 %>% dplyr::filter(idsim == currentsimid) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(basesero, trtsero, baseclin, trtclin),
-      caption = "Table 7. Combined Scenario",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-}
-```
-
-### Large immunological effect, large time to event effect
-
-Table 8 shows the results from simulating a 45% increase in probability of seroconversion in the treatment arm. Median survival time is assumed to increase by 9 months. Accrual rates are 30 and 50 over the 3 month period. Information delay for seroconversion results is two-weeks.
-
-Power now reaches around 82%. Probability of a futile outcome is around 0.17. Mean sample size to declare superiority is 390, whereas futility is declared around ss of 183 Venous sampling is very likely to be stopped (mean probability of stopping 0.73). Around 1% of trials are inconclusive.
-
-```{r, echo = F, eval = F}
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-
-currentsimid <- "ClinSeroTrt04"
-if(sum(df_0$idsim == currentsimid ) > 0) {
-
-kable(df_0 %>% dplyr::filter(idsim == currentsimid & alt_cen == 0) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(basesero, trtsero, baseclin, trtclin),
-      caption = "Table 8a. Combined Scenario - std cen",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-}
-```
-
-
-```{r, echo = F, eval = F}
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-
-currentsimid <- "ClinSeroTrt04"
-if(sum(df_0$idsim == currentsimid ) > 0) {
-
-kable(df_0 %>% dplyr::filter(idsim == currentsimid & alt_cen == 1) %>% dplyr::select(-fname, -idsim, -nsim, -alt_cen) %>%
-        dplyr::arrange(basesero, trtsero, baseclin, trtclin),
-      caption = "Table 8a. Combined Scenario - alt cen",
-      col.names = c("base", "trt", "base", "trt", "accrual", "info delay",
-                    "superiority", "futility", "inconclusive", "stop v samp",
-                    "superiority", "futility", "inconclusive", "stop v samp"),
-      digits = digits) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = F, position = "left",
-                font_size = 11,
-                latex_options = "hold_position") %>%
-  add_header_above(c("Seroconversion" = 2, "Clinical" = 2,
-                     " " = 1, " " = 1,
-                     "Probability (number of trials)" = 4,
-                     "Mean sample size (sd)" = 4))
-}
-```
-
+<!--
 
 # Conclusions
 ***
@@ -840,3 +752,4 @@ The models are based on conjugate priors -- I tried many other methods, includin
 
 See the SAP/Protocol for further details.
 
+-->
