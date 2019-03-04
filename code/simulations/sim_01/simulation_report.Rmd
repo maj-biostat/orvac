@@ -150,23 +150,23 @@ From left to right tables show:
 + true seroconversion probabilities (both arms)
 
 + accrual -- number of people per 3 month period (i.e. time between interims)
-+ information delay for seroconversion results
++ information delay (in months) to obtain seroconversion results
 
-+ probabilities of expected success 
-+ probabilities of expected futility 
-+ probabilities of stopping venous sampling 
-+ probabilities of no decision
++ probability of expected success 
++ probability of expected futility 
++ probability of stopping venous sampling 
++ probability of no decision
 
 + mean (sd) of participants enrolled
 + mean (sd) of participants with blood sample results
 + probability that trial stops before 250, 500 and 750 enrolled participants
 + number of events in each arm (ctl/trt) at time trial stopped
 
-+ proportion of trials were the final analysis indicated a treatment difference in clinical endpoint
-+ proportion of trials were the final analysis indicated a treatment difference in immunological endpoint
++ proportion of trials where the final analysis indicated a treatment difference in clinical endpoint
++ proportion of trials where the final analysis indicated a treatment difference in immunological endpoint
 
-+ proportion of trials were the interim decision and final analysis were consistent for clinical endpoint
-+ proportion of trials were the interim decision and final analysis were consistent for immunological endpoint
++ proportion of trials where the interim decision and final analysis were consistent for clinical endpoint
++ proportion of trials where the interim decision and final analysis were consistent for immunological endpoint
 
 
 ```{r, echo = F}
@@ -461,6 +461,8 @@ facet_grid(paste0("Accrual = ", accrual, " per qtr") ~ paste0("Diff in sero rate
 
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
+Will check the switch for the lowest accrual rate result.
+
 ```{r, echo = F, eval = T, fig.height=5, fig.width=10}
 
 df_tmp <- df_all %>%
@@ -562,9 +564,13 @@ ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean, group = accrual,
 
 ## Consistency of Interim Decision with Final Analysis (flip-flop)
 
+Shows the proportion of times that the final analysis is consistent with the interim decision that was made.
+
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months. 
 
 ### Clinical
+
+Difference in sero of 0.05 still has quite high chance of futility.
 
 ```{r, echo = F, eval = T, fig.height=5, fig.width=10}
 df_tmp <- df_all %>%
