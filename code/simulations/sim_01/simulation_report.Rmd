@@ -79,11 +79,12 @@ ggplot2::theme_update(axis.text.y = element_text(size = 10))
 # rmarkdown::render("simulation_report.Rmd", clean=TRUE)
 ```
 
-<!--
+
 # Preamble
 
 TBD
 
+Add frequenist power/ss.
 
 
 Start with frequentist properties of single analysis log rank test (one sided 0.05) at 1000 with survival times (30, 35), (30, 39) etc. Adding assumptions on accrual ltfo etc reduces power.
@@ -121,7 +122,6 @@ Add in futility to tte
 
 Add information delay (only relevant to sero)
 
--->
 
 # Results from simulation scenarios
 ***
