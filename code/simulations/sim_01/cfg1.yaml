@@ -168,7 +168,7 @@ post_tte_sup_thresh_end: 0.96
 
 
 # conjugate posterior
-post_draw: 500
+post_draw: 1000
 
 # mcmc
 mcmcchains: 1
