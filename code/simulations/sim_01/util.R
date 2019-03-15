@@ -534,6 +534,41 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       flog.info("Updated post_tte_sup_thresh: %s.", paste0(l$post_tte_sup_thresh, collapse = ", "))
       
       
+      
+      
+      
+      
+      
+      # for significance testing of a win in the ppos section 
+      n1 <- length(l$looks[l$looks < l$nstartclin])
+      n2 <- length(l$looks) - n1
+      l$post_tte_win_thresh <- c(rep(l$post_tte_win_thresh_start, n1), 
+                                 seq(from = l$post_tte_win_thresh_start,
+                                     to = l$post_tte_win_thresh_end,
+                                     length.out = n2))
+      stopifnot(length(l$post_tte_win_thresh) == length(l$looks))
+      
+      
+      
+      flog.info("Updated post_tte_win_thresh: %s.", paste0(l$post_tte_win_thresh, collapse = ", "))
+      
+      
+      
+      # for significance testing of a win in the ppos section 
+      n_sero_looks <- length(l$looks[l$looks <= l$nmaxsero])
+      
+      l$post_sero_win_thresh <- seq(from = l$post_sero_win_thresh_start,
+                                    to = l$post_sero_win_thresh_end,
+                                    length.out = n_sero_looks)
+      
+      
+      
+      
+      flog.info("Updated post_sero_win_thresh: %s.", paste0(l$post_sero_win_thresh, collapse = ", "))
+      
+      
+      
+      
     }
     
     if(!is.null(opt$delay)){
