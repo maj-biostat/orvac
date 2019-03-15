@@ -446,7 +446,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   
   if(opt$use){
     
-    cat("Updating config.\n")
+    cat("*** Updating config.*** \n")
     flog.info("Updating configuration values based on command line arguments: %s", paste0(opt, collapse = " "))
 
     if(!is.null(opt$logfile)){
@@ -459,6 +459,8 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
         flog.appender(appender.file(file.path(getwd(), "logs", l$flog_logfile)), name='ROOT')
       }
     }
+    
+    flog.info("\n\n*** Updating config.*** \n")
     
     if(!is.null(opt$idsim)){
       l$idsim <- opt$idsim
@@ -592,39 +594,28 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
     
     
     
-    if(!is.null(opt$basesero)){
+    if(!is.null(opt$basesero) | !is.null(opt$trtprobsero)){
       l$baselineprobsero <- opt$basesero
-      flog.info("Updated baselineprobsero: %s", l$baselineprobsero)
-
-      l$deltaserot3 <- compute_sero_delta(l$baselineprobsero, l$trtprobsero)
-      flog.info("Updated deltaserot3: %s", l$deltaserot3)
-    }
-    
-    if(!is.null(opt$trtprobsero)){
       l$trtprobsero <- opt$trtprobsero
-      flog.info("Updated trtprobsero: %s", l$trtprobsero)
-      
       l$deltaserot3 <- compute_sero_delta(l$baselineprobsero, l$trtprobsero)
+      
+      flog.info("Updated baselineprobsero: %s", l$baselineprobsero)
+      flog.info("Updated trtprobsero: %s", l$trtprobsero)
       flog.info("Updated deltaserot3: %s", l$deltaserot3)
-      
     }
     
-    if(!is.null(opt$basemediantte)){
-      l$ctl_med_tte <- opt$basemediantte
-      flog.info("Updated ctl_med_tte: %s", l$ctl_med_tte)
-      
-      l$b0tte <- log(2)/l$ctl_med_tte 
-      l$b1tte <- (log(2)/l$trt_med_tte) - l$b0tte
-      flog.info("Updated b0tte: %s", l$b0tte)
-      flog.info("Updated b1tte: %s", l$b1tte)
-    }
-    
-    if(!is.null(opt$trtmedtte)){
-      l$trt_med_tte <- opt$trtmedtte
-      flog.info("Updated trt_med_tte: %s", l$trt_med_tte)
 
+    
+    if(!is.null(opt$basemediantte) | !is.null(opt$trtmedtte)){
+      l$ctl_med_tte <- opt$basemediantte
+      l$trt_med_tte <- opt$trtmedtte
+      
       l$b0tte <- log(2)/l$ctl_med_tte 
       l$b1tte <- (log(2)/l$trt_med_tte) - l$b0tte
+      
+      flog.info("Updated ctl_med_tte: %s", l$ctl_med_tte)
+      flog.info("Updated trt_med_tte: %s", l$trt_med_tte)
+      
       flog.info("Updated b0tte: %s", l$b0tte)
       flog.info("Updated b1tte: %s", l$b1tte)
     }
