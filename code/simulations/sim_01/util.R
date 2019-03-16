@@ -446,54 +446,58 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   
   if(opt$use){
     
-    cat("Updating config.\n")
+    cat("*** Updating config.*** \n")
     flog.info("Updating configuration values based on command line arguments: %s", paste0(opt, collapse = " "))
 
     if(!is.null(opt$logfile)){
       l$flog_logfile <- opt$logfile
 
-      flog.info("Updated logfile: %s.", l$flog_logfile)
+      flog.info("Updated logfile: %s", l$flog_logfile)
       
       if(whichappender == "file"){
         cat(paste0("New logfile ", file.path(getwd(), "logs", l$flog_logfile), "\n"))
         flog.appender(appender.file(file.path(getwd(), "logs", l$flog_logfile)), name='ROOT')
       }
-      flog.info("Updating configuration values based on command line arguments: %s", paste0(opt, collapse = " "))
     }
+    
+    flog.info("\n\n*** Updating config.*** \n")
     
     if(!is.null(opt$idsim)){
       l$idsim <- opt$idsim
-      flog.info("Updated idsim: %s.", l$idsim)
+      flog.info("Updated idsim: %s", l$idsim)
     }
     
     if(!is.null(opt$nsims)){
       l$nsims <- opt$nsims
-      flog.info("Updated nsims: %s.", l$nsims)
+      flog.info("Updated nsims: %s", l$nsims)
     }
     
     if(!is.null(opt$seed)){
       l$seed <- opt$seed
-      flog.info("Updated seed: %s.", l$seed)
+      flog.info("Updated seed: %s", l$seed)
     }
 
     if(!is.null(opt$accrual)){
+      
+      flog.info("*** Updating based on new accrual rates: %s", opt$accrual)
+      
       l$people_per_interim_period <- opt$accrual
-      flog.info("Updated people_per_interim_period: %s.", l$people_per_interim_period)
+      flog.info("Updated people_per_interim_period: %s", l$people_per_interim_period)
       
       l$looks <- seq(from = l$nstart, to=l$nstop, by = l$people_per_interim_period)
       # ensure max is exactly 1000
       if(max(l$looks) < l$nstop){
         l$looks <- c(l$looks, l$nstop)
       }
-      flog.info("Updated looks: %s.", paste0(l$looks, collapse = ", "))
+      flog.info("Updated looks: %s", paste0(l$looks, collapse = ", "))
       l$nlooks <- length(l$looks)
-      flog.info("Updated nlooks: %s.", l$nlooks)
+      flog.info("Updated nlooks: %s", l$nlooks)
       
       # accrual - it takes months_per_person months to recruite one person
       l$months_per_person <- l$interim_period / l$people_per_interim_period
-      flog.info("Updated months_per_person: %s.", l$months_per_person)
+      flog.info("Updated months_per_person: %s", l$months_per_person)
       l$months_to_nstart <- l$months_per_person * l$nstart
-      flog.info("Updated months_to_nstart: %s.", l$months_to_nstart)
+      flog.info("Updated months_to_nstart: %s", l$months_to_nstart)
       
       l$interimmnths <- seq(from = l$months_to_nstart , 
                             to= ((length(l$looks)-1) * l$interim_period) + l$months_to_nstart, 
@@ -506,11 +510,22 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       # we delay the final analysis until the youngest kid is 36 months 
       l$final_analysis_month <- l$max_age_fu_months - l$age_months_lwr + max(l$interimmnths)
       
+#       trtallocprob: 0.5
+# remoteprob: 0.5
+# age_months_lwr: 6
+# age_months_upr: 12
+# age_months_mean: 6.5
+# age_months_sd: 2
+# max_age_fu_months: 36 
+      
       stopifnot(length(l$interimmnths) == length(l$looks))
       stopifnot(max(l$looks) == l$nstop)
       
       
-      flog.info("Updated interimmnths: %s.", paste0(l$interimmnths, collapse = ", "))
+      flog.info("Updated interimmnths: %s", paste0(l$interimmnths, collapse = ", "))
+      
+# l$post_tte_sup_thresh_start = 0.96
+# l$post_tte_sup_thresh_end = 0.96      
       
       
       clin_looks <- l$looks[l$looks >= l$nstartclin]
@@ -531,12 +546,15 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       
       stopifnot(length(l$post_tte_sup_thresh) == length(l$looks))
 
-      flog.info("Updated post_tte_sup_thresh: %s.", paste0(l$post_tte_sup_thresh, collapse = ", "))
+      flog.info("Updated post_tte_sup_thresh: %s", paste0(l$post_tte_sup_thresh, collapse = ", "))
       
       
       
       
-      
+# l$post_sero_win_thresh_start = 0.95
+# l$post_sero_win_thresh_end = 0.95
+# l$post_tte_win_thresh_start = 0.95
+# l$post_tte_win_thresh_end =  0.95    
       
       
       # for significance testing of a win in the ppos section 
@@ -550,9 +568,9 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       
       
       
-      flog.info("Updated post_tte_win_thresh: %s.", paste0(l$post_tte_win_thresh, collapse = ", "))
+      flog.info("Updated post_tte_win_thresh: %s", paste0(l$post_tte_win_thresh, collapse = ", "))
       
-      
+# l$nmaxsero       = 250
       
       # for significance testing of a win in the ppos section 
       n_sero_looks <- length(l$looks[l$looks <= l$nmaxsero])
@@ -561,61 +579,45 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
                                     to = l$post_sero_win_thresh_end,
                                     length.out = n_sero_looks)
       
-      
-      
-      
-      flog.info("Updated post_sero_win_thresh: %s.", paste0(l$post_sero_win_thresh, collapse = ", "))
-      
-      
-      
-      
+      flog.info("Updated post_sero_win_thresh: %s", paste0(l$post_sero_win_thresh, collapse = ", "))
+
+         
     }
     
     if(!is.null(opt$delay)){
       
       l$sero_info_delay <- opt$delay
       
-      flog.info("Updated information delay: %s.", paste0(l$sero_info_delay, collapse = ", "))
+      flog.info("Updated information delay: %s", paste0(l$sero_info_delay, collapse = ", "))
       
     }
     
     
     
-    if(!is.null(opt$basesero)){
+    if(!is.null(opt$basesero) | !is.null(opt$trtprobsero)){
       l$baselineprobsero <- opt$basesero
-      flog.info("Updated baselineprobsero: %s.", l$baselineprobsero)
-
-      l$deltaserot3 <- compute_sero_delta(l$baselineprobsero, l$trtprobsero)
-      flog.info("Updated deltaserot3: %s.", l$deltaserot3)
-    }
-    
-    if(!is.null(opt$trtprobsero)){
       l$trtprobsero <- opt$trtprobsero
-      flog.info("Updated trtprobsero: %s.", l$trtprobsero)
-      
       l$deltaserot3 <- compute_sero_delta(l$baselineprobsero, l$trtprobsero)
-      flog.info("Updated deltaserot3: %s.", l$deltaserot3)
       
+      flog.info("Updated baselineprobsero: %s", l$baselineprobsero)
+      flog.info("Updated trtprobsero: %s", l$trtprobsero)
+      flog.info("Updated deltaserot3: %s", l$deltaserot3)
     }
     
-    if(!is.null(opt$basemediantte)){
-      l$ctl_med_tte <- opt$basemediantte
-      flog.info("Updated ctl_med_tte: %s.", l$ctl_med_tte)
-      
-      l$b0tte <- log(2)/l$ctl_med_tte 
-      l$b1tte <- (log(2)/l$trt_med_tte) - l$b0tte
-      flog.info("Updated b0tte: %s.", l$b0tte)
-      flog.info("Updated b1tte: %s.", l$b1tte)
-    }
-    
-    if(!is.null(opt$trtmedtte)){
-      l$trt_med_tte <- opt$trtmedtte
-      flog.info("Updated trt_med_tte: %s.", l$trt_med_tte)
 
+    
+    if(!is.null(opt$basemediantte) | !is.null(opt$trtmedtte)){
+      l$ctl_med_tte <- opt$basemediantte
+      l$trt_med_tte <- opt$trtmedtte
+      
       l$b0tte <- log(2)/l$ctl_med_tte 
       l$b1tte <- (log(2)/l$trt_med_tte) - l$b0tte
-      flog.info("Updated b0tte: %s.", l$b0tte)
-      flog.info("Updated b1tte: %s.", l$b1tte)
+      
+      flog.info("Updated ctl_med_tte: %s", l$ctl_med_tte)
+      flog.info("Updated trt_med_tte: %s", l$trt_med_tte)
+      
+      flog.info("Updated b0tte: %s", l$b0tte)
+      flog.info("Updated b1tte: %s", l$b1tte)
     }
     
     # write.csv(opt, "test.csv")
