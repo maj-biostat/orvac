@@ -46,6 +46,7 @@ suppressPackageStartupMessages(library(grid))
 suppressPackageStartupMessages(library(gridExtra))
 suppressPackageStartupMessages(library(DT))
 suppressPackageStartupMessages(library(htmltools))
+suppressPackageStartupMessages(library(orvacsim))
 source("util.R")
 
 
@@ -82,45 +83,101 @@ ggplot2::theme_update(axis.text.y = element_text(size = 10))
 
 # Preamble
 
-TBD
+Simulation results for ORVAC shown in graphical and table form.
 
-Add frequenist power/ss.
+## Frequenist power/SS
+
+Power associated with log-rank test shown at sample sizes matching expected SS from Bayesian trial having accrual of 40 per quarter.
+
+```{r, echo = F}
+dpwr1 <- data.frame(t0 = c(30,30,30,30),
+                    t1 = c(35,40,45,50),
+                    diff = c(5,10,15,20),
+                    ss = c(400,350,310,270),
+                    pwr = c(0.25,0.39,0.62,0.63))
+dpwr1 <- dpwr1[order(dpwr1$diff), ]
+digits <- c(0, 0, 0, 0, 2)
+options(knitr.kable.NA = '-')
+```
+
+```{r, echo = F, eval = F}
+# just some conde to get the survival probs at the end of the study
+# these are used to calc power in stata.
+cfg <- readRDS("cfg-test.RDS")
+m0 <- 30
+m1 <- 50
+# ss <- c(400, 350, 300, 280)
+ss <- 270
+cfg$looks
+
+cfg$b0tte <- log(2)/m0
+cfg$b1tte <- (log(2)/m1 - (log(2)/m0))
+
+look <- which(cfg$looks == ss)
+cfg$max_age_fu_months <- 36
+
+d <- rcpp_dat(cfg)
+for(i in 1:nrow(d)){
+  # i = i + 1
+  (visits <- rcpp_visits(d, i-1, look, cfg))
+  (cens <- rcpp_cens_interim(d, visits, i-1, look, cfg))
+  d[i, COL_CEN] <- cens$cen
+  d[i, COL_OBST] <- cens$obst
+}
+
+colnames(d) <- dnames
+d <- as.data.frame(d)
+d <- d[1:ss,]
+
+library(survival)
+fit <- survfit(Surv(obst, cen == 0) ~ trt, data=d)
+plot(fit)
+dsurv <- data.frame(psurv = fit$surv, trt = rep(0:1, each = ss/2), time = fit$time)
+dsurv %>% dplyr::group_by(trt) %>%
+  slice(which.max(time)) %>%
+  select(everything()) 
+
+```
 
 
-Start with frequentist properties of single analysis log rank test (one sided 0.05) at 1000 with survival times (30, 35), (30, 39) etc. Adding assumptions on accrual ltfo etc reduces power.
+```{r, echo = F, eval = T}
+kable(dpwr1,
+      caption = "",
+      col.names = c("ctl", "trt", "diff", "", ""),
+      digits = digits) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",
+                font_size = 12,
+                latex_options = "hold_position") %>%
+  add_header_above(c("Median Time to Evnt" = 3, "SS" = 1, "Power" = 1))
 
-t0, t1, hr,   , power
-15, 20, 0.75,   0.998
-15, 25, 0.6,    1
-30, 35, 0.8571, 0.785
-30, 39, 0.7692, 0.993
-30, 45, 0.6667, 1.0
-40, 45, 0.8889, 0.576
-40, 50, 0.8,    0.963
+```
 
 Binomial (chisq test one sided 0.05) based on n = 250. Note - baseline rate influences power.
 
-p0,   p1,   pwr
-0.05, 0.15, 0.852
-0.2,  0.25, 0.242
-0.2,  0.30, 0.572
-0.3,  0.35, 0.211
-0.3,  0.40, 0.506
-0.3,  0.45, 0.791
-0.3,  0.50, 0.948
-0.4,  0.50, 0.477 
-0.4,  0.55, 0.770
-0.4,  0.60, 0.934
+```{r, echo = F}
+dpwr1 <- data.frame(p0 = c(0.3,0.3,0.3),
+                    p1 = c(0.35,0.4,0.5),
+                    diff = c(0.05,0.1,0.2),
+                    ss = c(126,162,154),
+                    pwr = c(0.15,0.38, 0.82))
+dpwr1 <- dpwr1[order(dpwr1$diff), ]
+digits <- c(0, 0, 0, 0, 2)
+options(knitr.kable.NA = '-')
+```
 
-Then trial with no information delay only superiority for both endpoints.
+```{r, echo = F, eval = T}
+kable(dpwr1,
+      caption = "",
+      col.names = c("ctl", "trt", "diff", "", ""),
+      digits = digits) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",
+                font_size = 12,
+                latex_options = "hold_position") %>%
+  add_header_above(c("Median Time to Evnt" = 3, "SS" = 1, "Power" = 1))
 
-Correct the type i error by adjusting posterior threshold
-
-Add in futility to sero
-
-Add in futility to tte
-
-Add information delay (only relevant to sero)
+```
 
 
 # Results from simulation scenarios
@@ -422,7 +479,7 @@ Baseline seroconversion rate equal to 0.3, baseline median event time equal to 3
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & basesero < 0.8)
 
 ggplot(df_tmp, aes(x = delta, y = prob_sup, 
   group = paste(accrual, ":", info_delay), 
@@ -434,6 +491,24 @@ ggplot(df_tmp, aes(x = delta, y = prob_sup,
 facet_grid(paste0("Accrual = ", accrual, " per qtr") ~ paste0("Diff in sero rate = ", gamma)) 
 ```
 
+Additional plots for other subsets of the parameter space (information delay is 1 month, accrual 40 per quarter).
+
+```{r, echo = F, eval = T, fig.height=4, fig.width=4}
+
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+
+
+ggplot(df_tmp, aes(x = delta, y = prob_sup, 
+  group = basesero, 
+  linetype = paste(basesero, "/", trtsero))) +
+  geom_line() + 
+  scale_linetype_discrete(name = "Base/trt sero: ") +
+  scale_x_continuous("Difference median survival time (mnths)") +
+  scale_y_continuous("P(e.s)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) 
+```
 
 ## (Expected) Futility
 
@@ -444,7 +519,7 @@ Baseline seroconversion rate equal to 0.3, baseline median event time equal to 3
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & basesero < 0.8)
 
 ggplot(df_tmp, aes(x = delta, y = prob_fut, 
   group = paste(accrual, ":", info_delay), 
@@ -456,6 +531,24 @@ ggplot(df_tmp, aes(x = delta, y = prob_fut,
 facet_grid(paste0("Accrual = ", accrual, " per qtr") ~ paste0("Diff in sero rate = ", gamma)) 
 ```
 
+Additional plots for other subsets of the parameter space (information delay is 1 month, accrual 40 per quarter).
+
+```{r, echo = F, eval = T, fig.height=4, fig.width=4}
+
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+
+
+ggplot(df_tmp, aes(x = delta, y = prob_fut, 
+  group = basesero, 
+  linetype = paste(basesero, "/", trtsero))) +
+  geom_line() + 
+  scale_linetype_discrete(name = "Base/trt sero: ") +
+  scale_x_continuous("Difference median survival time (mnths)") +
+  scale_y_continuous("P(e.f)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) 
+```
 
 ## Stop Venous Sampling
 
@@ -468,7 +561,7 @@ Will check the switch for the lowest accrual rate result.
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & delta == 5)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & delta == 5 & basesero < 0.8)
 
 ggplot(df_tmp, aes(x = gamma, y = prob_stopv, 
   group = paste(accrual, ":", info_delay), 
@@ -478,6 +571,26 @@ ggplot(df_tmp, aes(x = gamma, y = prob_stopv,
   scale_x_continuous("Difference in seroconversion rate") +
   scale_y_continuous("P(s.v.)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) +
 facet_grid(.~paste0("Accrual = ", accrual, " per qtr")) 
+```
+
+Additional plots for other subsets of the parameter space (information delay is 1 month, accrual 40 per quarter).
+
+```{r, echo = F, eval = T, fig.height=4, fig.width=4}
+
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+
+
+ggplot(df_tmp, aes(x = gamma, y = prob_stopv, 
+   group = basesero, 
+  colour = paste(basesero, "/", trtsero))) +
+  geom_point() + 
+  #scale_linetype_discrete(name = "Base/trt sero: ") +
+  scale_color_discrete(name = "Base/trt sero: ") +
+  scale_x_continuous("Difference in seroconversion rate") +
+   scale_y_continuous("P(s.v.)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1))
 ```
 
 
@@ -490,7 +603,7 @@ Baseline seroconversion rate equal to 0.3, baseline median event time equal to 3
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & basesero < 0.8)
 
 ggplot(df_tmp, aes(x = delta, y = prob_incon, 
   group = paste(accrual, ":", info_delay), 
@@ -498,10 +611,28 @@ ggplot(df_tmp, aes(x = delta, y = prob_incon,
   geom_line() + 
   scale_linetype_discrete(name = "Information delay") +
   scale_x_continuous("Difference median survival time (mnths)") +
-  scale_y_continuous("P(n.d)", breaks = seq(from = 0, to = 0.1, by = 0.01)) +
+  scale_y_continuous("P(n.d)", breaks = seq(from = 0, to = 0.05, by = 0.01)) +
 facet_grid(paste0("Accrual = ", accrual, " per qtr") ~ paste0("Diff in sero rate = ", gamma)) 
 ```
 
+Additional plots for other subsets of the parameter space (information delay is 1 month, accrual 40 per quarter).
+
+```{r, echo = F, eval = T, fig.height=4, fig.width=4}
+
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+
+
+ggplot(df_tmp, aes(x = delta, y = prob_incon, 
+  group = basesero, 
+  linetype = paste(basesero, "/", trtsero))) +
+  geom_line() + 
+  scale_linetype_discrete(name = "Base/trt sero: ") +
+  scale_x_continuous("Difference median survival time (mnths)") +
+  scale_y_continuous("P(n.d)", breaks = seq(from = 0, to = 0.05, by = 0.01)) 
+```
 
 ## Sample Size 
 
@@ -516,12 +647,12 @@ Note - information delay is 1 months (zero information delay showed as fainter l
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & basesero < 0.8)
 
 df_tmp2 <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 0)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 0 & basesero < 0.8)
 
 ggplot(df_tmp, aes(x = delta, y = ss_clin_mean)) +
   geom_line() + 
@@ -535,6 +666,28 @@ ggplot(df_tmp, aes(x = delta, y = ss_clin_mean)) +
   facet_grid(paste0("Accrual = ", accrual, " per qtr") ~ paste0("Diff in sero rate = ", gamma)) 
 ```
 
+Additional plots for other subsets of the parameter space (information delay is 1 month, accrual 40 per quarter).
+
+```{r, echo = F, eval = T, fig.height=4, fig.width=4}
+
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+
+ggplot(df_tmp, aes(x = delta, y = ss_clin_mean)) +
+  geom_line(aes(group = basesero, linetype = paste(basesero, "/", trtsero))) + 
+  geom_point() + 
+  geom_errorbar(aes(ymin = ss_clin_mean - ss_clin_sd, 
+    ymax = ss_clin_mean + ss_clin_sd), size = 0.2, width = 0.5) + 
+  scale_linetype_discrete(name = "Base/trt sero: ") +
+  scale_x_continuous("Difference median survival time (mnths)") +
+  scale_y_continuous("SS (mean +/- sd)", 
+                     breaks = seq(from = 0, to = 1000, by = 100), 
+                     lim = c(0, 1000)) 
+```
+
+
 ### Cohort with Bloods Taken
 
 ```{r, echo = F, eval = T, fig.height=5, fig.width=6}
@@ -542,14 +695,17 @@ ggplot(df_tmp, aes(x = delta, y = ss_clin_mean)) +
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & delta == 5)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & 
+                  info_delay == 1 & delta == 5 & basesero < 0.8)
 
 df_tmp2 <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 0 & delta == 5)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & 
+                  info_delay == 0 & delta == 5 & basesero < 0.8)
 
-ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean, group = accrual,
+ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean, 
+                   group = accrual,
   linetype = paste0(accrual)))  +
   geom_line() + 
   geom_point() + 
@@ -561,6 +717,25 @@ ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean, group = accrual,
   scale_y_continuous("SS (mean)", breaks = seq(from = 0, to = 250, by = 100), lim = c(0, 250)) 
 ```
 
+
+Additional plots for other subsets of the parameter space (information delay is 1 month, accrual 40 per quarter).
+
+```{r, echo = F, eval = T, fig.height=4, fig.width=4}
+
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+
+ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean))  +
+  geom_jitter(width = 0.003, height = 0.003) + 
+  scale_color_discrete(name = "Base/trt sero: ") +
+  scale_x_continuous("Difference seroconversion rate", lim = c(0.05, 0.2)) +
+  scale_y_continuous("SS (mean)", 
+                     breaks = seq(from = 0, to = 250, by = 100), 
+                     lim = c(0, 250)) 
+
+```
 
 ## Consistency of Interim Decision with Final Analysis (flip-flop)
 
@@ -576,13 +751,21 @@ Difference in sero of 0.05 still has quite high chance of futility.
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & basesero < 0.8)
 
+df_tmp2 <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
 
 ggplot(df_tmp, aes(x = delta, y = p_c_intrm_vs_fin, 
   group = paste0(accrual), 
   linetype = paste0(accrual)))  +
   geom_line() + 
+  geom_point(data = df_tmp2, aes(x = delta, 
+                                 y = p_c_intrm_vs_fin, 
+                                 group = paste0(accrual), 
+                                 linetype = paste0(accrual))) +
   scale_linetype_discrete(name = "Accrual (n per qtr)") +
   scale_x_continuous("Difference median survival time (mnths)") +
   scale_y_continuous("Probability final analysis aligns with interim decision", 
@@ -596,12 +779,12 @@ ggplot(df_tmp, aes(x = delta, y = p_c_intrm_vs_fin,
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & delta == 5)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & 
+                  info_delay == 1 & delta == 5 & basesero < 0.8)
 
 
 ggplot(df_tmp, aes(x = gamma, y = p_i_intrm_vs_fin, 
-  group = paste0(accrual), 
-  linetype = paste0(accrual)))  +
+                   group = paste0(accrual), linetype = paste0(accrual)))  +
   geom_line() + 
   scale_linetype_discrete(name = "Accrual (n per qtr)") +
   scale_x_continuous("Difference seroconversion rate") +
@@ -610,6 +793,24 @@ ggplot(df_tmp, aes(x = gamma, y = p_i_intrm_vs_fin,
   
 ```
 
+Additional plots for other subsets of the parameter space (information delay is 1 month, accrual 40 per quarter).
+
+```{r, echo = F, eval = T, fig.height=4, fig.width=4}
+
+df_tmp <- df_all %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+
+ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean))  +
+  geom_jitter(width = 0.003, height = 0.003) + 
+  scale_color_discrete(name = "Base/trt sero: ") +
+  scale_x_continuous("Difference seroconversion rate", lim = c(0.05, 0.2)) +
+  scale_y_continuous("SS (mean)", 
+                     breaks = seq(from = 0, to = 250, by = 100), 
+                     lim = c(0, 250)) 
+
+```
 
 ## Combined Results
 
