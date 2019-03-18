@@ -148,7 +148,7 @@ pp_tte_fut_thresh: 0.05
 # immunological endpoint at the time of the interim. we need to see >= 97.5% prob of success to 
 # cease serum sampling
 # rule3_sero_pp_sup_thresh: 0.975
-pp_sero_sup_thresh: 0.95
+pp_sero_sup_thresh: 0.96
 
 # superiority test
 # these are the thresholds used to assess the posterior at the time of the interim. we need 
