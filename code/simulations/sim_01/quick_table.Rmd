@@ -1,0 +1,327 @@
+---
+title: "Orvac Simulation Results"
+author: "Mark Jones"
+date: "`r Sys.time()`"
+output:
+  html_document:
+    classoption: landscape
+    css: style.css
+    number_sections: yes
+    self_contained: yes
+    theme: united
+  pdf_document:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+  word_document:
+    toc: yes
+    toc_depth: '3'
+geometry: left=0.2cm,right=0.2cm,top=1cm,bottom=1cm
+editor_options:
+  chunk_output_type: console
+classoption: landscape
+---
+
+<!--    toc: yes
+    toc_float: true -->
+
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+```{r setup, include=FALSE}
+# rmarkdown::render("simulation_report.Rmd", clean=TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.path = 'figs/')
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(kableExtra))
+suppressPackageStartupMessages(library(psych))
+suppressPackageStartupMessages(library(grid))
+suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(DT))
+suppressPackageStartupMessages(library(htmltools))
+suppressPackageStartupMessages(library(orvacsim))
+source("util.R")
+
+
+getsum <- function(x){
+  mysummary <- data.frame(NA_real_, NA_character_, NA_real_, NA_real_,
+                NA_real_, NA_real_,  NA_real_,  as.numeric(1),
+                mean(x$i_c_mean), mean(x$i_c_sd),  mean(x$i_t_mean),
+                mean(x$i_t_sd), mean(x$c_c_mean), mean(x$c_c_sd),
+                mean(x$c_c_mean), mean(x$c_c_sd),
+                geometric.mean(x$pct_fut), mean(x$ss_fut_mean),
+                mean(x$ss_fut_sd), mean(x$ss_fut_med),
+                geometric.mean(x$pct_sup), mean(x$ss_sup_mean),
+                mean(x$ss_sup_sd),  mean(x$ss_sup_med),
+                geometric.mean(x$pct_stopv),  mean(x$ss_stopv_mean),
+                mean(x$ss_stopv_sd), mean(x$ss_stopv_med), NA_character_,
+                stringsAsFactors = F)
+    row.names(mysummary) <- NULL
+    names(mysummary) <- names(x)
+    mysummary
+}
+
+
+ggplot2::theme_set(ggplot2::theme_bw())
+ggplot2::theme_update(text = element_text(size = 10))
+ggplot2::theme_update(legend.position = "top")
+# ggplot2::theme_update(legend.title = element_blank())
+ggplot2::theme_update(axis.text.x = element_text(size = 10))
+ggplot2::theme_update(axis.text.y = element_text(size = 10))
+
+# Work|Right|Fast
+# rmarkdown::render("simulation_report.Rmd", clean=TRUE)
+```
+
+
+# Preamble
+
+Quick html table of results.
+
+
+```{r, echo = F}
+mywarnings <- list()
+
+post_final_thresh <- 0
+
+resfiles <- list.files("out", pattern = "*.RDS")
+
+df_all <- data.frame(stringsAsFactors = F)
+df_fig1 <- data.frame(stringsAsFactors = F)
+
+for(fname in resfiles){
+  d1 <- readRDS(file.path(getwd(), "out", fname))
+  # d1 <- readRDS(file.path(getwd(), "out", resfiles[1]))
+
+  mywarnings[[d1$cfg$idsim]] <- d1$warnings
+  
+  
+  df_res <- as.data.frame(d1$results)
+  
+  if(apply(df_res, 2, class)[1] == "list"){
+     dnam <- names(df_res)
+    df_res <- as.data.frame(do.call(cbind, lapply(1:ncol(df_res), function(x) unlist(df_res[,x]))))
+    colnames(df_res) <- dnam
+  }
+
+  nsim <- d1$cfg$nsims
+  # true values for median surv (mnth)
+  baseclin <- med_surv(d1$cfg$b0tte)
+  trtclin <- med_surv(d1$cfg$b0tte + d1$cfg$b1tte)
+  # true values for seroconversion prob
+  basesero <- d1$cfg$baselineprobsero
+  trtsero <- d1$cfg$trtprobsero
+  # accrual
+  accrual <- d1$cfg$people_per_interim_period
+  info_delay <- d1$cfg$sero_info_delay
+  alt_cen <- d1$cfg$use_alt_censoring
+  
+  # thresholds
+  post_final_thresh <- d1$cfg$post_final_thresh
+  
+  # what did we conclude from interims
+  outcome_labs <- c("Futile", "Superior", "Inconclusive")
+  df_res$interim_outcome <- NA
+  df_res$interim_outcome <- ifelse(df_res$stop_i_fut == 1 | df_res$stop_c_fut == 1, 1, df_res$interim_outcome)
+  df_res$interim_outcome <- ifelse(df_res$stop_c_sup == 1, 2, df_res$interim_outcome)
+  df_res$interim_outcome <- ifelse(df_res$inconclu == 1, 3, df_res$interim_outcome)
+  df_res$interim_outcome <- factor(df_res$interim_outcome, levels = 1:3, labels = outcome_labs)
+  
+  # trials are either futile or superior 
+  df_outcome <- df_res %>%
+    dplyr::filter(interim_outcome %in% c("Futile", "Superior", "Inconclusive") )
+    
+  df_stopv <- df_res %>%
+    dplyr::filter(stop_v_samp == 1) 
+  
+  n <- c(table(df_res$interim_outcome),   nrow(df_stopv))
+  names(n) <- c("Futile","Superior","Inconclusive", "StopV"    )
+  prob <- c(prop.table(table(df_res$interim_outcome)),   nrow(df_stopv)/max(df_res$idxsim))
+  names(prob) <- c(names(prob)[1:3], "StopV")
+
+  df_ss_clin <- df_outcome %>% 
+    dplyr::summarise(ss_mean = mean(ss_clin), 
+                     ss_sd = sd(ss_clin)) 
+  
+  df_ss_immu <- df_outcome %>% 
+    dplyr::summarise(ss_mean = mean(ss_immu), 
+                     ss_sd = sd(ss_immu)) 
+  
+  evnts_0 <- mean(df_outcome$n_uncen_0)
+  evnts_1 <- mean(df_outcome$n_uncen_1)
+  
+  df_outcome$look_cut <- cut(df_outcome$look, breaks = c(0, 250, 500, 750, 1000), include.lowest = T, right = F)
+  
+  prob_ss <- prop.table(table(df_outcome$look_cut))
+  prob_ss <- as.numeric(cumsum(prob_ss))
+  
+  # what did the final analysis say?
+  probimmi <- sum(df_res$i_final) / max(df_res$idxsim)
+  probclin <- sum(df_res$c_final) / max(df_res$idxsim)
+  
+  flab <- gsub("res-", "", fname)
+  flab <- gsub('.RDS', "", flab)
+  
+  # does the interim match the final conclusion? 
+  immu_intrm_vs_fin <- mean(df_outcome$stop_i_fut == 1-df_outcome$i_final)
+  clin_intrm_vs_fin <- mean(df_outcome$stop_c_sup == df_outcome$c_final)
+
+  dtmp <- data.frame(idsim = d1$cfg$idsim,
+                     nsim = nsim,
+
+                     basesero = basesero,
+                     trtsero = trtsero,
+                     baseclin = baseclin,
+                     trtclin = trtclin,
+                     accrual = accrual,
+                     info_delay = info_delay,
+                     
+                     prob_sup = prob["Superior"],
+                     prob_fut = prob["Futile"],
+                     prob_incon = prob["Inconclusive"],
+                     prob_stopv = prob["StopV"],
+                     
+                     n_sup = n["Superior"],
+                     n_fut = n["Futile"],
+                     n_incon = n["Inconclusive"],
+                     n_stopv = n["StopV"],
+    
+                     # overall mean ss for clin and immu
+    
+                     ss_clin_mean = as.numeric(df_ss_clin["ss_mean"]),
+                     ss_clin_sd = as.numeric(df_ss_clin["ss_sd"]),
+    
+                     ss_immu_mean = as.numeric(df_ss_immu["ss_mean"]),
+                     ss_immu_sd = as.numeric(df_ss_immu["ss_sd"]),
+    
+                     evnts_0  = evnts_0,
+                     evnts_1  = evnts_1,
+    
+                     prob_ss_lt250 = as.numeric(prob_ss[1]),
+                     prob_ss_lt500 = as.numeric(prob_ss[2]),
+                     prob_ss_lt750 = as.numeric(prob_ss[3]),
+                     prob_ss_lt1k = as.numeric(prob_ss[4]),
+
+                     # probability of success at the final analysis 
+                     # (proportion of trials where final analysis showed a difference b/w groups)
+                     # the rest did not show a difference
+                     prob_fin_immi = probimmi,
+                     prob_fin_clin = probclin,
+    
+                     p_i_intrm_vs_fin = immu_intrm_vs_fin,
+                     p_c_intrm_vs_fin = clin_intrm_vs_fin,
+    
+                     fname = flab, stringsAsFactors = F, 
+                     alt_cen = alt_cen)
+  
+  # summary data
+  dtmp <- dtmp %>%
+    dplyr::mutate(f_prob_sup = sprintf("%.3f", prob_sup, n_sup),
+                  f_prob_fut = sprintf("%.3f", prob_fut, n_fut),
+                  f_prob_stopv = sprintf("%.3f", prob_stopv, n_stopv),
+                  f_prob_incon = sprintf("%.3f", prob_incon, n_incon),
+                  
+                  f_ss_clin = sprintf("%.0f (%.1f)", ss_clin_mean, ss_clin_sd),
+                  f_ss_immu = sprintf("%.0f (%.1f)", ss_immu_mean, ss_immu_sd),
+      
+                  f_ss_lt1 = sprintf("%.2f", prob_ss_lt250),
+                  f_ss_lt2 = sprintf("%.2f", prob_ss_lt500),
+                  f_ss_lt3 = sprintf("%.2f", prob_ss_lt750),
+                  f_ss_lt4 = sprintf("%.2f", prob_ss_lt1k),
+      
+      f_ss_evts = sprintf("%.0f/%.0f", evnts_0, evnts_1),
+      
+                  f_prob_fin_immi = sprintf("%.3f", prob_fin_immi),
+                  f_prob_fin_clin = sprintf("%.3f", prob_fin_clin), 
+                  
+                  f_i_intrm_vs_fin = sprintf("%.2f", p_i_intrm_vs_fin),
+                  f_c_intrm_vs_fin = sprintf("%.2f", p_c_intrm_vs_fin))
+
+  df_all <- rbind(df_all,  dtmp, stringsAsFactors  = F)
+  
+  # figures
+  df_outcome$fname <- fname
+  df_outcome$simname <- d1$cfg$idsim
+  df_fig1 <- rbind(df_fig1,  df_outcome, stringsAsFactors  = F)
+
+}
+
+# df_tmp <- df_all %>%
+#   dplyr::filter(idsim == "ClinSeroTrt03") 
+
+# mean(df_tmp$ss_fut_mean)
+
+# unique(df_all$idsim)
+df_0 <- df_all %>%
+  dplyr::arrange(desc(fname)) %>%
+  dplyr::mutate(row = 1:n()) %>%
+  dplyr::select(row, nsim, 
+                baseclin, trtclin, basesero, trtsero, accrual,info_delay,
+                f_prob_sup, f_prob_fut, f_prob_stopv, f_prob_incon, 
+                f_ss_clin, f_ss_immu, 
+                f_ss_lt1, f_ss_lt2, f_ss_lt3,
+    f_ss_evts,
+                f_prob_fin_clin, f_prob_fin_immi, 
+                f_c_intrm_vs_fin, f_i_intrm_vs_fin, 
+                fname, idsim, alt_cen) %>%
+  dplyr::select(-row)
+
+df_blank <- df_0 %>% dplyr::slice(1L) 
+
+
+
+# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
+
+# df_0 %>%
+#   dplyr::select(nsim, idsim, fname) %>%
+#   dplyr::arrange(idsim, fname)
+
+digits <- c(0, 0, 2, 2, 0, 2,
+            0, 0, 0, 0, 0,0,0,0,
+            0, 0, 0, 0, 0, 0, 0)
+options(knitr.kable.NA = '-')
+showwarn <- length(mywarnings > 0)
+
+```
+
+
+```{r, echo = showwarn, eval=showwarn}
+print("WARNINGS PRESENT IN DATA!!")
+```
+
+
+```{r, echo = F, eval = T}
+
+
+kable(df_0 %>% 
+  dplyr::select(-idsim, -nsim, -alt_cen) %>%
+    dplyr::arrange(desc(fname)),
+      caption = "Table 2. Combined Simulation Results",
+      col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
+                    "e.s.", "e.f", "s.v.", "n.d", 
+                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
+                    "clin", "immu", "clin", "immu", "fname"),
+      digits = digits) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",
+                font_size = 12,
+                latex_options = "hold_position") %>%
+  add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
+                     "Info rate" = 2, 
+                     "Interim" = 4,
+                     "SS" = 6, 
+                     "Wins @ final" = 2, "!Flip-flop" = 2, " " = 1))
+
+```
+
+
+
+
