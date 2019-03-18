@@ -158,14 +158,15 @@ kable(dpwr1,
 Table 2 shows the statistical power from a (one sided 0.05) chisq test on the comparison of proportions (n=250). Note how the baseline rate influences power.
 
 ```{r, echo = F}
-dpwr1 <- data.frame(p0 = c(0.3,0.3,0.3),
-                    p1 = c(0.35,0.4,0.5),
-                    diff = c(0.05,0.1,0.2),
-                    ss = c(126,162,154),
-                    pwr = c(0.15,0.38, 0.82))
+dpwr1 <- data.frame(p0 = c(0.2,    0.2,  0.3,  0.3,  0.4,  0.4),
+                    p1 = c(0.3,    0.4,  0.4,  0.5,  0.5,  0.6),
+                    diff = c(0.1,  0.2,  0.1,  0.2,  0.1,  0.2),
+                    ss = c(150,    150,  150,  150,  150,  150),
+                    pwr = c(0.41,  0.85, 0.36, 0.81, 0.34,  0.79))
 dpwr1 <- dpwr1[order(dpwr1$diff), ]
 digits <- c(2, 2, 2, 0, 2)
 options(knitr.kable.NA = '-')
+rownames(dpwr1) <- NULL
 ```
 
 ```{r, echo = F, eval = T}
@@ -189,9 +190,9 @@ The following tables and plots summarise the scenarios that were simulated.
 
 Analysis is all based on conjugate priors (vaguely informative for the time to event, uniform on seroconversion). 
 
-For the clinical endpoint we assess whether the probability of the ratio of median survival times is greater than 1 (equivalent to hazard ratio for the model used). Thresholds for deciding superiority was 0.96 at each interim and 0.95 at the final analysis. For the futility check, each trial simulated conditional on the current posterior was assessed against a threshold of 0.95 and if less than 5% of the trials were successful futility is declared.
+For the clinical endpoint we assess whether the probability of the ratio of median survival times is greater than 1 (equivalent to hazard ratio for the model used). Thresholds for deciding superiority was 0.96 at each interim and 0.95 at the final analysis. For the futility check, each trial that was simulated conditional on the current posterior was assessed against a threshold of 0.95. If less than 5% of the trials were successful (i.e. if in less than 5% of the trials we saw a treatment effect) then futility was declared.
 
-For the immunological endpoint we assess whether the difference in seroconversion rates is greater than 0 (treatment versus control, i.e. one-sided). Stopping venous sampling was based on a threshold of 0.95, as was the final analysis. For the futility check, each trial simulated conditional on the current posterior was assessed against a threshold of 0.95 and if less than 5% of the trials were successful futility is declared.
+For the immunological endpoint we assess whether the difference in seroconversion rates is greater than 0 (treatment versus control, i.e. one-sided). Stopping venous sampling was based on a threshold of 0.95, as was the final analysis. For the futility check, each trial simulated conditional on the current posterior was assessed against a threshold of 0.95 and if less than 5% of the trials were successful then futility was declared.
 
 
 <!-- ### Todo -->
@@ -612,7 +613,7 @@ kable(df_0 %>%
 
 ```
 
-Contrastingly, Table 5 contains the results when the futility rule is remove on both endpoints. The results suggest that without the futility rule, the type-i error would not be controlled at the 0.05 level.
+Contrastingly, Table 5 contains the results when the futility rule is remove on both endpoints. The results suggest that without the futility rule, the type-i error would not be controlled at the 0.05 level. Also, the trials run for much, much longer.
 
 ```{r, echo = F, eval = T}
 
@@ -643,7 +644,7 @@ kable(df_1 %>%
 
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
-Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code.
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
@@ -696,7 +697,7 @@ ggplot(df_tmp, aes(x = delta, y = prob_sup,
 
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
-Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code.
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
@@ -749,7 +750,7 @@ ggplot(df_tmp, aes(x = delta, y = prob_fut,
 
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
-Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code.
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T, fig.height=5, fig.width=10}
 
@@ -804,7 +805,7 @@ ggplot(df_tmp, aes(x = gamma, y = prob_stopv,
 
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
-Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code.
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
@@ -861,7 +862,7 @@ Baseline seroconversion rate equal to 0.3, baseline median event time equal to 3
 
 Note - information delay is 1 months (zero information delay showed as fainter line).
 
-Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code.
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
@@ -921,7 +922,7 @@ ggplot(df_tmp, aes(x = delta, y = ss_clin_mean)) +
 
 ### Cohort with Bloods Taken
 
-Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code.
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 
 ```{r, echo = F, eval = T, fig.height=5, fig.width=6}
@@ -987,7 +988,7 @@ Difference in sero of 0.05 still has quite high chance of futility.
 
 The black dots show the results when the baseline seroconversion rate is 0.8, the treatment seroconversion rate is 0.9, the baseline time to event is 30 months and the treatment arm time to event ranges from 35 to 50. 
 
-Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code.
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T, fig.height=5, fig.width=10}
 df_tmp <- df_all %>%
@@ -1028,7 +1029,7 @@ ggplot(df_tmp, aes(x = delta, y = p_c_intrm_vs_fin,
 
 ### Immunological
 
-Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code.
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T, fig.height=5, fig.width=6}
 df_tmp <- df_all %>%
@@ -1083,8 +1084,7 @@ ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean))  +
 print("WARNINGS PRESENT IN DATA!!")
 ```
 
-Table 6 shows the combined set of results generated in these simulations post 2019-03-13. These simulations were generated to see the effect of a minor bug fix in the code and constitute the latest most relevant results.
-
+Table 6 shows the combined set of results generated in these simulations post 2019-03-13. These simulations were generated to see the effect of a minor bug fix in the code and constitute the latest most relevant results. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T}
 rownames(df_2a) <- NULL
