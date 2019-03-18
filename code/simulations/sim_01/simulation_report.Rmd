@@ -82,12 +82,12 @@ ggplot2::theme_update(axis.text.y = element_text(size = 10))
 
 
 # Preamble
-
+***
 Simulation results for ORVAC shown in graphical and table form.
 
 ## Frequenist power/SS
 
-Power associated with log-rank test shown at sample sizes matching expected SS from Bayesian trial having accrual of 40 per quarter.
+
 
 ```{r, echo = F}
 dpwr1 <- data.frame(t0 = c(30,30,30,30),
@@ -139,43 +139,47 @@ dsurv %>% dplyr::group_by(trt) %>%
 
 ```
 
+Table 1 shows the statistical power from a log-rank test at sample sizes drawn from the simulation results (approx. expected SS from Bayesian trial having accrual of 40 per quarter).
 
 ```{r, echo = F, eval = T}
 kable(dpwr1,
-      caption = "",
+      caption = "Table 1. Frequentist power for time-to-event analysis",
       col.names = c("ctl", "trt", "diff", "", ""),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
                 font_size = 12,
                 latex_options = "hold_position") %>%
-  add_header_above(c("Median Time to Evnt" = 3, "SS" = 1, "Power" = 1))
+  add_header_above(c("Median Time to Evnt" = 3, "SS" = 1, "Power" = 1)) %>%
+  column_spec(1:5, width = "1.5cm", bold = F, italic = F)
 
 ```
 
-Binomial (chisq test one sided 0.05) based on n = 250. Note - baseline rate influences power.
+Table 2 shows the statistical power from a (one sided 0.05) chisq test on the comparison of proportions (n=250). Note how the baseline rate influences power.
 
 ```{r, echo = F}
-dpwr1 <- data.frame(p0 = c(0.3,0.3,0.3),
-                    p1 = c(0.35,0.4,0.5),
-                    diff = c(0.05,0.1,0.2),
-                    ss = c(126,162,154),
-                    pwr = c(0.15,0.38, 0.82))
+dpwr1 <- data.frame(p0 = c(0.2,    0.2,  0.3,  0.3,  0.4,  0.4),
+                    p1 = c(0.3,    0.4,  0.4,  0.5,  0.5,  0.6),
+                    diff = c(0.1,  0.2,  0.1,  0.2,  0.1,  0.2),
+                    ss = c(150,    150,  150,  150,  150,  150),
+                    pwr = c(0.41,  0.85, 0.36, 0.81, 0.34,  0.79))
 dpwr1 <- dpwr1[order(dpwr1$diff), ]
-digits <- c(0, 0, 0, 0, 2)
+digits <- c(2, 2, 2, 0, 2)
 options(knitr.kable.NA = '-')
+rownames(dpwr1) <- NULL
 ```
 
 ```{r, echo = F, eval = T}
 kable(dpwr1,
-      caption = "",
+      caption = "Table 2. Frequentist power for comparison of proportions",
       col.names = c("ctl", "trt", "diff", "", ""),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = F, position = "left",
                 font_size = 12,
                 latex_options = "hold_position") %>%
-  add_header_above(c("Median Time to Evnt" = 3, "SS" = 1, "Power" = 1))
+  add_header_above(c("Proportion Seroconverted" = 3, "SS" = 1, "Power" = 1)) %>%
+  column_spec(1:5, width = "1.5cm", bold = F, italic = F)
 
 ```
 
@@ -184,11 +188,11 @@ kable(dpwr1,
 ***
 The following tables and plots summarise the scenarios that were simulated. 
 
-Analysis is all based on conjugate priors (vaguely informative for the time to event). 
+Analysis is all based on conjugate priors (vaguely informative for the time to event, uniform on seroconversion). 
 
-For the clinical endpoint we assess whether the probability of the ratio of survival times is greater than 1 (equivalent to ratio or rates). Threshold for deciding superiority was 0.96 at each interim and 0.95 at the final analysis. For the futility check, each trial simulated conditional on the current posterior was assessed against a threshold of 0.95 and if less than 5% of the trials were successful futility is declared.
+For the clinical endpoint we assess whether the probability of the ratio of median survival times is greater than 1 (equivalent to hazard ratio for the model used). Thresholds for deciding superiority was 0.96 at each interim and 0.95 at the final analysis. For the futility check, each trial that was simulated conditional on the current posterior was assessed against a threshold of 0.95. If less than 5% of the trials were successful (i.e. if in less than 5% of the trials we saw a treatment effect) then futility was declared.
 
-For the immunological endpoint we assess whether the difference in seroconversion rates is greater than 0 (treatment versus control, i.e. one-sided). Stopping venous sampling was based on a threshold of 0.95, as was the final analysis. For the futility check, each trial simulated conditional on the current posterior was assessed against a threshold of 0.95 and if less than 5% of the trials were successful futility is declared.
+For the immunological endpoint we assess whether the difference in seroconversion rates is greater than 0 (treatment versus control, i.e. one-sided). Stopping venous sampling was based on a threshold of 0.95, as was the final analysis. For the futility check, each trial simulated conditional on the current posterior was assessed against a threshold of 0.95 and if less than 5% of the trials were successful then futility was declared.
 
 
 <!-- ### Todo -->
@@ -203,8 +207,10 @@ For the immunological endpoint we assess whether the difference in seroconversio
 
 From left to right tables show:
 
-+ true median survival time (both arms)
-+ true seroconversion probabilities (both arms)
++ true baseline median survival time 
++ delta_tte = (treatment median survival time) - (baseline median survival time)
++ true baseline seroconversion probability
++ delta_sero = (treatment seroconversion probability) - (baseline seroconversion probability)
 
 + accrual -- number of people per 3 month period (i.e. time between interims)
 + information delay (in months) to obtain seroconversion results
@@ -221,9 +227,6 @@ From left to right tables show:
 
 + proportion of trials where the final analysis indicated a treatment difference in clinical endpoint
 + proportion of trials where the final analysis indicated a treatment difference in immunological endpoint
-
-+ proportion of trials where the interim decision and final analysis were consistent for clinical endpoint
-+ proportion of trials where the interim decision and final analysis were consistent for immunological endpoint
 
 
 ```{r, echo = F}
@@ -269,7 +272,8 @@ for(fname in resfiles){
   # what did we conclude from interims
   outcome_labs <- c("Futile", "Superior", "Inconclusive")
   df_res$interim_outcome <- NA
-  df_res$interim_outcome <- ifelse(df_res$stop_i_fut == 1 | df_res$stop_c_fut == 1, 1, df_res$interim_outcome)
+  df_res$interim_outcome <- ifelse(df_res$stop_i_fut == 1 | 
+                                     df_res$stop_c_fut == 1, 1, df_res$interim_outcome)
   df_res$interim_outcome <- ifelse(df_res$stop_c_sup == 1, 2, df_res$interim_outcome)
   df_res$interim_outcome <- ifelse(df_res$inconclu == 1, 3, df_res$interim_outcome)
   df_res$interim_outcome <- factor(df_res$interim_outcome, levels = 1:3, labels = outcome_labs)
@@ -297,7 +301,8 @@ for(fname in resfiles){
   evnts_0 <- mean(df_outcome$n_uncen_0)
   evnts_1 <- mean(df_outcome$n_uncen_1)
   
-  df_outcome$look_cut <- cut(df_outcome$look, breaks = c(0, 250, 500, 750, 1000), include.lowest = T, right = F)
+  df_outcome$look_cut <- cut(df_outcome$look, breaks = c(0, 250, 500, 750, 1000), 
+                             include.lowest = T, right = F)
   
   prob_ss <- prop.table(table(df_outcome$look_cut))
   prob_ss <- as.numeric(cumsum(prob_ss))
@@ -308,6 +313,8 @@ for(fname in resfiles){
   
   flab <- gsub("res-", "", fname)
   flab <- gsub('.RDS', "", flab)
+  
+  mydate <- as.POSIXlt(flab, format="%Y-%m-%d-%H-%M-%S")
   
   # does the interim match the final conclusion? 
   immu_intrm_vs_fin <- mean(df_outcome$stop_i_fut == 1-df_outcome$i_final)
@@ -359,7 +366,8 @@ for(fname in resfiles){
                      p_c_intrm_vs_fin = clin_intrm_vs_fin,
     
                      fname = flab, stringsAsFactors = F, 
-                     alt_cen = alt_cen)
+                     alt_cen = alt_cen, 
+                     date = mydate)
   
   # summary data
   dtmp <- dtmp %>%
@@ -376,7 +384,7 @@ for(fname in resfiles){
                   f_ss_lt3 = sprintf("%.2f", prob_ss_lt750),
                   f_ss_lt4 = sprintf("%.2f", prob_ss_lt1k),
       
-      f_ss_evts = sprintf("%.0f/%.0f", evnts_0, evnts_1),
+                  f_ss_evts = sprintf("%.0f/%.0f", evnts_0, evnts_1),
       
                   f_prob_fin_immi = sprintf("%.3f", prob_fin_immi),
                   f_prob_fin_clin = sprintf("%.3f", prob_fin_clin), 
@@ -410,11 +418,81 @@ df_0 <- df_all %>%
     f_ss_evts,
                 f_prob_fin_clin, f_prob_fin_immi, 
                 f_c_intrm_vs_fin, f_i_intrm_vs_fin, 
-                fname, idsim, alt_cen) %>%
+                fname, idsim, alt_cen, date) %>%
   dplyr::select(-row)
 
 df_blank <- df_0 %>% dplyr::slice(1L) 
 
+# Alternative null set - no futility rule
+no_fut_set <- as.POSIXct(c("2019-03-16 01:53:36",
+                "2019-03-16 17:01:30",
+                "2019-03-16 22:18:47",
+                "2019-03-17 03:29:54",
+                "2019-03-17 08:44:10",
+                "2019-03-17 13:55:51",
+                "2019-03-17 19:07:14",
+                "2019-03-18 00:27:09"))
+df_1 <- df_0 %>%
+  dplyr::filter(date %in% no_fut_set)
+
+df_1b <- df_all %>%
+  dplyr::filter(date %in% no_fut_set)
+
+stopifnot(nrow(df_1) == 8)
+
+# Alternative full set with post threshold fix
+bug_fixed_set <- as.POSIXct(c("2019-03-16 11:54:14",
+"2019-03-16 12:12:21",
+"2019-03-16 12:29:46",
+"2019-03-16 12:50:04",
+"2019-03-16 13:05:13",
+"2019-03-16 13:15:17",
+"2019-03-16 13:36:25",
+"2019-03-16 13:54:27",
+"2019-03-16 14:15:13",
+"2019-03-16 14:35:52",
+"2019-03-16 14:53:21",
+"2019-03-16 15:10:53",
+"2019-03-16 16:29:17",
+"2019-03-16 17:29:48",
+"2019-03-16 18:00:09",
+"2019-03-16 20:20:47",
+"2019-03-16 22:02:49",
+"2019-03-16 22:49:24",
+"2019-03-17 02:02:20",
+"2019-03-17 04:18:37",
+"2019-03-17 05:17:30",
+"2019-03-17 06:02:47",
+"2019-03-17 06:42:17",
+"2019-03-17 07:07:35",
+"2019-03-17 08:25:16",
+"2019-03-17 09:31:36",
+"2019-03-17 10:10:04",
+"2019-03-17 12:03:34",
+"2019-03-17 13:33:59",
+"2019-03-17 14:26:51",
+"2019-03-17 15:08:54",
+"2019-03-17 16:12:04",
+"2019-03-17 17:37:37",
+"2019-03-17 18:51:57",
+"2019-03-17 19:44:15",
+"2019-03-17 21:43:18",
+"2019-03-17 23:15:14",
+"2019-03-18 00:07:38",
+"2019-03-18 00:49:46",
+"2019-03-18 01:17:12",
+"2019-03-18 02:34:34",
+"2019-03-18 03:14:15",
+"2019-03-18 04:50:30",
+"2019-03-18 06:03:49"))
+
+df_2 <- df_all %>%
+  dplyr::filter(date %in% bug_fixed_set)
+
+df_2a <- df_0 %>%
+  dplyr::filter(date %in% bug_fixed_set)
+
+stopifnot(nrow(df_2) == 44)
 
 
 # Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
@@ -429,6 +507,8 @@ digits <- c(0, 0, 2, 2, 0, 2,
 options(knitr.kable.NA = '-')
 showwarn <- length(mywarnings > 0)
 
+max_file_date <- as.POSIXct("2019-03-13 23:11:48")
+
 ```
 
 <!--
@@ -438,20 +518,109 @@ datatable(df_0, options = list(pageLength = 100, autoWidth = TRUE,  columnDefs =
 ```
 -->
 
+## Threshold Probabilities
+
+Table 3 shows the threshold values used to assess adaptive elements in the simulations results that follow.
+
+
+```{r, echo = F, eval = T}
+
+# post_final_thresh           used in the final analysis to assess both sero and tte endpoint posteriors
+# 
+# post_sero_win_thresh_start  we linearly interpolate between post_sero_win_thresh_start and 
+#                             post_sero_win_thresh_end to come up with a post_sero_win_thresh threshold 
+#                             at each interim. currently both set to 0.95 
+# post_sero_win_thresh_end    
+# post_sero_win_thresh        currently set to 0.95 for all interims up to nmaxsero then NA. used to check 
+#                             whether a trial has 'won' during the futility assessment
+# 
+# post_tte_win_thresh_start   we linearly interpolate between post_tte_win_thresh_start and post_tte_win_thresh_end 
+#                             to come up with a post_tte_win_thresh threshold at each interim. currently both set to 0.95 
+# post_tte_win_thresh_end     
+# post_tte_win_thresh         currently set to 0.95 for all interims. used to check whether a trial has 'won' during the futility assessment
+# 
+# pp_sero_sup_thresh          currently set to 0.95 for all interims. used to assess whether seroconversion ep should be stopped for superiority
+# 
+# post_tte_sup_thresh_start   we linearly interpolate between post_tte_sup_thresh_start and post_tte_sup_thresh_end 
+#                             to come up with a post_tte_sup_thresh threshold at each interim. currently both set to 0.96
+# post_tte_sup_thresh_end
+# post_tte_sup_thresh         currently set to 0.96 for all interims. used to assess whether seroconversion ep 
+#                             should be stopped for expected superiority
+# 
+# pp_sero_fut_thresh          futility check will stop the trial if the proportion of simulated trials from the 
+#                             posterior predictive that 'win' is less than this threshold (<5% => futility)
+# pp_tte_fut_thresh
+
+d_thres <- data.frame(threshname = c("post_final_thresh",
+                                     "pp_sero_sup_thresh",
+                                     "post_tte_sup_thresh",
+                                     "post_sero_win_thresh",
+                                     "post_tte_win_thresh",
+                                     "pp_sero_fut_thresh",
+                                     "pp_tte_fut_thresh"), 
+                      thresh = c(0.95, 0.95, 0.96, 0.95, 0.95, 0.05, 0.05),
+                      desc = c("To assess each EPs at the final analysis.",
+                               "To assess whether venous sampling should be ceased due to superiority.",
+                               "To assess whether clinical EP should be ceased due to expected success.",
+                               "To assess superiority in immunological EP for trials generated from posterior predictive distribution.",
+                               "To assess superiority in clinical EP for trials generated from posterior predictive distribution.",
+                               "To assess proportion of trials where immunological EP is successful during futility check.",
+                               "To assess proportion of trials where clinical EP is successful during futility check."))
+
+kable(d_thres,
+      caption = "Table 3. Decision thresholds",
+      col.names = c("Threshold", "Value", "Description"),
+      digits = c(0, 2, 0)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, 
+                position = "left",
+                font_size = 12,
+                latex_options = "hold_position") %>%
+  column_spec(3, width = "10cm", bold = F, italic = F)
+
+```
+
 ## Type I Error
 
 ```{r, echo = showwarn, eval=showwarn}
 print("WARNINGS PRESENT IN DATA!!")
 ```
-Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months. 
+
+Null scenarios showing control of type-i error < 0.05 on the clinical endpoint. However, note that the type-i for stopping venous sampling is > 0.05 for some scenarios. Therefore, I am going to increase the threshold used to assess whether we should stop venous sampling due to superiority from 0.95 to 0.96. 
 
 ```{r, echo = F, eval = T}
 
-
-kable(df_0 %>% dplyr::filter(idsim %in% c("N01", "N02", "N03", "N04", "N05", "N06")) %>% 
-  dplyr::select(-idsim, -nsim, -alt_cen) %>%
+kable(df_0 %>% 
+        dplyr::filter(idsim %in% c("N01", "N02", "N03", "N04", "N05", "N06")) %>%
+        dplyr::filter(date <= max_file_date) %>%
+        dplyr::select(-idsim, -nsim, -alt_cen, -date) %>%
     dplyr::arrange(desc(fname)),
-      caption = "Table 1. Simulation Null Scenarios",
+      caption = "Table 4. Simulation Null Scenarios",
+      col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
+                    "e.s.", "e.f", "s.v.", "n.d", 
+                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
+                    "clin", "immu", "clin", "immu", "fname"),
+      digits = digits) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",
+                font_size = 12,
+                latex_options = "hold_position") %>%
+  add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
+                     "Info rate" = 2, 
+                     "Interim" = 4,
+                     "SS" = 6, 
+                     "Wins @ final" = 2, "!Flip-flop" = 2, " " = 1))
+
+```
+
+Contrastingly, Table 5 contains the results when the futility rule is remove on both endpoints. The results suggest that without the futility rule, the type-i error would not be controlled at the 0.05 level. Also, the trials run for much, much longer.
+
+```{r, echo = F, eval = T}
+
+kable(df_1 %>% 
+        dplyr::select(-idsim, -nsim, -alt_cen, -date) %>%
+    dplyr::arrange(desc(fname)),
+      caption = "Table 5. Simulation Null Scenarios without futility check",
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
                     "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
@@ -470,21 +639,34 @@ kable(df_0 %>% dplyr::filter(idsim %in% c("N01", "N02", "N03", "N04", "N05", "N0
 ```
 
 
+
 ## Expected Success
 
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
+
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & basesero < 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & basesero < 0.8) %>%
+  dplyr::filter(date <= max_file_date) 
+
+df_tmp2 <- df_2 %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0) 
 
 ggplot(df_tmp, aes(x = delta, y = prob_sup, 
-  group = paste(accrual, ":", info_delay), 
-  linetype = paste0(info_delay, " mnths"))) +
+                   group = paste(accrual, ":", info_delay), 
+                   linetype = paste0(info_delay, " mnths"))) +
   geom_line() + 
+  geom_point(data = df_tmp2, aes(x = delta, y = prob_sup, 
+                                 group = paste(accrual, ":", info_delay),
+                                 colour = paste0(info_delay, " mnths"))) + 
+  scale_color_manual(name = "Information delay", values = cbp[2:5]) +
   scale_linetype_discrete(name = "Information delay") +
   scale_x_continuous("Difference median survival time (mnths)") +
   scale_y_continuous("P(e.s)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) +
@@ -498,7 +680,8 @@ Additional plots for other subsets of the parameter space (information delay is 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0) %>%
+  dplyr::filter(date <= max_file_date) 
 
 
 ggplot(df_tmp, aes(x = delta, y = prob_sup, 
@@ -514,17 +697,29 @@ ggplot(df_tmp, aes(x = delta, y = prob_sup,
 
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
+
 ```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & basesero < 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & basesero < 0.8) %>%
+  dplyr::filter(date <= max_file_date) 
+
+df_tmp2 <- df_2 %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0) 
 
 ggplot(df_tmp, aes(x = delta, y = prob_fut, 
-  group = paste(accrual, ":", info_delay), 
-  linetype = paste0(info_delay, " mnths"))) +
+                   group = paste(accrual, ":", info_delay), 
+                   linetype = paste0(info_delay, " mnths"))) +
   geom_line() + 
+  geom_point(data = df_tmp2, aes(x = delta, y = prob_fut, 
+                   group = paste(accrual, ":", info_delay), 
+                   colour = paste0(info_delay, " mnths"))) + 
+  scale_color_manual(name = "Information delay", values = cbp[2:5]) +
   scale_linetype_discrete(name = "Information delay") +
   scale_x_continuous("Difference median survival time (mnths)") +
   scale_y_continuous("P(e.f)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) +
@@ -538,7 +733,8 @@ Additional plots for other subsets of the parameter space (information delay is 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0) %>%
+  dplyr::filter(date <= max_file_date) 
 
 
 ggplot(df_tmp, aes(x = delta, y = prob_fut, 
@@ -554,19 +750,30 @@ ggplot(df_tmp, aes(x = delta, y = prob_fut,
 
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
-Will check the switch for the lowest accrual rate result.
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T, fig.height=5, fig.width=10}
 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & delta == 5 & basesero < 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & 
+                  info_delay != 0.8 & delta == 5 & basesero < 0.8) %>%
+  dplyr::filter(date <= max_file_date) 
+
+df_tmp2 <- df_2 %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0) 
 
 ggplot(df_tmp, aes(x = gamma, y = prob_stopv, 
   group = paste(accrual, ":", info_delay), 
   linetype = paste0(info_delay, " mnths"))) +
   geom_line() + 
+  geom_point(data = df_tmp2, aes(x = gamma, y = prob_stopv, 
+                                 group = paste(accrual, ":", info_delay), 
+                                 colour = paste0(info_delay, " mnths"))) + 
+  scale_color_manual(name = "Information delay", values = cbp[2:5]) +
   scale_linetype_discrete(name = "Information delay") +
   scale_x_continuous("Difference in seroconversion rate") +
   scale_y_continuous("P(s.v.)", breaks = seq(from = 0, to = 1, by = 0.1), lim = c(0, 1)) +
@@ -580,12 +787,12 @@ Additional plots for other subsets of the parameter space (information delay is 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
-
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0) %>%
+  dplyr::filter(date <= max_file_date) 
 
 ggplot(df_tmp, aes(x = gamma, y = prob_stopv, 
-   group = basesero, 
-  colour = paste(basesero, "/", trtsero))) +
+                   group = basesero, 
+                   colour = paste(basesero, "/", trtsero))) +
   geom_point() + 
   #scale_linetype_discrete(name = "Base/trt sero: ") +
   scale_color_discrete(name = "Base/trt sero: ") +
@@ -598,17 +805,29 @@ ggplot(df_tmp, aes(x = gamma, y = prob_stopv,
 
 Baseline seroconversion rate equal to 0.3, baseline median event time equal to 30 months.
 
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
+
 ```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & basesero < 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay != 0.8 & basesero < 0.8) %>%
+  dplyr::filter(date <= max_file_date) 
+
+df_tmp2 <- df_2 %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0) 
 
 ggplot(df_tmp, aes(x = delta, y = prob_incon, 
-  group = paste(accrual, ":", info_delay), 
-  linetype = paste0(info_delay, " mnths"))) +
+                   group = paste(accrual, ":", info_delay), 
+                   linetype = paste0(info_delay, " mnths"))) +
   geom_line() + 
+  geom_point(data = df_tmp2, aes(x = delta, y = prob_incon, 
+                   group = paste(accrual, ":", info_delay), 
+                   colour = paste0(info_delay, " mnths"))) + 
+  scale_color_manual(name = "Information delay", values = cbp[2:5]) + 
   scale_linetype_discrete(name = "Information delay") +
   scale_x_continuous("Difference median survival time (mnths)") +
   scale_y_continuous("P(n.d)", breaks = seq(from = 0, to = 0.05, by = 0.01)) +
@@ -622,7 +841,8 @@ Additional plots for other subsets of the parameter space (information delay is 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0) %>%
+  dplyr::filter(date <= max_file_date) 
 
 
 ggplot(df_tmp, aes(x = delta, y = prob_incon, 
@@ -642,24 +862,35 @@ Baseline seroconversion rate equal to 0.3, baseline median event time equal to 3
 
 Note - information delay is 1 months (zero information delay showed as fainter line).
 
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
+
 ```{r, echo = F, eval = T, fig.height=10, fig.width=10}
 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & basesero < 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & basesero < 0.8) %>%
+  dplyr::filter(date <= max_file_date) 
 
 df_tmp2 <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 0 & basesero < 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 0 & basesero < 0.8) %>%
+  dplyr::filter(date <= max_file_date) 
+
+
+df_tmp3 <- df_2 %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+    gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0) 
 
 ggplot(df_tmp, aes(x = delta, y = ss_clin_mean)) +
   geom_line() + 
-  geom_point() + 
+  geom_point(size = 1) + 
   geom_errorbar(aes(ymin = ss_clin_mean - ss_clin_sd, 
     ymax = ss_clin_mean + ss_clin_sd), size = 0.2, width = 0.5) + 
   geom_line(data = df_tmp2, aes(x = delta, y = ss_clin_mean), alpha = 0.3, size = 0.5)+
+  geom_point(data = df_tmp3, aes(x = delta, y = ss_clin_mean), colour = cbp[7]) + 
   scale_linetype_discrete(name = "Information delay") +
   scale_x_continuous("Difference median survival time (mnths)") +
   scale_y_continuous("SS (mean +/- sd)", breaks = seq(from = 0, to = 1000, by = 100), lim = c(0, 1000)) +
@@ -673,7 +904,8 @@ Additional plots for other subsets of the parameter space (information delay is 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0) %>%
+  dplyr::filter(date <= max_file_date) 
 
 ggplot(df_tmp, aes(x = delta, y = ss_clin_mean)) +
   geom_line(aes(group = basesero, linetype = paste(basesero, "/", trtsero))) + 
@@ -690,28 +922,34 @@ ggplot(df_tmp, aes(x = delta, y = ss_clin_mean)) +
 
 ### Cohort with Bloods Taken
 
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
+
+
 ```{r, echo = F, eval = T, fig.height=5, fig.width=6}
 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
-    gamma = trtsero - basesero) %>%
+                gamma = trtsero - basesero) %>%
   dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & 
-                  info_delay == 1 & delta == 5 & basesero < 0.8)
+                  info_delay == 1 & delta == 5 & basesero < 0.8) %>%
+  dplyr::filter(date <= max_file_date) 
 
-df_tmp2 <- df_all %>%
+df_tmp2 <- df_2 %>%
   dplyr::mutate(delta = trtclin - baseclin,
-    gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & 
-                  info_delay == 0 & delta == 5 & basesero < 0.8)
+                gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0)
 
 ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean, 
                    group = accrual,
-  linetype = paste0(accrual)))  +
+                   linetype = paste0(accrual)))  +
   geom_line() + 
-  geom_point() + 
+  geom_point(data = df_tmp2, aes(x = gamma, y = ss_immu_mean, 
+                   group = accrual, 
+                   colour = factor(accrual))) + 
   #geom_errorbar(aes(ymin = ss_immu_mean - ss_immu_sd, 
    # ymax = ss_immu_mean + ss_immu_sd), size = 0.2, width = 0.5) + 
   #geom_line(data = df_tmp2, aes(x = delta, y = ss_immu_mean), alpha = 0.3, size = 0.5)+
+  scale_color_manual(name = "Accrual (n per qtr)", values = cbp[2:5]) + 
   scale_linetype_discrete(name = "Accrual (n per qtr)") +
   scale_x_continuous("Difference seroconversion rate") +
   scale_y_continuous("SS (mean)", breaks = seq(from = 0, to = 250, by = 100), lim = c(0, 250)) 
@@ -725,7 +963,8 @@ Additional plots for other subsets of the parameter space (information delay is 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0) %>%
+  dplyr::filter(date <= max_file_date) 
 
 ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean))  +
   geom_jitter(width = 0.003, height = 0.003) + 
@@ -747,16 +986,27 @@ Baseline seroconversion rate equal to 0.3, baseline median event time equal to 3
 
 Difference in sero of 0.05 still has quite high chance of futility.
 
+The black dots show the results when the baseline seroconversion rate is 0.8, the treatment seroconversion rate is 0.9, the baseline time to event is 30 months and the treatment arm time to event ranges from 35 to 50. 
+
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
+
 ```{r, echo = F, eval = T, fig.height=5, fig.width=10}
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & basesero < 0.8)
+  dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & info_delay == 1 & basesero < 0.8) %>%
+  dplyr::filter(date <= max_file_date) 
 
 df_tmp2 <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0) %>%
+  dplyr::filter(date <= max_file_date) 
+
+df_tmp3 <- df_2 %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+                gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0)
 
 ggplot(df_tmp, aes(x = delta, y = p_c_intrm_vs_fin, 
   group = paste0(accrual), 
@@ -764,8 +1014,12 @@ ggplot(df_tmp, aes(x = delta, y = p_c_intrm_vs_fin,
   geom_line() + 
   geom_point(data = df_tmp2, aes(x = delta, 
                                  y = p_c_intrm_vs_fin, 
-                                 group = paste0(accrual), 
-                                 linetype = paste0(accrual))) +
+                                 group = paste0(accrual))) +
+  geom_point(data = df_tmp3, aes(x = delta, 
+                                 y = p_c_intrm_vs_fin, 
+                                 group = paste0(accrual),
+                                 colour = paste0(accrual))) +
+  scale_color_manual(name = "Accrual (n per qtr)", values = cbp[2:5]) + 
   scale_linetype_discrete(name = "Accrual (n per qtr)") +
   scale_x_continuous("Difference median survival time (mnths)") +
   scale_y_continuous("Probability final analysis aligns with interim decision", 
@@ -775,17 +1029,28 @@ ggplot(df_tmp, aes(x = delta, y = p_c_intrm_vs_fin,
 
 ### Immunological
 
+Note that the coloured points indicate the results from a new simulations that I initiated after identifying a minor, but not ignorable, bug in the code. The next run of simulation results will only show results from the new codebase. 
+
 ```{r, echo = F, eval = T, fig.height=5, fig.width=6}
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
   dplyr::filter(delta > 0 & !(accrual %in% c(30, 50)) & 
-                  info_delay == 1 & delta == 5 & basesero < 0.8)
+                  info_delay == 1 & delta == 5 & basesero < 0.8) %>%
+  dplyr::filter(date <= max_file_date) 
 
+df_tmp2 <- df_2 %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+                gamma = trtsero - basesero) %>%
+  dplyr::filter(delta > 0)
 
 ggplot(df_tmp, aes(x = gamma, y = p_i_intrm_vs_fin, 
-                   group = paste0(accrual), linetype = paste0(accrual)))  +
+                   group = paste0(accrual), 
+                   linetype = paste0(accrual)))  +
   geom_line() + 
+  geom_point(data = df_tmp2, aes(x = gamma, y = p_i_intrm_vs_fin, 
+                                 colour = paste0(accrual))) + 
+  scale_color_manual(name = "Accrual (n per qtr)", values = cbp[2:5]) + 
   scale_linetype_discrete(name = "Accrual (n per qtr)") +
   scale_x_continuous("Difference seroconversion rate") +
   scale_y_continuous("Probability final analysis aligns with interim decision", 
@@ -800,7 +1065,8 @@ Additional plots for other subsets of the parameter space (information delay is 
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
     gamma = trtsero - basesero) %>%
-  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0)
+  dplyr::filter(basesero %in% c(0.6,0.7,0.8) & gamma > 0) %>%
+  dplyr::filter(date <= max_file_date) 
 
 ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean))  +
   geom_jitter(width = 0.003, height = 0.003) + 
@@ -818,14 +1084,51 @@ ggplot(df_tmp, aes(x = gamma, y = ss_immu_mean))  +
 print("WARNINGS PRESENT IN DATA!!")
 ```
 
+Table 6 shows the combined set of results generated in these simulations post 2019-03-13. These simulations were generated to see the effect of a minor bug fix in the code and constitute the latest most relevant results. The next run of simulation results will only show results from the new codebase. 
 
 ```{r, echo = F, eval = T}
+rownames(df_2a) <- NULL
+df_2a %>% 
+  dplyr::filter(date >= max_file_date) %>%
+  dplyr::mutate(delta = trtclin - baseclin,
+                gamma = trtsero - basesero) %>%
+  dplyr::select(-idsim, -trtclin, -trtsero, 
+                -nsim, -alt_cen, -date, -fname) %>%
+  dplyr::select(baseclin, delta, basesero, gamma, everything()) %>%
+  DT::datatable(rownames = T, 
+                class = 'cell-border stripe',
+                caption="Table 6. Combined results",
+                colnames = c("#","tte0", "delta_c",
+                             "p0", "delta_i", 
+                             "accrual", "info_delay",
+                             "P(es)", "P(ef)", "P(sv)", "P(nd)",
+                             "SS_clin",
+                             "SS_sero",
+                             "P(SS<250)", "P(SS<500)", "P(SS<750)", 
+                             "Evnts",
+                             "Win@Fin_clin", "Win@Fin_sero", 
+                             "!FF_clin", "!FF_sero"),
+                #filter = list(position = 'top', clear = TRUE, plain= FALSE),
+                options=list(pageLength = nrow(df_2a),
+                             #searchCols = list(rep(NULL, 21)),
+                             autoWidth = T,
+                             #columnDefs = list(list(width = '500px', targets = 0:18)),
+                             dom = 't',
+                             initComplete = JS(
+                               "function(settings, json) {",
+                               "$(this.api().table().header()).css({'font-size': '70%'});",
+                               "}"))) %>%
+  DT::formatStyle(columns = 0:20, fontSize = '70%')
+```
 
 
+
+```{r, echo = F, eval = F}
 kable(df_0 %>% 
-  dplyr::select(-idsim, -nsim, -alt_cen) %>%
-    dplyr::arrange(desc(fname)),
-      caption = "Table 2. Combined Simulation Results",
+  dplyr::filter(date >= max_file_date) %>%
+  dplyr::select(-idsim, -nsim, -alt_cen, -date) %>%
+    dplyr::arrange(desc(fname))  ,
+      caption = paste0("Table 6. Combined Simulation Results (runs post ", max_file_date, ")"),
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
                     "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
@@ -843,9 +1146,32 @@ kable(df_0 %>%
 
 ```
 
+Table 7 shows the combined set of results generated in these simulations pre 2019-03-13. 
+
+```{r, echo = F, eval = T}
 
 
+kable(df_0 %>% 
+  dplyr::filter(date <= max_file_date) %>%
+  dplyr::select(-idsim, -nsim, -alt_cen, -date) %>%
+    dplyr::arrange(desc(fname))  ,
+      caption = "Table 6. Combined Simulation Results",
+      col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
+                    "e.s.", "e.f", "s.v.", "n.d", 
+                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
+                    "clin", "immu", "clin", "immu", "fname"),
+      digits = digits) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",
+                font_size = 12,
+                latex_options = "hold_position") %>%
+  add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
+                     "Info rate" = 2, 
+                     "Interim" = 4,
+                     "SS" = 6, 
+                     "Wins @ final" = 2, "!Flip-flop" = 2, " " = 1))
 
+```
 
 <!--
 
