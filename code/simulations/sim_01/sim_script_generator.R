@@ -1,6 +1,6 @@
 library(dplyr)
 
-nsim <- 500
+nsim <- 100
 accrual <- c(30, 50)
 info_delay <- c(0)
 p0 <- c(0.1, 0.4, 0.7)
