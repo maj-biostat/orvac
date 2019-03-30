@@ -28,25 +28,25 @@
 # /usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0026" -l log_0026.log      -n 1000 -s 9041117 -a 50 -d 1 -b 0.70 -p 0.70 -m 50 -t 50
 # /usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0027" -l log_0027.log      -n 1000 -s 6040451 -a 50 -d 1 -b 0.70 -p 0.70 -m 50 -t 50
 # small sero effect
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 1887776 -a 30 -d 0 -b 0.20 -p 0.25 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 2887776 -a 30 -d 0 -b 0.20 -p 0.30 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 3887776 -a 30 -d 0 -b 0.20 -p 0.35 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 4887776 -a 30 -d 0 -b 0.40 -p 0.45 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5887776 -a 30 -d 0 -b 0.40 -p 0.50 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 6887776 -a 30 -d 0 -b 0.40 -p 0.55 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 7887776 -a 30 -d 0 -b 0.70 -p 0.75 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 8887776 -a 30 -d 0 -b 0.70 -p 0.80 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 9887776 -a 30 -d 0 -b 0.70 -p 0.85 -m 20 -t 20
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0190" -l log_0190.log      -n 1000 -s 1887776 -a 30 -d 0 -b 0.20 -p 0.25 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0191" -l log_0191.log      -n 1000 -s 2887776 -a 30 -d 0 -b 0.20 -p 0.30 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0192" -l log_0192.log      -n 1000 -s 3887776 -a 30 -d 0 -b 0.20 -p 0.35 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0193" -l log_0193.log      -n 1000 -s 4887776 -a 30 -d 0 -b 0.40 -p 0.45 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0194" -l log_0194.log      -n 1000 -s 5887776 -a 30 -d 0 -b 0.40 -p 0.50 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0195" -l log_0195.log      -n 1000 -s 6887776 -a 30 -d 0 -b 0.40 -p 0.55 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0196" -l log_0196.log      -n 1000 -s 7887776 -a 30 -d 0 -b 0.70 -p 0.75 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0197" -l log_0197.log      -n 1000 -s 8887776 -a 30 -d 0 -b 0.70 -p 0.80 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0198" -l log_0198.log      -n 1000 -s 9887776 -a 30 -d 0 -b 0.70 -p 0.85 -m 20 -t 20
 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5187776 -a 50 -d 0 -b 0.20 -p 0.25 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5287776 -a 50 -d 0 -b 0.20 -p 0.30 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5387776 -a 50 -d 0 -b 0.20 -p 0.35 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5487776 -a 50 -d 0 -b 0.40 -p 0.45 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5587776 -a 50 -d 0 -b 0.40 -p 0.50 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5687776 -a 50 -d 0 -b 0.40 -p 0.55 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5787776 -a 50 -d 0 -b 0.70 -p 0.75 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5887776 -a 50 -d 0 -b 0.70 -p 0.80 -m 20 -t 20 
-/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0028" -l log_0028.log      -n 1000 -s 5987776 -a 50 -d 0 -b 0.70 -p 0.85 -m 20 -t 20
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0199" -l log_0199.log      -n 1000 -s 5187776 -a 50 -d 0 -b 0.20 -p 0.25 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0200" -l log_0200.log      -n 1000 -s 5287776 -a 50 -d 0 -b 0.20 -p 0.30 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0201" -l log_0201.log      -n 1000 -s 5387776 -a 50 -d 0 -b 0.20 -p 0.35 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0202" -l log_0202.log      -n 1000 -s 5487776 -a 50 -d 0 -b 0.40 -p 0.45 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0203" -l log_0203.log      -n 1000 -s 5587776 -a 50 -d 0 -b 0.40 -p 0.50 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0204" -l log_0204.log      -n 1000 -s 5687776 -a 50 -d 0 -b 0.40 -p 0.55 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0205" -l log_0205.log      -n 1000 -s 5787776 -a 50 -d 0 -b 0.70 -p 0.75 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0206" -l log_0206.log      -n 1000 -s 5887776 -a 50 -d 0 -b 0.70 -p 0.80 -m 20 -t 20 
+/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0207" -l log_0207.log      -n 1000 -s 5987776 -a 50 -d 0 -b 0.70 -p 0.85 -m 20 -t 20
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0029" -l log_0029.log      -n 1000 -s 4506587 -a 50 -d 0 -b 0.20 -p 0.25 -m 20 -t 25
 #/usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0030" -l log_0030.log      -n 1000 -s 1863977 -a 50 -d 0 -b 0.20 -p 0.25 -m 20 -t 25
 # /usr/bin/Rscript main_4.R -f cfg1.yaml -o T -i "SIM0031" -l log_0031.log      -n 1000 -s 2740534 -a 50 -d 0 -b 0.40 -p 0.45 -m 20 -t 25
