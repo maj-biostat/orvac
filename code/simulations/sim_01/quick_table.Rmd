@@ -108,7 +108,9 @@ for(fname in resfiles){
   
   if(apply(df_res, 2, class)[1] == "list"){
      dnam <- names(df_res)
-    df_res <- as.data.frame(do.call(cbind, lapply(1:ncol(df_res), function(x) unlist(df_res[,x]))))
+    df_res <- as.data.frame(do.call(cbind, 
+                                    lapply(1:ncol(df_res), 
+                                           function(x) unlist(df_res[,x]))))
     colnames(df_res) <- dnam
   }
 
@@ -130,10 +132,13 @@ for(fname in resfiles){
   # what did we conclude from interims
   outcome_labs <- c("Futile", "Superior", "Inconclusive")
   df_res$interim_outcome <- NA
-  df_res$interim_outcome <- ifelse(df_res$stop_i_fut == 1 | df_res$stop_c_fut == 1, 1, df_res$interim_outcome)
+  df_res$interim_outcome <- ifelse(df_res$stop_i_fut == 1 | 
+                                     df_res$stop_c_fut == 1, 1, df_res$interim_outcome)
   df_res$interim_outcome <- ifelse(df_res$stop_c_sup == 1, 2, df_res$interim_outcome)
   df_res$interim_outcome <- ifelse(df_res$inconclu == 1, 3, df_res$interim_outcome)
-  df_res$interim_outcome <- factor(df_res$interim_outcome, levels = 1:3, labels = outcome_labs)
+  df_res$interim_outcome <- factor(df_res$interim_outcome, 
+                                   levels = 1:3, 
+                                   labels = outcome_labs)
   
   # trials are either futile or superior 
   df_outcome <- df_res %>%
@@ -144,7 +149,8 @@ for(fname in resfiles){
   
   n <- c(table(df_res$interim_outcome),   nrow(df_stopv))
   names(n) <- c("Futile","Superior","Inconclusive", "StopV"    )
-  prob <- c(prop.table(table(df_res$interim_outcome)),   nrow(df_stopv)/max(df_res$idxsim))
+  prob <- c(prop.table(table(df_res$interim_outcome)),   
+            nrow(df_stopv)/max(df_res$idxsim))
   names(prob) <- c(names(prob)[1:3], "StopV")
 
   df_ss_clin <- df_outcome %>% 
@@ -158,7 +164,8 @@ for(fname in resfiles){
   evnts_0 <- mean(df_outcome$n_uncen_0)
   evnts_1 <- mean(df_outcome$n_uncen_1)
   
-  df_outcome$look_cut <- cut(df_outcome$look, breaks = c(0, 250, 500, 750, 1000), include.lowest = T, right = F)
+  df_outcome$look_cut <- cut(df_outcome$look, breaks = c(0, 250, 500, 750, 1000), 
+                             include.lowest = T, right = F)
   
   prob_ss <- prop.table(table(df_outcome$look_cut))
   prob_ss <- as.numeric(cumsum(prob_ss))
@@ -169,6 +176,8 @@ for(fname in resfiles){
   
   flab <- gsub("res-", "", fname)
   flab <- gsub('.RDS', "", flab)
+  
+  mydate <- as.POSIXlt(flab, format="%Y-%m-%d-%H-%M-%S")
   
   # does the interim match the final conclusion? 
   immu_intrm_vs_fin <- mean(df_outcome$stop_i_fut == 1-df_outcome$i_final)
@@ -211,7 +220,9 @@ for(fname in resfiles){
                      prob_ss_lt1k = as.numeric(prob_ss[4]),
 
                      # probability of success at the final analysis 
-                     # (proportion of trials where final analysis showed a difference b/w groups)
+                     # (proportion of trials where final analysis 
+                     # showed a difference b/w groups)
+                     
                      # the rest did not show a difference
                      prob_fin_immi = probimmi,
                      prob_fin_clin = probclin,
@@ -220,7 +231,8 @@ for(fname in resfiles){
                      p_c_intrm_vs_fin = clin_intrm_vs_fin,
     
                      fname = flab, stringsAsFactors = F, 
-                     alt_cen = alt_cen)
+                     alt_cen = alt_cen, 
+                     date = mydate)
   
   # summary data
   dtmp <- dtmp %>%
@@ -237,7 +249,7 @@ for(fname in resfiles){
                   f_ss_lt3 = sprintf("%.2f", prob_ss_lt750),
                   f_ss_lt4 = sprintf("%.2f", prob_ss_lt1k),
       
-      f_ss_evts = sprintf("%.0f/%.0f", evnts_0, evnts_1),
+                  f_ss_evts = sprintf("%.0f/%.0f", evnts_0, evnts_1),
       
                   f_prob_fin_immi = sprintf("%.3f", prob_fin_immi),
                   f_prob_fin_clin = sprintf("%.3f", prob_fin_clin), 
@@ -254,11 +266,6 @@ for(fname in resfiles){
 
 }
 
-# df_tmp <- df_all %>%
-#   dplyr::filter(idsim == "ClinSeroTrt03") 
-
-# mean(df_tmp$ss_fut_mean)
-
 # unique(df_all$idsim)
 df_0 <- df_all %>%
   dplyr::arrange(desc(fname)) %>%
@@ -268,27 +275,26 @@ df_0 <- df_all %>%
                 f_prob_sup, f_prob_fut, f_prob_stopv, f_prob_incon, 
                 f_ss_clin, f_ss_immu, 
                 f_ss_lt1, f_ss_lt2, f_ss_lt3,
-    f_ss_evts,
+                f_ss_evts,
                 f_prob_fin_clin, f_prob_fin_immi, 
                 f_c_intrm_vs_fin, f_i_intrm_vs_fin, 
-                fname, idsim, alt_cen) %>%
+                fname, idsim, alt_cen, date) %>%
   dplyr::select(-row)
+
 
 df_blank <- df_0 %>% dplyr::slice(1L) 
 
 
 
-# Null01 SeroTrt01 ClinTrt01 ClinTrt02 ClinSeroTrt01 ClinSeroTrt02 ClinSeroTrt03 ClinSeroTrt04
-
-# df_0 %>%
-#   dplyr::select(nsim, idsim, fname) %>%
-#   dplyr::arrange(idsim, fname)
+stopifnot(nrow(df_1) == 6)
 
 digits <- c(0, 0, 2, 2, 0, 2,
             0, 0, 0, 0, 0,0,0,0,
             0, 0, 0, 0, 0, 0, 0)
 options(knitr.kable.NA = '-')
 showwarn <- length(mywarnings > 0)
+
+#max_file_date <- as.POSIXct("2019-03-13 23:11:48")
 
 ```
 
@@ -300,11 +306,10 @@ print("WARNINGS PRESENT IN DATA!!")
 
 ```{r, echo = F, eval = T}
 
-
 kable(df_0 %>% 
-  dplyr::select(-idsim, -nsim, -alt_cen) %>%
-    dplyr::arrange(desc(fname)),
-      caption = "Table 2. Combined Simulation Results",
+  dplyr::select(-idsim, -nsim, -alt_cen, -date) %>%
+    dplyr::arrange(desc(fname))  ,
+      caption = paste0("Table 6. Combined Simulation Results"),
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
                     "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
