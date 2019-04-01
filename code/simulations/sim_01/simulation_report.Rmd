@@ -227,7 +227,9 @@ for(fname in resfiles){
   
   if(apply(df_res, 2, class)[1] == "list"){
      dnam <- names(df_res)
-    df_res <- as.data.frame(do.call(cbind, lapply(1:ncol(df_res), function(x) unlist(df_res[,x]))))
+    df_res <- as.data.frame(do.call(cbind, 
+                                    lapply(1:ncol(df_res), 
+                                           function(x) unlist(df_res[,x]))))
     colnames(df_res) <- dnam
   }
 
@@ -253,7 +255,9 @@ for(fname in resfiles){
                                      df_res$stop_c_fut == 1, 1, df_res$interim_outcome)
   df_res$interim_outcome <- ifelse(df_res$stop_c_sup == 1, 2, df_res$interim_outcome)
   df_res$interim_outcome <- ifelse(df_res$inconclu == 1, 3, df_res$interim_outcome)
-  df_res$interim_outcome <- factor(df_res$interim_outcome, levels = 1:3, labels = outcome_labs)
+  df_res$interim_outcome <- factor(df_res$interim_outcome, 
+                                   levels = 1:3, 
+                                   labels = outcome_labs)
   
   # trials are either futile or superior 
   df_outcome <- df_res %>%
@@ -264,7 +268,8 @@ for(fname in resfiles){
   
   n <- c(table(df_res$interim_outcome),   nrow(df_stopv))
   names(n) <- c("Futile","Superior","Inconclusive", "StopV"    )
-  prob <- c(prop.table(table(df_res$interim_outcome)),   nrow(df_stopv)/max(df_res$idxsim))
+  prob <- c(prop.table(table(df_res$interim_outcome)),   
+            nrow(df_stopv)/max(df_res$idxsim))
   names(prob) <- c(names(prob)[1:3], "StopV")
 
   df_ss_clin <- df_outcome %>% 
@@ -334,7 +339,9 @@ for(fname in resfiles){
                      prob_ss_lt1k = as.numeric(prob_ss[4]),
 
                      # probability of success at the final analysis 
-                     # (proportion of trials where final analysis showed a difference b/w groups)
+                     # (proportion of trials where final analysis 
+                     # showed a difference b/w groups)
+                     
                      # the rest did not show a difference
                      prob_fin_immi = probimmi,
                      prob_fin_clin = probclin,
@@ -635,7 +642,7 @@ Power increases as a function of effect size, is higher at the extremes of basel
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 | gamma > 0) %>%
+  dplyr::filter(delta > 0 & gamma > 0) %>%
   dplyr::group_by(basesero, trtsero, trtclin, 
                   baseclin, accrual, info_delay, delta, gamma) %>%
   dplyr::summarise(prob_sup = mean(prob_sup)) %>%
@@ -666,7 +673,7 @@ Futility decreases with effect size. Increasing accrual rates tend to decrease t
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 | gamma > 0) %>%
+  dplyr::filter(delta > 0 & gamma > 0) %>%
   dplyr::group_by(basesero, trtsero, trtclin, baseclin, accrual, info_delay, delta, gamma) %>%
   dplyr::summarise(prob_fut = mean(prob_fut)) %>%
   dplyr::ungroup()
@@ -731,7 +738,8 @@ ggplot(df_tmp, aes(x = gamma, y = prob_stopv,
   scale_y_continuous("P(s.v.)", 
                      breaks = seq(from = 0, to = 1, by = 0.1), 
                      lim = c(0, 1)) +
-  facet_grid( ~ paste0("Baseline sero rate = ", basesero)) 
+  facet_grid(paste0("Info delay = ", info_delay)  ~ 
+               paste0("Baseline sero rate = ", basesero)) 
 
 ```
 
@@ -746,7 +754,7 @@ Rarely occurs and rapidly falls to zero as effect size gets larger.
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 | gamma > 0) %>%
+  dplyr::filter(delta > 0 & gamma > 0) %>%
   dplyr::group_by(basesero, trtsero, trtclin, baseclin, accrual, info_delay, delta, gamma) %>%
   dplyr::summarise(prob_incon = mean(prob_incon)) %>%
   dplyr::ungroup()
@@ -778,7 +786,7 @@ Both sample size expectation and variability tend to decrease with increasing ef
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 | gamma > 0) %>%
+  dplyr::filter(delta > 0 & gamma > 0) %>%
   # dplyr::select(basesero, trtsero, trtclin, baseclin,
   #               accrual, info_delay, delta, gamma, ss_clin_mean, ss_clin_sd) %>%
   dplyr::group_by(basesero, trtsero, trtclin, baseclin, 
@@ -819,7 +827,7 @@ Sample size dependent on effect size and baseline rates in line with standard lo
 
 df_tmp <- df_all %>%
   dplyr::mutate(gamma = trtsero - basesero) %>%
-  dplyr::filter(gamma > 0) %>%
+  dplyr::filter(gamma > 0 & info_delay == 1) %>%
   dplyr::group_by(basesero, trtsero, 
                   accrual, info_delay, gamma) %>%
   dplyr::summarise(ss_immu_mean = mean(ss_immu_mean), 
@@ -861,7 +869,7 @@ Results tend to increase in consistency as effect size increases. Higher accrual
 df_tmp <- df_all %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
-  dplyr::filter(delta > 0 | gamma > 0) %>%
+  dplyr::filter(delta > 0 & gamma > 0) %>%
   # dplyr::select(basesero, trtsero, trtclin, baseclin,
   #               accrual, info_delay, delta, gamma, ss_clin_mean, ss_clin_sd) %>%
   dplyr::group_by(basesero, trtsero, trtclin, baseclin, 
@@ -890,7 +898,7 @@ Consistency increases with effect size.
 ```{r, echo = F, eval = T, fig.height=4, fig.width=6}
 df_tmp <- df_all %>%
   dplyr::mutate(gamma = trtsero - basesero) %>%
-  dplyr::filter(gamma > 0) %>%
+  dplyr::filter(gamma > 0 & info_delay == 1) %>%
   # dplyr::select(basesero, trtsero, trtclin, baseclin,
   #               accrual, info_delay, delta, gamma, ss_clin_mean, ss_clin_sd) %>%
   dplyr::group_by(basesero, trtsero, 
