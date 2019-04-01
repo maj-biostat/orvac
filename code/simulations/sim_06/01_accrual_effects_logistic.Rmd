@@ -1,0 +1,182 @@
+---
+title: "Simulations to explore accrual rate influence on power/ppos"
+subtitle: "Accrual and Dichotomous endpoint"
+author: "Mark Jones"
+date: "`r Sys.time()`"
+output:
+  html_document:
+    classoption: landscape
+    css: style.css
+    number_sections: yes
+    self_contained: yes
+    theme: united
+  pdf_document:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+  word_document:
+    toc: yes
+    toc_depth: '3'
+geometry: left=0.2cm,right=0.2cm,top=1cm,bottom=1cm
+editor_options:
+  chunk_output_type: console
+classoption: landscape
+---
+
+<!--    toc: yes
+    toc_float: true -->
+
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path = 'figs/')
+suppressPackageStartupMessages(library(simstudy))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(mcmc))
+suppressPackageStartupMessages(library(brms))
+suppressPackageStartupMessages(library(pwr))
+suppressPackageStartupMessages(library(WebPower))
+
+ggplot2::theme_set(ggplot2::theme_bw())
+ggplot2::theme_update(text = element_text(size = 10))
+ggplot2::theme_update(legend.position = "top")
+# ggplot2::theme_update(legend.title = element_blank())
+ggplot2::theme_update(axis.text.x = element_text(size = 10))
+ggplot2::theme_update(axis.text.y = element_text(size = 10))
+
+# Work|Right|Fast
+# rmarkdown::render("simulation_report.Rmd", clean=TRUE)
+
+# logit to p
+inv_logit <- function(x){
+  return(exp(x)/(1+exp(x)))
+}
+# p to logit
+logit <- function(p){
+  return(log(p/(1-p)))
+}
+prob_to_odd <- function(x){
+  return(x/(1-x))
+}
+odd_to_prob <- function(x){
+  return(x/(1+x))
+}
+
+```
+
+
+# Preamble
+
+Assume you have interims starting at $n_{min}$ then every $n$ patients up to a maximum sample size $N$. If you vary $n$ per interim (the accrual rate) how does this effect power in a dichotomous endpoint modelled with logistic regression?
+
+Standard sample size calcs for power associated with effect of $\delta = p_1 - p_0$.
+
+```{r}
+N <- 250
+p0 <- 0.3
+p1 <- 0.4
+pwr::pwr.2p.test(pwr::ES.h(p1, p0), N/2, alternative = "greater")
+
+wp.logistic(n = 250, p0, p1 , alpha = 0.05, 
+            power = NULL, alternative = c("greater"),
+            family = c("Bernoulli"))
+```
+
+Simulation based approach requires us to simulate data.
+
+```{r}
+trial_dat <- function(trialid, n, p0, delta){
+  d <- data.frame(trialid = trialid, id = 1:N)
+  d$trt <- rep(0:1, len = 250)
+  d$y <- rbinom(N, 1, inv_logit(b0 + b1*d$trt))
+  d
+}
+
+nsim <- 1000
+N <- 250
+p0 <- 0.3
+delta <- 0.1
+p1 <- p0 + delta
+
+b0 <- log(p0/(1-p0))
+b1 <- log((p1/(1-p1))/(p0/(1-p0)))
+
+d <- lapply(1:nsim, trial_dat, N, p0, delta)
+
+head(d[[1]])
+```
+
+Simulation method to analysing power (ignore interims).
+
+```{r}
+
+sim <- function(trialid){
+  lm1 <- glm(y~trt, dat = d[[trialid]][1:N,], family = binomial)
+  # 1 sided wald: 
+  pnorm(summary(lm1)$coefficients["trt","z value"], lower.tail = F)
+}
+p <- unlist(lapply(1:nsim, sim))
+mean(p < 0.05)
+```
+
+Incorporate interim analyses that happen at following sample sizes (dictated by accrual rate).
+
+```{r}
+get_int <- function(n){
+  nmin <- 70
+  interm_n <- seq(nmin, N, by = n)
+  if(max(interm_n)!=N){
+    interm_n <- c(interm_n, N)
+  } 
+  interm_n
+}
+get_int(n = 30)
+```
+
+Revised simulation.
+
+```{r}
+
+fit <- function(current_n, trial_id){
+  lm1 <- glm(y~trt, data=d[[trial_id]][1:current_n,], family = binomial)
+  # 1 sided wald: 
+  pnorm(summary(lm1)$coefficients["trt","z value"], lower.tail = F)
+}
+
+sim <- function(trial_id, n_step){
+  res <- unlist(lapply(get_int(n_step), fit, trial_id))
+  any(p.adjust(res, method = "bonferroni") < 0.05)
+}
+
+
+# ppos
+accrual_rates <- c(25, 30, 35, 40, 45, 50)
+ppos <- rep(0, length(accrual_rates))
+
+d <- lapply(1:nsim, trial_dat, N, 0.4, 0.15)
+head(d[[1]])
+
+for(i in 1:length(accrual_rates)){
+  ppos[i] <- mean(unlist(lapply(1:nsim, sim, accrual_rates[i])))
+}
+
+```
+
+Plot.
+
+```{r}
+plot(accrual_rates, ppos, type = "l", ylim = c(0.2, 0.5))
+```
+
+# Summary
+
+For the given samplesize $N$ with $n$ participants being analysed per interim, PPOS gradually increases as accrual rate increases.
+
