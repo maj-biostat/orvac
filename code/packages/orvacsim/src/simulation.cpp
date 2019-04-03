@@ -357,12 +357,12 @@ Rcpp::List rcpp_dotrial(const int idxsim,
       interim_post(i, 1) = (double)m_immu_res["lwr"];
       interim_post(i, 2) = (double)m_immu_res["upr"];
 
-      // if((double)m_immu_res["ppos_max"] < (double)cfg["pp_sero_fut_thresh"]){
-      //   INFO(Rcpp::Rcout, idxsim, "immu futile - stopping now, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
-      //   t.immu_fut();
-      //   t.immu_set_ss(nobs);
-      //   break;
-      // }
+      if((double)m_immu_res["ppos_max"] < (double)cfg["pp_sero_fut_thresh"]){
+         INFO(Rcpp::Rcout, idxsim, "immu futile - stopping now, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
+         t.immu_fut();
+         t.immu_set_ss(nobs);
+         break;
+      }
 
       if ((double)m_immu_res["ppos_n"] > (double)cfg["pp_sero_sup_thresh"] && !t.is_immu_fut()){
         nobs = rcpp_n_obs(d, look, looks, months, (double)cfg["sero_info_delay"]);
@@ -389,11 +389,11 @@ Rcpp::List rcpp_dotrial(const int idxsim,
       interim_post(i, 4) = (double)m_clin_res["lwr"];
       interim_post(i, 5) = (double)m_clin_res["upr"];
 
-      // if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
-      //   INFO(Rcpp::Rcout, idxsim, "clin futile - stopping now, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
-      //   t.clin_fut();
-      //   break;
-      // }
+      if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
+        INFO(Rcpp::Rcout, idxsim, "clin futile - stopping now, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
+        t.clin_fut();
+        break;
+      }
 
       if ((double)m_clin_res["ppn"] > (double)post_tte_sup_thresh[i]  && !t.is_clin_fut()){
         INFO(Rcpp::Rcout, idxsim, "clin sup - stopping now, ppn " << (double)m_clin_res["ppn"] << " sup thresh " << (double)post_tte_sup_thresh[i] );
