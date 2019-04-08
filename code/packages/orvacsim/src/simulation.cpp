@@ -1659,7 +1659,7 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
     // predicted prob of success at nmaxsero
     // if nimpute2 == 0 then we are at nmaxsero with no information delay so just report
-    // the posterior prob that delta is gt 0 (post1gt0)
+    // the posterior prob that delta is gt 0 (post1gt0) which has already been computed above.
     nimpute2 = (int)cfg["nmaxsero"] - nobs;
     if(nimpute2 > 0){
       pp2 = rcpp_immu_ppos_test(d, m, look, nobs, nimpute2, (int)cfg["post_draw"],lnsero, cfg);
