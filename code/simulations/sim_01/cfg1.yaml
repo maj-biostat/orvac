@@ -122,19 +122,15 @@ use_alt_censoring: 0
 # posterior and posterior predictive thresholds
 # superiority/futility thresholds for futility checks
 
-# these are used to assess the posterior distributions generated from analyses that are
-# based on data drawn from the posterior predictive. for example, if the empirical probability that
-# the difference between seroconversion in the two arms is > 0 is above 0.9 then we consider that
-# simulated dataset to have yielded a successful trial.
-
-post_final_thresh: 0.95
+# for assessing the posterior distribution in the final analysis for both eps.
+post_final_thresh: 0.96
 
 # these are to assess futility along with the proportion of required 'wins' (defined below)
 # ramping up towards the end ensures a bit more stability
-post_sero_win_thresh_start: 0.95
-post_sero_win_thresh_end: 0.95
-post_tte_win_thresh_start: 0.95
-post_tte_win_thresh_end: 0.95
+post_sero_win_thresh_start: 0.96
+post_sero_win_thresh_end: 0.96
+post_tte_win_thresh_start: 0.96
+post_tte_win_thresh_end: 0.96
 
 # futility test
 # these correspond to the minimum proportion of simulated trial results that need to have been 
@@ -144,18 +140,13 @@ pp_sero_fut_thresh: 0.05
 pp_tte_fut_thresh: 0.05
 
 # stop v sampling test
-# this is the thresholds used to assess the posterior predictive in the case of the
-# immunological endpoint at the time of the interim. we need to see >= 97.5% prob of success to 
-# cease serum sampling
-# rule3_sero_pp_sup_thresh: 0.975
+# the result from the interim can be either a ppos (if there is a delay in information) or
+# a posterior probability that the difference is greater than zero.
 pp_sero_sup_thresh: 0.96
 
 # superiority test
 # these are the thresholds used to assess the posterior at the time of the interim. we need 
 # to see >= 90% prob of success to cease clinical endpoint for superiority.
-#rule2_tte_pp_sup_thresh_start: 0.94
-#rule2_tte_pp_sup_thresh_end: 0.8
-# rule2_tte_pp_sup_thresh: 0.975
 
 post_tte_sup_thresh_start: 0.96
 post_tte_sup_thresh_end: 0.96

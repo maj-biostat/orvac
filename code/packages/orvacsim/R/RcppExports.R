@@ -17,8 +17,8 @@ rcpp_clin_opt <- function(d, cfg, look) {
     .Call(`_orvacsim_rcpp_clin_opt`, d, cfg, look)
 }
 
-rcpp_clin <- function(d, cfg, look) {
-    .Call(`_orvacsim_rcpp_clin`, d, cfg, look)
+rcpp_clin_opt_test <- function(d, cfg, look) {
+    .Call(`_orvacsim_rcpp_clin_opt_test`, d, cfg, look)
 }
 
 rcpp_clin_set_obst <- function(d, cfg, look, dofinal) {
@@ -29,16 +29,16 @@ rcpp_visits <- function(d_new, i, look, cfg) {
     .Call(`_orvacsim_rcpp_visits`, d_new, i, look, cfg)
 }
 
+rcpp_visits_test <- function(d_new, i, look, cfg) {
+    .Call(`_orvacsim_rcpp_visits_test`, d_new, i, look, cfg)
+}
+
 rcpp_cens <- function(d_new, visits, i, look, dofinal, cfg) {
     .Call(`_orvacsim_rcpp_cens`, d_new, visits, i, look, dofinal, cfg)
 }
 
 rcpp_cens_interim <- function(d_new, visits, i, look, cfg) {
     .Call(`_orvacsim_rcpp_cens_interim`, d_new, visits, i, look, cfg)
-}
-
-rcpp_cens_interim_alt <- function(d_new, i, look, cfg) {
-    .Call(`_orvacsim_rcpp_cens_interim_alt`, d_new, i, look, cfg)
 }
 
 rcpp_cens_final <- function(d_new, visits, i, look, cfg) {
@@ -53,8 +53,8 @@ rcpp_clin_interim_ppos <- function(d_new, m, look, cfg) {
     .Call(`_orvacsim_rcpp_clin_interim_ppos`, d_new, m, look, cfg)
 }
 
-rcpp_immu_opt <- function(d, cfg, look) {
-    .Call(`_orvacsim_rcpp_immu_opt`, d, cfg, look)
+rcpp_clin_ppos_test <- function(d_new, m, look, cfg) {
+    .Call(`_orvacsim_rcpp_clin_ppos_test`, d_new, m, look, cfg)
 }
 
 rcpp_immu <- function(d, cfg, look) {
@@ -75,6 +75,10 @@ rcpp_immu_interim_post <- function(d, m, nobs, post_draw, lnsero) {
 
 rcpp_immu_interim_ppos <- function(d, m, look, nobs, nimpute, post_draw, lnsero, cfg) {
     .Call(`_orvacsim_rcpp_immu_interim_ppos`, d, m, look, nobs, nimpute, post_draw, lnsero, cfg)
+}
+
+rcpp_immu_ppos_test <- function(d, m, look, nobs, nimpute, post_draw, lnsero, cfg) {
+    .Call(`_orvacsim_rcpp_immu_ppos_test`, d, m, look, nobs, nimpute, post_draw, lnsero, cfg)
 }
 
 rcpp_outer <- function(z, t, out) {

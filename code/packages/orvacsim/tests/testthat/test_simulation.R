@@ -1,4 +1,4 @@
-  library(testthat)
+library(testthat)
 library(orvacsim)
 library(data.table)
 source("../../../../simulations/sim_01/util.R")
@@ -6,8 +6,8 @@ library(truncnorm)
 library(survival)
 library(boot)
 library(rstan)
-library(eha)
-
+# library(eha)
+library(rbenchmark)
 
 context("data generation")
 
@@ -591,6 +591,39 @@ test_that("setting obst and censor status", {
 
 context("clinical endpoint framework")
 
+test_that("clinical endpoint posterior - basic", {
+
+  cfg <- readRDS("cfg-example.RDS")
+
+  # test - estimated median tte is biased in both arms due to censoring mechanism
+  # but ratio is preserved with lower than 2% bias
+  look <- 28
+
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+
+  log(2)/(cfg$b0tte)
+  log(2)/(cfg$b0tte + cfg$b1tte)
+
+  # get sufficieitn stats
+  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look, 0))
+
+  # obtain posterior based on current look
+  m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+  rcpp_clin_interim_post(m,
+                         lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
+                         lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
+                         cfg$post_draw, cfg);
+
+  est <- colMeans(m)
+
+  expect_equal(est[1], cfg$b0tte, tolerance = 0.01)
+  expect_equal(est[2], cfg$b0tte + cfg$b1tte , tolerance = 0.01)
+
+
+})
+
 test_that("clinical endpoint posterior", {
 
   cfg <- readRDS("cfg-example.RDS")
@@ -598,9 +631,13 @@ test_that("clinical endpoint posterior", {
 
   # test - estimated median tte is biased in both arms due to censoring mechanism
   # but ratio is preserved with lower than 2% bias
-  look <- 32
+  look <- 28
   nsim <- 1000
-  v <- numeric(nsim)
+  mres <- matrix(0, ncol = 3, nrow = nsim)
+  cfg$post_draw <- 5000
+
+  log(2)/(cfg$b0tte)
+  log(2)/(cfg$b0tte + cfg$b1tte)
 
   for(i in 1:nsim){
     # i = i + 1
@@ -609,7 +646,7 @@ test_that("clinical endpoint posterior", {
     colnames(d2) <- dnames
 
     # get sufficieitn stats
-    (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look, 1))
+    (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look, 0))
 
     d2 <- as.data.frame(copy(d))
     colnames(d2) <- dnames
@@ -622,18 +659,18 @@ test_that("clinical endpoint posterior", {
                            lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
                            lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
                            cfg$post_draw, cfg);
-   # plot_tte_hist(m)
-    v[i] <- mean(m[, 1]/m[, 2])
 
-    # should be (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
+    mres[i,] <- colMeans(m)
   }
-  # hist(v)
-  # abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = cbp[2], lwd = 2)
-  # abline(v = mean(v), col = cbp[3], lwd = 2, lty = 3)
 
-  expect_equal(mean(v), (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), tolerance = 0.02)
+  # par(mfrow = c(2, 2))
+  # plot(density(mres[,1]))
+  # plot(density(mres[,2]))
+  # plot(density(mres[,3]))
+  # par(mfrow = c(1, 1))
 
-
+  expect_equal(mres[1], cfg$b0tte, tolerance = 0.005)
+  expect_equal(mres[2], cfg$b0tte + cfg$b1tte , tolerance = 0.005)
 
 })
 
@@ -687,6 +724,52 @@ test_that("clin tte posterior check against mcmc", {
   expect_equal(mean(m[,1]), mean(beta[,1]), tolerance = 0.02 * 0.05)
   expect_equal(mean(m[,2]), mean(beta[,2]), tolerance = 0.02 * 0.05)
   expect_equal(mean(m[,3]), mean(beta[,3]), tolerance = 1.2 * 0.05)
+
+})
+
+
+test_that("clin tte data ppos basic", {
+
+
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("../../../../simulations/sim_01/util.R")
+  library(truncnorm)
+  library(survival)
+  library(boot)
+  library(rstan)
+  # library(eha)
+  library(rbenchmark)
+
+  cfg <- readRDS("cfg-example.RDS")
+  look <- 28
+  d <- rcpp_dat(cfg)
+  set.seed(5)
+  v1 <- rcpp_visits(d, 300, look, cfg)
+
+  set.seed(5)
+  v2 <- rcpp_visits_test(d, 300, look, cfg)
+
+  cbind(v1, v2)
+
+  benchmark(rcpp_visits(d, 300, look, cfg),
+            rcpp_visits_test(d, 300, look, cfg),
+            columns=c("test", "elapsed", "relative"),
+            order="relative", replications=1000000)
+  #
+
+  cfg <- readRDS("cfg-example.RDS")
+  look <- 22
+  d <- rcpp_dat(cfg)
+  c1 <- rcpp_clin_opt(d, cfg, look)
+  c2 <- rcpp_clin_opt_test(d, cfg, look)
+  list(c1, c2)
+
+  benchmark(rcpp_clin_opt(d, cfg, look),
+            rcpp_clin_opt_test(d, cfg, look),
+            columns=c("test", "elapsed", "relative"),
+            order="relative", replications=5)
 
 })
 
@@ -775,6 +858,161 @@ test_that("immu model - estimated post and diff", {
 })
 
 
+
+
+
+
+
+test_that("immu model - compare post to approx", {
+
+  cfg <- readRDS("cfg-example.RDS")
+  cfg$post_draw <- 1000
+  cfg$baselineprobsero
+  cfg$trtprobsero <- 0.45
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+
+  d <- rcpp_dat(cfg)
+  df <- as.data.frame(d)
+  colnames(df) <- dnames
+
+  m <- matrix(0, ncol  = 3, nrow = cfg$post_draw)
+  look <- 5
+  nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, cfg$sero_info_delay)
+
+  # seroconversion events in each arm
+  lnsero <- rcpp_lnsero(d, nobs)
+  m <- matrix(0, ncol  = 3, nrow = cfg$post_draw)
+  rcpp_immu_interim_post(d, m, nobs, cfg$post_draw, lnsero)
+  nimpute1 <- cfg$looks[look] - nobs
+
+  # how many trials are successful? this is what we rely on to do the
+  # stop venous sampling check.
+  pp1a <- rcpp_immu_interim_ppos(d, m, look, nobs, nimpute1, cfg$post_draw, lnsero, cfg)
+  dens1a <- density(pp1a$postprobdelta_gt0)
+  pp1b <- rcpp_test_immu_ppos(d, m, look, nobs, nimpute1, cfg$post_draw, lnsero, cfg)
+  dens1b <- density(pp1b$postprobdelta_gt0)
+
+  c(pp1a$ppos, pp1b$ppos)
+
+  plot(dens1a)
+  lines(dens1b, col = "red")
+  #
+
+
+
+})
+
+
+test_that("immu model - main call", {
+
+
+  cfg <- readRDS("cfg-example.RDS")
+  cfg$post_draw <- 1000
+  cfg$baselineprobsero
+  cfg$trtprobsero <- 0.4
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+
+  expect_equal(cfg$nmaxsero, 250)
+
+
+  #rcpp_testing(cfg, 10)
+
+  # generate data
+  d <- rcpp_dat(cfg)
+  df <- as.data.frame(d)
+  colnames(df) <- dnames
+  nobs <- 272
+  m <- matrix(0, ncol  = 3, nrow = cfg$post_draw)
+
+
+
+  # profile
+  d <- rcpp_dat(cfg)
+  look <- 7
+  nobs <- 242
+  lnsero <- rcpp_lnsero(d, nobs)
+  library(rbenchmark)
+  benchmark(rcpp_dat(cfg),
+            rcpp_n_obs(d, 7, cfg$looks, cfg$interimmnths, cfg$sero_info_delay),
+            rcpp_immu_interim_post(d, m, nobs, cfg$post_draw, lnsero),
+            rcpp_test_immu_ppos(d, m, look, nobs, nimpute1, cfg$post_draw, lnsero, cfg),
+            rcpp_immu_interim_ppos(d, m, look, nobs, nimpute1, cfg$post_draw, lnsero, cfg),
+            columns=c("test", "elapsed", "relative"),
+            order="relative", replications=100)
+
+  #
+
+
+  # simulate a trial - just doing immu endpoint.
+  runtrial <- function(nsims){
+    wins <- numeric(nsims)
+    for(i in 1:nsims){
+      # generate data
+      d <- rcpp_dat(cfg)
+      # doesn't matter that this goes all the way up to looks,
+      for(look in 1:length(cfg$looks)){
+        if(cfg$looks[look] > cfg$nmaxsero){
+          break
+        }
+        # look minus 1 for c++ world is done inside method
+        nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, cfg$sero_info_delay)
+        expect_lt(nobs, cfg$looks[look])
+        # seroconversion events in each arm
+        lnsero <- rcpp_lnsero(d, nobs);
+        m <- matrix(0, ncol  = 3, nrow = cfg$post_draw)
+        rcpp_immu_interim_post(d, m, nobs, cfg$post_draw, lnsero)
+        nimpute1 <- cfg$looks[look] - nobs
+        expect_gt(nimpute1, 0)
+        # how many trials are successful? this is what we rely on to do the
+        # stop venous sampling check.
+        pp1 <- rcpp_test_immu_ppos(d, m, look, nobs, nimpute1, cfg$post_draw, lnsero, cfg)
+        if(pp1$ppos > cfg$pp_sero_sup_thresh){
+          wins[i] <- 1
+          break
+        }
+      }
+    }
+    return(wins)
+  }
+
+  mywin <- runtrial(1000)
+  mean(mywin)
+
+  #
+
+
+
+
+
+
+
+
+
+
+
+  # this is what is used to do the futility check
+  nimpute2 <- cfg$nmaxsero - nobs
+  pp2 <- rcpp_immu_interim_ppos(d, m, look, nobs, nimpute2, cfg$post_draw, lnsero, cfg)
+
+
+
+  m_immu_res <- rcpp_immu(d, cfg, 1);
+
+
+
+
+  # got to be within 1%
+  expect_equal(cfg$baselineprobsero, mean(res[,1]),  cfg$baselineprobsero * 1/100)
+  expect_equal(cfg$trtprobsero, mean(res[,2]),  cfg$trtprobsero * 1/100)
+
+  # got to be within 1%
+  diff_true <- cfg$trtprobsero - cfg$baselineprobsero
+  diff_mean_est <- mean(res[,2] - res[,1])
+  expect_equal(diff_true, diff_mean_est,  diff_true * 1/100)
+
+})
+
+
 test_that("dotrial", {
 
   doglm <- function(df){
@@ -833,4 +1071,93 @@ test_that("dotrial", {
 
 
 
+# test_that("clinical endpoint posterior - approximation", {
+#
+#   cfg <- readRDS("cfg-example.RDS")
+#
+#
+#   # test - estimated median tte is biased in both arms due to censoring mechanism
+#   # but ratio is preserved with lower than 2% bias
+#   look <- 32
+#   nsim <- 1000
+#   v <- numeric(nsim)
+#
+#   for(i in 1:nsim){
+#     # i = i + 1
+#     d <- rcpp_dat(cfg)
+#     d2 <- as.data.frame(copy(d))
+#     colnames(d2) <- dnames
+#
+#     # get sufficieitn stats
+#     (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look, 1))
+#
+#     d2 <- as.data.frame(copy(d))
+#     colnames(d2) <- dnames
+#
+#     #lsuffstat2 <- rcpp_clin_set_obst(d, cfg, look)
+#
+#     # obtain posterior based on current look
+#     m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
+#     rcpp_clin_interim_post(m,
+#                            lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
+#                            lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
+#                            cfg$post_draw, cfg);
+#
+#     x0 <- rgamma(cfg$post_draw,
+#                  shape = cfg$prior_gamma_a + lsuffstat1$n_uncen_0,
+#                  rate = cfg$prior_gamma_b + lsuffstat1$tot_obst_0)
+#
+#     a <- cfg$prior_gamma_a + lsuffstat1$n_uncen_0
+#     b <- 1/(cfg$prior_gamma_b + lsuffstat1$tot_obst_0)
+#     mu0 <- a*b
+#     s0 <- sqrt(a)*b
+#
+#     plot(density(rnorm(1000, mu0, s0)))
+#
+#     plot(density(m[,1]))
+#     lines(density(x0), col = "red")
+#
+#     c <- cfg$prior_gamma_a + lsuffstat1$n_uncen_1
+#     d <- 1/(cfg$prior_gamma_b + lsuffstat1$tot_obst_1)
+#     mu1 <- c*d
+#     s1<- sqrt(c)*d
+#
+#
+#
+#     x1 <- rgamma(cfg$post_draw,
+#                  shape = cfg$prior_gamma_a + lsuffstat1$n_uncen_1,
+#                  rate = cfg$prior_gamma_b + lsuffstat1$tot_obst_1)
+#
+#     plot(density(m[,1]))
+#     lines(density(x0), col = "red")
+#
+#
+#
+#     # plot(density(m[,2]))
+#     # lines(density(x1), col = "red")
+#
+#     # plot(density(m[,3]))
+#     # lines(density(x0/x1), col = "red")
+#
+#     mu3 <- mean(m[,3])
+#     sd3 <- sd(m[,3])
+#
+#     plot(density(rnorm(1000, mu3, sd3)))
+#     lines(density(m[,3]), col = "red")
+#
+#
+#     # plot_tte_hist(m)
+#     v[i] <- mean(m[, 1]/m[, 2])
+#
+#     # should be (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
+#   }
+#   # hist(v)
+#   # abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = cbp[2], lwd = 2)
+#   # abline(v = mean(v), col = cbp[3], lwd = 2, lty = 3)
+#
+#   # expect_equal(mean(v), (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), tolerance = 0.02)
+#
+#
+#
+# })
 

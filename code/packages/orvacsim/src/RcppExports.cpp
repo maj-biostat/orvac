@@ -57,16 +57,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpp_clin
-Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg, const int look);
-RcppExport SEXP _orvacsim_rcpp_clin(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP) {
+// rcpp_clin_opt_test
+Rcpp::List rcpp_clin_opt_test(arma::mat& d, const Rcpp::List& cfg, const int look);
+RcppExport SEXP _orvacsim_rcpp_clin_opt_test(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::mat& >::type d(dSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_clin(d, cfg, look));
+    rcpp_result_gen = Rcpp::wrap(rcpp_clin_opt_test(d, cfg, look));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -98,6 +98,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rcpp_visits_test
+arma::vec rcpp_visits_test(const arma::mat& d_new, const int i, const int look, const Rcpp::List& cfg);
+RcppExport SEXP _orvacsim_rcpp_visits_test(SEXP d_newSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type d_new(d_newSEXP);
+    Rcpp::traits::input_parameter< const int >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_visits_test(d_new, i, look, cfg));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rcpp_cens
 Rcpp::List rcpp_cens(const arma::mat& d_new, const arma::vec& visits, const int i, const int look, const bool dofinal, const Rcpp::List& cfg);
 RcppExport SEXP _orvacsim_rcpp_cens(SEXP d_newSEXP, SEXP visitsSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP dofinalSEXP, SEXP cfgSEXP) {
@@ -126,20 +140,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
     rcpp_result_gen = Rcpp::wrap(rcpp_cens_interim(d_new, visits, i, look, cfg));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpp_cens_interim_alt
-Rcpp::List rcpp_cens_interim_alt(const arma::mat& d_new, const int i, const int look, const Rcpp::List& cfg);
-RcppExport SEXP _orvacsim_rcpp_cens_interim_alt(SEXP d_newSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type d_new(d_newSEXP);
-    Rcpp::traits::input_parameter< const int >::type i(iSEXP);
-    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_cens_interim_alt(d_new, i, look, cfg));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -188,16 +188,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpp_immu_opt
-Rcpp::List rcpp_immu_opt(const arma::mat& d, const Rcpp::List& cfg, const int look);
-RcppExport SEXP _orvacsim_rcpp_immu_opt(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP) {
+// rcpp_clin_ppos_test
+Rcpp::List rcpp_clin_ppos_test(arma::mat& d_new, const arma::mat& m, const int look, const Rcpp::List& cfg);
+RcppExport SEXP _orvacsim_rcpp_clin_ppos_test(SEXP d_newSEXP, SEXP mSEXP, SEXP lookSEXP, SEXP cfgSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type d(dSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type d_new(d_newSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type m(mSEXP);
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_immu_opt(d, cfg, look));
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_clin_ppos_test(d_new, m, look, cfg));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -273,6 +274,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rcpp_immu_ppos_test
+Rcpp::List rcpp_immu_ppos_test(const arma::mat& d, const arma::mat& m, const int look, const int nobs, const int nimpute, const int post_draw, const Rcpp::List& lnsero, const Rcpp::List& cfg);
+RcppExport SEXP _orvacsim_rcpp_immu_ppos_test(SEXP dSEXP, SEXP mSEXP, SEXP lookSEXP, SEXP nobsSEXP, SEXP nimputeSEXP, SEXP post_drawSEXP, SEXP lnseroSEXP, SEXP cfgSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type m(mSEXP);
+    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
+    Rcpp::traits::input_parameter< const int >::type nobs(nobsSEXP);
+    Rcpp::traits::input_parameter< const int >::type nimpute(nimputeSEXP);
+    Rcpp::traits::input_parameter< const int >::type post_draw(post_drawSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type lnsero(lnseroSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_immu_ppos_test(d, m, look, nobs, nimpute, post_draw, lnsero, cfg));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rcpp_outer
 void rcpp_outer(const arma::vec& z, const arma::vec& t, arma::mat& out);
 RcppExport SEXP _orvacsim_rcpp_outer(SEXP zSEXP, SEXP tSEXP, SEXP outSEXP) {
@@ -317,21 +336,22 @@ static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_dat", (DL_FUNC) &_orvacsim_rcpp_dat, 1},
     {"_orvacsim_rcpp_dat_small", (DL_FUNC) &_orvacsim_rcpp_dat_small, 5},
     {"_orvacsim_rcpp_clin_opt", (DL_FUNC) &_orvacsim_rcpp_clin_opt, 3},
-    {"_orvacsim_rcpp_clin", (DL_FUNC) &_orvacsim_rcpp_clin, 3},
+    {"_orvacsim_rcpp_clin_opt_test", (DL_FUNC) &_orvacsim_rcpp_clin_opt_test, 3},
     {"_orvacsim_rcpp_clin_set_obst", (DL_FUNC) &_orvacsim_rcpp_clin_set_obst, 4},
     {"_orvacsim_rcpp_visits", (DL_FUNC) &_orvacsim_rcpp_visits, 4},
+    {"_orvacsim_rcpp_visits_test", (DL_FUNC) &_orvacsim_rcpp_visits_test, 4},
     {"_orvacsim_rcpp_cens", (DL_FUNC) &_orvacsim_rcpp_cens, 6},
     {"_orvacsim_rcpp_cens_interim", (DL_FUNC) &_orvacsim_rcpp_cens_interim, 5},
-    {"_orvacsim_rcpp_cens_interim_alt", (DL_FUNC) &_orvacsim_rcpp_cens_interim_alt, 4},
     {"_orvacsim_rcpp_cens_final", (DL_FUNC) &_orvacsim_rcpp_cens_final, 5},
     {"_orvacsim_rcpp_clin_interim_post", (DL_FUNC) &_orvacsim_rcpp_clin_interim_post, 7},
     {"_orvacsim_rcpp_clin_interim_ppos", (DL_FUNC) &_orvacsim_rcpp_clin_interim_ppos, 4},
-    {"_orvacsim_rcpp_immu_opt", (DL_FUNC) &_orvacsim_rcpp_immu_opt, 3},
+    {"_orvacsim_rcpp_clin_ppos_test", (DL_FUNC) &_orvacsim_rcpp_clin_ppos_test, 4},
     {"_orvacsim_rcpp_immu", (DL_FUNC) &_orvacsim_rcpp_immu, 3},
     {"_orvacsim_rcpp_n_obs", (DL_FUNC) &_orvacsim_rcpp_n_obs, 5},
     {"_orvacsim_rcpp_lnsero", (DL_FUNC) &_orvacsim_rcpp_lnsero, 2},
     {"_orvacsim_rcpp_immu_interim_post", (DL_FUNC) &_orvacsim_rcpp_immu_interim_post, 5},
     {"_orvacsim_rcpp_immu_interim_ppos", (DL_FUNC) &_orvacsim_rcpp_immu_interim_ppos, 8},
+    {"_orvacsim_rcpp_immu_ppos_test", (DL_FUNC) &_orvacsim_rcpp_immu_ppos_test, 8},
     {"_orvacsim_rcpp_outer", (DL_FUNC) &_orvacsim_rcpp_outer, 3},
     {"_orvacsim_rcpp_logrank", (DL_FUNC) &_orvacsim_rcpp_logrank, 3},
     {"_orvacsim_rcpp_gamma", (DL_FUNC) &_orvacsim_rcpp_gamma, 3},

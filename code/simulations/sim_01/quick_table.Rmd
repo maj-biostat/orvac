@@ -285,9 +285,6 @@ df_0 <- df_all %>%
 df_blank <- df_0 %>% dplyr::slice(1L) 
 
 
-
-# stopifnot(nrow(df_1) == 6)
-
 digits <- c(0, 0, 2, 2, 0, 2,
             0, 0, 0, 0, 0,0,0,0,
             0, 0, 0, 0, 0, 0, 0)
