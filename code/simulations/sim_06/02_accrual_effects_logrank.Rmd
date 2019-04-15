@@ -74,22 +74,27 @@ odd_to_prob <- function(x){
 
 Assume you have interims starting at $n_{min}$ then every $n$ patients up to a maximum sample size $N$. If you vary $n$per interim (the accrual rate) how does it effect power in a survival endpoint (exponential)? We initially assume 40% censoring (plausibly indicative of orvac).
 
-# Generate Data
+# Simulate interims
+
+Generate datasets.
 
 ```{r}
-trial_dat <- function(trialid, n, t0, delta, c_rate){
+trial_dat <- function(trialid, n, t0, delta){
   t1 <- t0 + delta
   b0 <- log(2)/t0
   b1 <- log(2)/t1 - log(2)/t0
 
   d <- data.frame(trialid = trialid, id = 1:n)
+  # complete balance 1:1
   d$trt <- rep(0:1, len = n)
   d$y <- rexp(n, b0 + b1*d$trt)
   d$c <- 0
-  if(c_rate != 0){
-    d$c[sample(1:n, n*c_rate)] = 1
-  }
-  d$y <- ifelse(d$c == 1, 36, d$y)
+  d$c <- ifelse(d$y > 30, 1, 0)
+  d$e <- 1 - d$c
+  # assume they were 6 months when they were randomised
+  # therefore once the time gets above 30, they will be
+  # censored
+  d$y <- ifelse(d$c == 1, 30, d$y)
   d
 }
 
@@ -97,18 +102,17 @@ trial_dat <- function(trialid, n, t0, delta, c_rate){
 nsim <- 1000
 # obs per trial
 N <- 1000 
-# med tte
-t0 <- 30
-# trt effect
+# baseline med tte
+t0 <- 35
+# trt effect (months increase)
 delta <- 10
-# censoring rate
-c_rate <- 0.4
-d <- lapply(1:nsim, trial_dat, N, t0, delta, c_rate)
+# censoring at 36 months of age (assuming rand at 6 months)
+d <- lapply(1:nsim, trial_dat, N, t0, delta)
 
 head(d[[1]])
 ```
 
-Compute when interim analyses happen.
+Compute sample sizes when interim analyses happen assuming a given accrual rate.
 
 ```{r}
 get_int <- function(n){
@@ -119,6 +123,7 @@ get_int <- function(n){
   } 
   interm_n
 }
+# e.g.
 get_int(n = 30)
 ```
 
@@ -126,44 +131,77 @@ Simulation using logrank.
 
 ```{r}
 
-fit <- function(current_n, trial_id){
-  lm1 <- survdiff(Surv(y, 1-c) ~ trt, data=d[[trial_id]][1:current_n,])
+fit <- function(current_n, sim_id){
+  # retrieve the observations 1 to the size of the current 
+  # interim from the relevant trial dataset and run a 
+  # logrank test
+  lm1 <- survdiff(Surv(y, 1-c) ~ trt, data=d[[sim_id]][1:current_n,])
   pchisq(lm1$chisq,df = 1, lower.tail = F)
 }
 
-sim <- function(trial_id, n_step){
-  res <- unlist(lapply(get_int(n_step), fit, trial_id))
+sim_interims <- function(sim_id, n_step){
+  
+  interims <- get_int(n_step)
+  
+  # at each interim do the analysis
+  res <- unlist(lapply(interims, fit, sim_id))
+  # if a difference is detected in any of the analyses (adjusting for
+  # multiplicity) then return true (implies expected success)
   any(p.adjust(res, method = "bonferroni") < 0.05)
-}
-
-# ppos
-accrual_rates <- c(30, 40, 50)
-ppos1 <- rep(0, length(accrual_rates))
-
-for(i in 1:length(accrual_rates)){
-  ppos1[i] <- mean(unlist(lapply(1:nsim, sim, accrual_rates[i])))
-}
-
-
-
-# ppos - no censoring
-accrual_rates <- c(30, 40, 50)
-c_rate <- 0
-d <- lapply(1:nsim, trial_dat, N, t0, delta, c_rate)
-
-ppos2 <- rep(0, length(accrual_rates))
-
-for(i in 1:length(accrual_rates)){
-  ppos2[i] <- mean(unlist(lapply(1:nsim, sim, accrual_rates[i])))
 }
 
 ```
 
-Plot (dashed has more censoring).
+Do simulations.
 
 ```{r}
-plot(accrual_rates, ppos1, type = "l", ylim = c(0.4, 0.8))
-plot(accrual_rates, ppos2, type = "l")
+# set up params of interest
+accrual_rates <- c(30, 40, 50)
+t0 <- c(20, 35, 50)
+deltas <- c(5, 7.5, 10, 12.5, 15)
+nsim <- 10000
+
+dres <- expand.grid(deltas, t0, accrual_rates)
+names(dres) <- c("delta", "t0", "accrual_per_q")
+dres$ppos <- 0
+
+for(i in 1:length(accrual_rates)){
+  
+  for(j in 1:length(t0)){
+    
+    for(k in 1:length(deltas)){
+      
+      d <- lapply(1:nsim, trial_dat, N, t0[j], deltas[k])
+      
+      ppos <- mean(unlist(lapply(1:nsim, sim_interims, n_step = accrual_rates[i])))
+      
+      dres[dres$delta == deltas[k] & 
+             dres$t0 == t0[j] &
+             dres$accrual_per_q == accrual_rates[i], "ppos"] <- ppos
+      
+    }
+
+  }
+
+}
+
+
+```
+
+Plot.
+
+```{r, echo = F, fig.width=5, fig.height=5}
+ggplot(dres, aes(x = delta, y = ppos, 
+                 lty = paste0(accrual_per_q),
+                 col = paste0(t0)))+
+  geom_line() +
+  scale_color_discrete("Baseline med tte")+
+  scale_linetype_discrete("Accrual per interim")+
+  theme(legend.direction = "horizontal") +
+  theme(legend.position = "bottom") +
+  theme(legend.box = "vertical")+
+  scale_y_continuous("Pr(e.s)", lim = c(0, 1))+
+  scale_x_continuous("Diff in med surv tim")
 ```
 
 # Summary

@@ -73,8 +73,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // rcpp_visits
-arma::vec rcpp_visits(const arma::mat& d_new, const int i, const int look, const Rcpp::List& cfg, const bool dotarget);
-RcppExport SEXP _orvacsim_rcpp_visits(SEXP d_newSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP cfgSEXP, SEXP dotargetSEXP) {
+arma::vec rcpp_visits(const arma::mat& d_new, const int i, const int look, const Rcpp::List& cfg, const bool dofinal);
+RcppExport SEXP _orvacsim_rcpp_visits(SEXP d_newSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP cfgSEXP, SEXP dofinalSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -82,14 +82,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int >::type i(iSEXP);
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
-    Rcpp::traits::input_parameter< const bool >::type dotarget(dotargetSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_visits(d_new, i, look, cfg, dotarget));
+    Rcpp::traits::input_parameter< const bool >::type dofinal(dofinalSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_visits(d_new, i, look, cfg, dofinal));
     return rcpp_result_gen;
 END_RCPP
 }
 // rcpp_cens
-Rcpp::List rcpp_cens(const arma::mat& d_new, const arma::vec& visits, const int i, const int look, const bool dofinal, const Rcpp::List& cfg, const bool dotarget);
-RcppExport SEXP _orvacsim_rcpp_cens(SEXP d_newSEXP, SEXP visitsSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP dofinalSEXP, SEXP cfgSEXP, SEXP dotargetSEXP) {
+Rcpp::List rcpp_cens(const arma::mat& d_new, const arma::vec& visits, const int i, const int look, const bool dofinal, const bool dotarget, const Rcpp::List& cfg);
+RcppExport SEXP _orvacsim_rcpp_cens(SEXP d_newSEXP, SEXP visitsSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP dofinalSEXP, SEXP dotargetSEXP, SEXP cfgSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -98,15 +98,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int >::type i(iSEXP);
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
     Rcpp::traits::input_parameter< const bool >::type dofinal(dofinalSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
     Rcpp::traits::input_parameter< const bool >::type dotarget(dotargetSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_cens(d_new, visits, i, look, dofinal, cfg, dotarget));
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_cens(d_new, visits, i, look, dofinal, dotarget, cfg));
     return rcpp_result_gen;
 END_RCPP
 }
 // rcpp_cens_interim
-Rcpp::List rcpp_cens_interim(const arma::mat& d_new, const arma::vec& visits, const int i, const int look, const Rcpp::List& cfg, const bool dotarget);
-RcppExport SEXP _orvacsim_rcpp_cens_interim(SEXP d_newSEXP, SEXP visitsSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP cfgSEXP, SEXP dotargetSEXP) {
+Rcpp::List rcpp_cens_interim(const arma::mat& d_new, const arma::vec& visits, const int i, const int look, const bool dotarget, const Rcpp::List& cfg);
+RcppExport SEXP _orvacsim_rcpp_cens_interim(SEXP d_newSEXP, SEXP visitsSEXP, SEXP iSEXP, SEXP lookSEXP, SEXP dotargetSEXP, SEXP cfgSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -114,9 +114,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type visits(visitsSEXP);
     Rcpp::traits::input_parameter< const int >::type i(iSEXP);
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
     Rcpp::traits::input_parameter< const bool >::type dotarget(dotargetSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_cens_interim(d_new, visits, i, look, cfg, dotarget));
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_cens_interim(d_new, visits, i, look, dotarget, cfg));
     return rcpp_result_gen;
 END_RCPP
 }

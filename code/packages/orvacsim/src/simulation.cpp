@@ -85,14 +85,14 @@ Rcpp::List rcpp_cens(const arma::mat& d_new,
                      const int i,
                      const int look,
                      const bool dofinal,
-                     const Rcpp::List& cfg,
-                     const bool dotarget);
+                     const bool dotarget,
+                     const Rcpp::List& cfg);
 Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
                              const arma::vec& visits,
                              const int i,
                              const int look,
-                             const Rcpp::List& cfg,
-                             const bool dotarget);
+                             const bool dotarget,
+                             const Rcpp::List& cfg);
 Rcpp::List rcpp_cens_final(const arma::mat& d_new,
                            const arma::vec& visits,
                            const int i,
@@ -102,7 +102,7 @@ arma::vec rcpp_visits(const arma::mat& d_new,
                            const int i,
                            const int look,
                            const Rcpp::List& cfg,
-                           const bool dotarget);
+                           const bool dofinal);
 Rcpp::List rcpp_clin_set_obst(arma::mat& d,
                               const Rcpp::List& cfg,
                               const int look,
@@ -636,12 +636,14 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
 
   int post_draw = (int)cfg["post_draw"];
   int mylook = look - 1;
-  int win = 0;
+  int winint = 0;
+  int winfin = 0;
   double ppos_max = 0;
   double a = (double)cfg["prior_gamma_a"];
   double b = (double)cfg["prior_gamma_b"];
 
   Rcpp::NumericVector looks = cfg["looks"];
+  Rcpp::NumericVector looks_target = cfg["looks_target"];
   Rcpp::NumericVector months = cfg["interimmnths"];
   Rcpp::NumericVector post_tte_win_thresh = cfg["post_tte_win_thresh"];
   Rcpp::List lsuffstat;
@@ -661,7 +663,6 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
   double n_uncen_1 = (double)lsuffstat["n_uncen_1"];
   double tot_obst_1 = (double)lsuffstat["tot_obst_1"];
 
-
   // for i in postdraws do posterior predictive trials
   // 1. for the interim (if we are at less than 50 per qtr)
   // 2. for the max sample size
@@ -672,52 +673,72 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
     m(i, COL_LAMB1) = R::rgamma(a + n_uncen_1, 1/(b + tot_obst_1));
     m(i, COL_RATIO) = m(i, COL_LAMB0) / m(i, COL_LAMB1);
 
-    // copy d then compute suff stats (calls visits and censoring)
+    // copy d then generate new data for all the observations that follow
+    // our current enrolled set.
     arma::mat d_new = arma::mat(d);
     rcpp_dat_small(d_new, cfg, look, (double)m(i, COL_LAMB0), (double)m(i, COL_LAMB1));
-    // the true indicates that we are looking at the final - this has slight different
-    // implications for censoring.
-    Rcpp::List lsspp = rcpp_clin_set_obst(d_new, cfg, looks.size(), true, false);
 
-    // obtain full post_draw sample from new posterior for j in postdraws
-    arma::mat m_new = arma::zeros(post_draw , 3);
-    for(int j = 0; j < post_draw; j++){
-      m_new(j, COL_LAMB0) = R::rgamma(a + (double)lsspp["n_uncen_0"], 1/(b + (double)lsspp["tot_obst_0"]));
-      m_new(j, COL_LAMB1) = R::rgamma(a + (double)lsspp["n_uncen_1"], 1/(b + (double)lsspp["tot_obst_1"]));
-      m_new(j, COL_RATIO) = m_new(j, COL_LAMB0) / m_new(j, COL_LAMB1);
+
+
+    // impute for interim if looks[look] < looks_target[look]
+    // impute to looks_target[look] sample size based on current draw from posterior
+    if(looks[mylook] < looks_target[mylook]){
+
+      // the true indicates that we look to the target sample size
+      Rcpp::List lssppint = rcpp_clin_set_obst(d_new, cfg, looks.size(), false, true);
+      // obtain full post_draw sample from new posterior for j in postdraws
+      arma::mat m_newint = arma::zeros(post_draw , 3);
+      for(int j = 0; j < post_draw; j++){
+        m_newint(j, COL_LAMB0) = R::rgamma(a + (double)lssppint["n_uncen_0"], 1/(b + (double)lssppint["tot_obst_0"]));
+        m_newint(j, COL_LAMB1) = R::rgamma(a + (double)lssppint["n_uncen_1"], 1/(b + (double)lssppint["tot_obst_1"]));
+        m_newint(j, COL_RATIO) = m_newint(j, COL_LAMB0) / m_newint(j, COL_LAMB1);
+      }
+      // empirical posterior probability that ratio_lamb > 1
+      utmp = arma::find(m_newint.col(COL_RATIO) > 1);
+      postprob_ratio_gt1(i) =  (double)utmp.n_elem / (double)post_draw;
+      if(postprob_ratio_gt1(i) > post_tte_win_thresh[mylook]){
+        winint++;
+      }
     }
 
+
+
+    // impute to max sample size based on current draw from posterior
+    // the true indicates that we are looking at the final - this has slight different
+    // implications for censoring.
+    Rcpp::List lssppfin = rcpp_clin_set_obst(d_new, cfg, looks.size(), true, false);
+    // obtain full post_draw sample from new posterior for j in postdraws
+    arma::mat m_newfin = arma::zeros(post_draw , 3);
+    for(int j = 0; j < post_draw; j++){
+      m_newfin(j, COL_LAMB0) = R::rgamma(a + (double)lssppfin["n_uncen_0"], 1/(b + (double)lssppfin["tot_obst_0"]));
+      m_newfin(j, COL_LAMB1) = R::rgamma(a + (double)lssppfin["n_uncen_1"], 1/(b + (double)lssppfin["tot_obst_1"]));
+      m_newfin(j, COL_RATIO) = m_newfin(j, COL_LAMB0) / m_newfin(j, COL_LAMB1);
+    }
     // empirical posterior probability that ratio_lamb > 1
-    utmp = arma::find(m_new.col(COL_RATIO) > 1);
+    utmp = arma::find(m_newfin.col(COL_RATIO) > 1);
     postprob_ratio_gt1(i) =  (double)utmp.n_elem / (double)post_draw;
     if(postprob_ratio_gt1(i) > post_tte_win_thresh[mylook]){
-      win++;
+      winfin++;
     }
   }
 
-  // assess posterior
-  utmp = arma::find(m.col(COL_RATIO) > 1);
-  double post_prob_win =  (double)utmp.n_elem / (double)post_draw;
-  double mean_ratio =  arma::mean(m.col(COL_RATIO));
-  double sd_ratio =  arma::stddev(m.col(COL_RATIO));
-  double lwr = mean_ratio - 1.96 * sd_ratio;
-  double upr = mean_ratio + 1.96 * sd_ratio;
-  mean_ratio = round(mean_ratio * 1000) / 1000;
-  lwr = round(lwr * 1000) / 1000;
-  upr = round(upr * 1000) / 1000;
+  // assess the interim posterior predictive (if accrual < 50 p qtr) or
+  // just look at posterior if accrual is on target (i.e. 50 p qtr)
+  double post_prob_win;
+  if(looks[mylook] == looks_target[mylook]){
+    utmp = arma::find(m.col(COL_RATIO) > 1);
+    post_prob_win =  (double)utmp.n_elem / (double)post_draw;
+  } else {
+    post_prob_win = (double)winint / (double)post_draw;
+  }
 
+  // assess results from posterior predictive imputing to max sample size
+  double ppos = (double)winfin / (double)post_draw;
 
-  // assess results from posterior predictive
-  double ppos = (double)win / (double)post_draw;
-
-
-  DBG(Rcpp::Rcout, "     win " << win << " post_prob_win " << post_prob_win << " ppos " << ppos);
+  DBG(Rcpp::Rcout, "     winfin " << winfin << " post_prob_win " << post_prob_win << " ppos " << ppos);
 
   Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppn") = post_prob_win,
-                                      Rcpp::Named("ppmax") = ppos,
-                                      Rcpp::Named("ratio") = mean_ratio,
-                                      Rcpp::Named("lwr") = lwr,
-                                      Rcpp::Named("upr") = upr);
+                                      Rcpp::Named("ppmax") = ppos);
 
   return ret;
 }
@@ -752,8 +773,11 @@ Rcpp::List rcpp_clin_set_obst(arma::mat& d, const Rcpp::List& cfg,
 
   arma::vec visits;
 
+
   for(int i = 0; i < d.n_rows; i++){
 
+    // if the kid was enrolled after the current interim month then set
+    // the censoring and event times to NA
     if(d(i, COL_ACCRT) > months[mylook] + fudge && months[mylook] != max(months)){
 
       d(i, COL_CEN) = NA_REAL;
@@ -764,13 +788,13 @@ Rcpp::List rcpp_clin_set_obst(arma::mat& d, const Rcpp::List& cfg,
       continue;
     }
 
-    // work out visits and censoring conditional on visit times
-
-    visits = rcpp_visits(d, i, look, cfg, dotarget);
+    // work out when the surveillance visits happened
+    visits = rcpp_visits(d, i, look, cfg, dofinal);
 
     //DBG(Rcpp::Rcout, "i " << i << " visits " << visits);
 
-    cens = rcpp_cens(d, visits, i, look, dofinal, cfg, dotarget);
+    // set the censoring indicator based on the visit times
+    cens = rcpp_cens(d, visits, i, look, dofinal, dotarget, cfg);
 
     //DBG(Rcpp::Rcout, "cen " );
 
@@ -825,7 +849,7 @@ arma::vec rcpp_visits(const arma::mat& d_new,
                       const int i,
                       const int look,
                       const Rcpp::List& cfg,
-                      const bool dotarget) {
+                      const bool dofinal) {
 
   // instead of basing this on look i think it should be done on the
   // number of participants that we have.
@@ -837,10 +861,6 @@ arma::vec rcpp_visits(const arma::mat& d_new,
 
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
-  if(dotarget == 1){
-    looks = cfg["looks_target"];
-  }
-
 
   int mylook = look - 1;
   int nvisits = 0;
@@ -853,14 +873,15 @@ arma::vec rcpp_visits(const arma::mat& d_new,
   arma::vec visits = arma::zeros(10);
 
 
-  if(months[mylook] >= d_new(i, COL_ACCRT) + d_new(i, COL_FU1)  ||
-     looks[mylook] == Rcpp::max(looks) ){
+  // if the current interim month is ahead of the accrual time plus fu1
+  // then participant has at least one visit. also if the current n equals
+  // the max sample size then
+  if(months[mylook] >= d_new(i, COL_ACCRT) + d_new(i, COL_FU1)  || dofinal ){
     nvisits++;
     visits(nvisits - 1) = d_new(i, COL_ACCRT) + d_new(i, COL_FU1);
   }
 
-  if(months[mylook] >= d_new(i, COL_ACCRT) + d_new(i, COL_FU2)  ||
-     looks[mylook] == Rcpp::max(looks)){
+  if(months[mylook] >= d_new(i, COL_ACCRT) + d_new(i, COL_FU2)  || dofinal){
     nvisits++;
     visits(nvisits - 1) = d_new(i, COL_ACCRT) + d_new(i, COL_FU2);
   }
@@ -898,7 +919,7 @@ arma::vec rcpp_visits(const arma::mat& d_new,
     fu_36months = 36; // R::runif((double)cfg["max_age_fu_months"] - 1,
                         //   (double)cfg["max_age_fu_months"] + 1);
 
-    if(looks[mylook] == Rcpp::max(looks)){
+    if(dofinal){
 
       //DBG(Rcpp::Rcout, "i " << i << " adding fu_36months at max(looks) " << fu_36months );
       nvisits++;
@@ -925,8 +946,8 @@ Rcpp::List rcpp_cens(const arma::mat& d_new,
                      const int i,
                      const int look,
                      const bool dofinal,
-                     const Rcpp::List& cfg,
-                     const bool dotarget) {
+                     const bool dotarget,
+                     const Rcpp::List& cfg) {
 
   Rcpp::List cens;
 
@@ -946,7 +967,7 @@ Rcpp::List rcpp_cens(const arma::mat& d_new,
 
 
   if(dofinal == false){
-    cens = rcpp_cens_interim(d_new, visits, i, look, cfg, dotarget);
+    cens = rcpp_cens_interim(d_new, visits, i, look, dotarget, cfg);
   } else {
     // DBG(Rcpp::Rcout, "calling rcpp_cens_final");
     cens = rcpp_cens_final(d_new, visits, i, look, cfg);
@@ -964,146 +985,113 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
                      const arma::vec& visits,
                      const int i,
                      const int look,
-                     const Rcpp::List& cfg,
-                     const bool dotarget){
+                     const bool dotarget,
+                     const Rcpp::List& cfg){
 
   Rcpp::List cens;
-
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
+  if(dotarget == 1){
+    looks = cfg["looks_target"];
+  }
 
   int mylook = look - 1;
   int curmonth = months[mylook];
-
   double cen = NA_REAL;
   double obst = NA_REAL;
-
+  Rcpp::String reason;
   double fudge = 0.0001;
 
-
+  // if the kid was accrued before the interim
   if(d_new(i, COL_ACCRT) <= months[mylook] + fudge){
 
+    // if the kid has had no fu visits
     if(visits.n_elem == 0){
-
+      // if the subject index (0:999) is greater than the interim
+      // sample size (actual or target) we cannot have seen them
       if(i > looks[mylook]-1){
         cen = NA_REAL;
         obst = NA_REAL;
+        reason = "no visits: i > looks[mylook]-1";
       } else {
         cen = 1;
         obst = months[mylook] - d_new(i, COL_ACCRT);
         obst = obst < 0 ? 0 : obst;
+        reason = "no visits: i <= looks[mylook]-1";
       }
-
-      cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
-      // DBG(Rcpp::Rcout, "i " << i << " novis : " << obst << " accru " << d_new(i, COL_ACCRT) <<
-      //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
-      //     " months[mylook] + fudge = " << months[mylook] + fudge <<
-      //       " max age = " << (double)cfg["max_age_fu_months"]);
+      cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
+                                Rcpp::Named("reason") = reason);
       return cens;
-
-    } else if (d_new(i, COL_ACCRT) <= (double)arma::max(visits)) {
+    }
+    // else the kids has some visits
+    else {
 
       double age_at_this_analysis = d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT);
       double age_at_last_visit = d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT);
 
-      // event occurred prior to last visit and age is less than 36 at time of event
+      // if event occurred prior to last visit and age is less than 36 at time of event
       if(d_new(i, COL_ACCRT) + d_new(i, COL_EVTT) <= (double)arma::max(visits) &&
          d_new(i, COL_AGE) + d_new(i, COL_EVTT) <= (double)cfg["max_age_fu_months"]){
         cen = 0;
         obst = d_new(i, COL_EVTT);
-        // DBG(Rcpp::Rcout, "i " << i << " event : " << obst << " accru " << d_new(i, COL_ACCRT) <<
-        //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
-        //     " months[mylook] + fudge = " << months[mylook] + fudge <<
-        //       " max visits " << (double)arma::max(visits) <<
-        //       " max age = " << (double)cfg["max_age_fu_months"]);
-        cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
+        obst = obst < 0 ? 0 : obst;
+        reason = "has visits: event observed";
+        cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
+                                  Rcpp::Named("reason") = reason);
         return cens;
       }
-      // event occurred prior to last visit and age at time of event was more than 36
+      // if event occurred prior to last visit and age at time of event was more than 36
       if(d_new(i, COL_ACCRT) + d_new(i, COL_EVTT) <= (double)arma::max(visits) &&
          d_new(i, COL_AGE) + d_new(i, COL_EVTT) > (double)cfg["max_age_fu_months"]){
         cen = 1;
         obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
-        // DBG(Rcpp::Rcout, "i " << i << " cen1 : " << obst << " accru " << d_new(i, COL_ACCRT) <<
-        //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
-        //     " months[mylook] + fudge = " << months[mylook] + fudge <<
-        //       " max visits " << (double)arma::max(visits) <<
-        //         " max age = " << (double)cfg["max_age_fu_months"]);
-        cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
+        obst = obst < 0 ? 0 : obst;
+        reason = "has visits: event b4 max visits but too old";
+        cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
+                                  Rcpp::Named("reason") = reason);
         return cens;
       }
-      // event occurred after last visit
+      // if event occurred after last visit
       if(d_new(i, COL_ACCRT) + d_new(i, COL_EVTT) > (double)arma::max(visits)){
         cen = 1;
 
         if(d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
           obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
-          // DBG(Rcpp::Rcout, "i " << i << " cen2a : " << obst << " accru " << d_new(i, COL_ACCRT) <<
-          //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
-          //     " months[mylook] + fudge = " << months[mylook] + fudge <<
-          //       " max visits " << (double)arma::max(visits) <<
-          //         " max age = " << (double)cfg["max_age_fu_months"]);
+          obst = obst < 0 ? 0 : obst;
+          reason = "has visits: event after vis and age at interim > max";
         } else {
           obst = months[mylook] - d_new(i, COL_ACCRT);
           obst = obst < 0 ? 0 : obst;
-          // DBG(Rcpp::Rcout, "i " << i << " cen2b : " << obst << " accru " << d_new(i, COL_ACCRT) <<
-          //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
-          //     " months[mylook] + fudge = " << months[mylook] + fudge <<
-          //       " max visits " << (double)arma::max(visits) <<
-          //         " max age = " << (double)cfg["max_age_fu_months"]);
+          reason = "has visits: event after vis and age at interim <= max";
         }
-
-        cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
+        cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
+                                  Rcpp::Named("reason") = reason);
         return cens;
       }
 
-    } else { // accrual is before this look but is after last visit
-
-      // but accrual happens before this analysis because we have one
-      cen = 1;
-
-      if(d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
-        obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
-
-        if(visits.n_elem == 0){
-          // DBG(Rcpp::Rcout, "i " << i << " cen 3 : " << obst << " accru " << d_new(i, COL_ACCRT) <<
-          //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
-          //     " months[mylook] + fudge = " << months[mylook] + fudge <<
-          //         " max age = " << (double)cfg["max_age_fu_months"]);
-        } else {
-          // DBG(Rcpp::Rcout, "i " << i << " cen 3 : " << obst << " accru " << d_new(i, COL_ACCRT) <<
-          //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
-          //     " months[mylook] + fudge = " << months[mylook] + fudge <<
-          //       " max visits " << (double)arma::max(visits) <<
-          //         " max age = " << (double)cfg["max_age_fu_months"]);
-        }
-
-      } else {
-        obst = months[mylook] - d_new(i, COL_ACCRT);
-
-        if(visits.n_elem == 0){
-          // DBG(Rcpp::Rcout, "i " << i << " cen 4 : " << obst << " accru " << d_new(i, COL_ACCRT) <<
-          //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
-          //     " months[mylook] + fudge = " << months[mylook] + fudge <<
-          //       " max age = " << (double)cfg["max_age_fu_months"]);
-        } else {
-          // DBG(Rcpp::Rcout, "i " << i << " cen 4 : " << obst << " accru " << d_new(i, COL_ACCRT) <<
-          //   " age at evtt " << d_new(i, COL_AGE) + d_new(i, COL_EVTT) <<
-          //     " months[mylook] + fudge = " << months[mylook] + fudge <<
-          //       " max visits " << (double)arma::max(visits) <<
-          //         " max age = " << (double)cfg["max_age_fu_months"]);
-        }
-
-      }
-
-      cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
-      return cens;
-
     }
-
   }
 
-  cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
+  // conditional logic in rcpp_clin_set_obst should ensure that we never get
+  // here but handle this scenario anyway.
+  if(d_new(i, COL_ACCRT) > months[mylook] + fudge){
+
+    // if you reach here the accrual was after the current interim and these
+    // kids will only be picked up by the final analysis, i.e. in rcpp_cens_final
+    cen = 1;
+
+    if(d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
+      obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
+      obst = obst < 0 ? 0 : obst;
+      reason = "enrolled post interim - obst based on max age";
+    } else {
+      obst = months[mylook] - d_new(i, COL_ACCRT);
+      obst = obst < 0 ? 0 : obst;
+      reason = "enrolled post interim - obst based on accrual time";
+    }
+    cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
+                              Rcpp::Named("reason") = reason);
+    }
 
   return cens;
 }
@@ -1128,6 +1116,7 @@ Rcpp::List rcpp_cens_final(const arma::mat& d_new,
 
   double cen = NA_REAL;
   double obst = NA_REAL;
+  Rcpp::String reason;
 
   double fudge = 0.0001;
 
@@ -1137,8 +1126,10 @@ Rcpp::List rcpp_cens_final(const arma::mat& d_new,
 
     cen = 0;
     obst = d_new(i, COL_EVTT);
-    //DBG(Rcpp::Rcout, "i " << i << " event     : " << obst);
-    cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
+    obst = obst < 0 ? 0 : obst;
+    reason = "fin: has visits: event observed";
+    cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
+                              Rcpp::Named("reason") = reason);
     return cens;
 
   }
@@ -1148,25 +1139,29 @@ Rcpp::List rcpp_cens_final(const arma::mat& d_new,
 
     cen = 1;
     obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
-    //DBG(Rcpp::Rcout, "i " << i << " censor 1     : " << obst);
-    cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
+    obst = obst < 0 ? 0 : obst;
+    reason = "fin: has visits: too old";
+    cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
+                              Rcpp::Named("reason") = reason);
     return cens;
 
   }
-  // event occurred after the final follow up for each individual
+  // event occurred after the final follow up for this individual
   // -- age is only relevant in censoring time
   if(d_new(i, COL_ACCRT) + d_new(i, COL_EVTT) > (double)arma::max(visits)){
     cen = 1;
 
     if(d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
       obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
-     // DBG(Rcpp::Rcout, "i " << i << " censor 2     : " << obst);
+      reason = "fin: has visits: event after last visit age > max age";
     } else {
       obst = d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT);
-      //DBG(Rcpp::Rcout, "i " << i << " censor 3    : " << obst);
+      reason = "fin: has visits: event after last visit age <= max age";
     }
 
-    cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst);
+    obst = obst < 0 ? 0 : obst;
+    cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
+                              Rcpp::Named("reason") = reason);
     return cens;
 
   }

@@ -21,16 +21,16 @@ rcpp_clin_set_obst <- function(d, cfg, look, dofinal, dotarget) {
     .Call(`_orvacsim_rcpp_clin_set_obst`, d, cfg, look, dofinal, dotarget)
 }
 
-rcpp_visits <- function(d_new, i, look, cfg, dotarget) {
-    .Call(`_orvacsim_rcpp_visits`, d_new, i, look, cfg, dotarget)
+rcpp_visits <- function(d_new, i, look, cfg, dofinal) {
+    .Call(`_orvacsim_rcpp_visits`, d_new, i, look, cfg, dofinal)
 }
 
-rcpp_cens <- function(d_new, visits, i, look, dofinal, cfg, dotarget) {
-    .Call(`_orvacsim_rcpp_cens`, d_new, visits, i, look, dofinal, cfg, dotarget)
+rcpp_cens <- function(d_new, visits, i, look, dofinal, dotarget, cfg) {
+    .Call(`_orvacsim_rcpp_cens`, d_new, visits, i, look, dofinal, dotarget, cfg)
 }
 
-rcpp_cens_interim <- function(d_new, visits, i, look, cfg, dotarget) {
-    .Call(`_orvacsim_rcpp_cens_interim`, d_new, visits, i, look, cfg, dotarget)
+rcpp_cens_interim <- function(d_new, visits, i, look, dotarget, cfg) {
+    .Call(`_orvacsim_rcpp_cens_interim`, d_new, visits, i, look, dotarget, cfg)
 }
 
 rcpp_cens_final <- function(d_new, visits, i, look, cfg) {
