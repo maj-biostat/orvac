@@ -1,3 +1,5 @@
+# setwd("~/Documents/orvac/code/packages/orvacsim/tests/testthat")
+
 library(testthat)
 library(orvacsim)
 library(data.table)
@@ -111,35 +113,38 @@ test_that("correct sero counts", {
 test_that("do immu trial", {
 
   cfg <- readRDS("cfg-example.RDS")
-
+  cfg$sero_info_delay = 1
   d <- rcpp_dat(cfg)
 
+  look <- 2
+  nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, cfg$sero_info_delay)
+
+  lnsero <- rcpp_lnsero(d, nobs)
+
+  m <- matrix(0, ncol = 3, nrow = cfg$post_draw)
+  rcpp_immu_interim_post(d, m, nobs, cfg$post_draw, lnsero);
+
+  cfg$looks[look]
+  cfg$interimmnths
+  nimpute1 <- cfg$looks_target[look] - nobs;
+
+  # onst arma::mat& d,
+  # const arma::mat& m,
+  # const int look,
+  # const int nobs,
+  # const int nimpute,
+  # const int post_draw,
+  # const Rcpp::List& lnsero,
+  # const Rcpp::List& cfg
+
+  pp1 <- rcpp_immu_ppos_test(d, m, look, nobs, nimpute1, cfg$post_draw,lnsero, cfg);
 
   rcpp_immu(d, cfg, 1)
 
+  expect_equal(rcpp_immu(d, cfg, 1)$nimpute1, 10)
+  expect_equal(rcpp_immu(d, cfg, 2)$nimpute1,
+               cfg$looks_target[2] - cfg$looks[2] + 10 )
 
-
-  expect_equal(nobs, cfg$looks[1])
-
-  d3 <- d2[1:nobs,]
-
-  nseroctl <- sum(d3$serot3[d3$trt == 0])
-  nserotrt <- sum(d3$serot3[d3$trt == 1])
-
-  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
-
-  # inexact match
-  info_delay <- 0.5
-  look <- 1
-  nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
-
-  expect_equal(nobs, 64)
-  d3 <- d2[1:nobs,]
-
-  nseroctl <- sum(d3$serot3[d3$trt == 0])
-  nserotrt <- sum(d3$serot3[d3$trt == 1])
-
-  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
 
 
 })

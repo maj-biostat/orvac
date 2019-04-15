@@ -1616,7 +1616,7 @@ Rcpp::List rcpp_clin_ppos_test(arma::mat& d_new,
 // [[Rcpp::export]]
 Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
-  Rcpp::NumericVector target_size = cfg["target_size"];
+  Rcpp::NumericVector looks_target = cfg["looks_target"];
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
   arma::mat m = arma::zeros((int)cfg["post_draw"] , 3);
@@ -1644,7 +1644,7 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
     // therefore how many do we need to impute assuming that we
     // were enrolling at the 50 per interim rate?
-    nimpute1 = target_size[mylook] - nobs;
+    nimpute1 = looks_target[mylook] - nobs;
 
     // if nimpute > 0 then do the ppos calc
     double post1gt0 = 0;
