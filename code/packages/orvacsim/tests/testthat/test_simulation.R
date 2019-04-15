@@ -1,4 +1,5 @@
 # setwd("~/Documents/orvac/code/packages/orvacsim/tests/testthat")
+# setwd("/home/mjones/Documents/orvac/code/packages/orvacsim/tests/testthat")
 
 library(testthat)
 library(orvacsim)
@@ -256,6 +257,35 @@ test_that("visit times", {
   d2 <- as.data.frame(d[1:5,])
   names(d2) <- dnames
 
+  # enrolled at time 0.2 and age 6 months with fu1 = 0.5 after enrolling
+  # and fu2=2 time units after enrolling implies fu1 happes at 0.7,
+  # and fu2 happens at 2.2
+  # the surveillance then happens every six months after fu2 implying the
+  # next visit will be at 6.2 then 12.2 etc.
+  d2[1, "accrt"] = 60
+  d2[1, "evtt"] = 10
+  d2[1, "age"] = 6
+  d2[1, "fu1"] = 0.5
+  d2[1, "fu2"] = 2
+  look <- 20
+  idxcpp <- 0
+
+  c(cfg$interimmnths[look], cfg$looks[look], cfg$looks_target[look])
+  cfg$interimmnths
+  cfg$looks
+  cfg$looks_target
+  d2
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg, 0)
+  visits
+
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg, 1)
+  visits
+
+  set.seed(4343)
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(d[1:5,])
+  names(d2) <- dnames
+
   # test assuming at first interim analysis (look = 1)
 
   d2[1, "accrt"] = 0.2
@@ -266,7 +296,9 @@ test_that("visit times", {
   idxcpp <- 0
 
   cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  cfg$looks
+  cfg$looks_target
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg, 0)
 
   # correct length
   expect_equal(length(visits), 3)
@@ -284,7 +316,7 @@ test_that("visit times", {
   look <- 32
 
   cfg$interimmnths[look]
-  visits2 <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  visits2 <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg, 0)
 
   expect_equal(visits2[1], d2[1, "accrt"] + d2[1, "fu1"])
   expect_equal(visits2[2], d2[1, "accrt"] + d2[1, "fu2"])
@@ -299,7 +331,7 @@ test_that("visit times", {
   look <- 7
 
   cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg, 0)
 
   # correct length - maximum visits is the number of visits
   # such that (cfg$visit_lwr * 5 ) + 6 < 36 and then add two for fu1 and fu2
@@ -321,7 +353,7 @@ test_that("visit times", {
   idxcpp <- 0
 
   cfg$interimmnths[look]
-  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg)
+  visits <- rcpp_visits(as.matrix(d2), idxcpp, look, cfg, 0)
 
   expect_equal(length(visits), 0)
 
@@ -343,7 +375,7 @@ test_that("visit times", {
 
 
   cfg$interimmnths[look]
-  visits2 <- rcpp_visits(as.matrix(d2), idx - 1, look, cfg)
+  visits2 <- rcpp_visits(as.matrix(d2), idx - 1, look, cfg, 0)
   visits2
 
   # correct length - maximum visits is the number of visits
