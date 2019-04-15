@@ -16,16 +16,9 @@ context("data generation")
 
 test_that("dgp for sero correct", {
 
-
-
   cfg <- readRDS("cfg-example.RDS")
 
-  # cfg$baselineprobsero
-  # cfg$trtprobsero
-  # compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
-
   d <- rcpp_dat(cfg)
-  colnames(d) <- dnames
 
   m <- matrix(0, nrow = 1000, ncol = 2)
 
@@ -49,7 +42,6 @@ test_that("retrieves correct number obs - information delay", {
 
   cfg <- readRDS("cfg-example.RDS")
 
-
   d <- rcpp_dat(cfg)
   d2 <- as.data.frame(d)
   names(d2) <- dnames
@@ -57,6 +49,8 @@ test_that("retrieves correct number obs - information delay", {
   look <- 1
   info_delay <- 0
   expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), cfg$looks[1])
+  look <- 2
+  expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), 100)
   look <- 32
   expect_equal(rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay), max(cfg$looks))
 
@@ -113,6 +107,42 @@ test_that("correct sero counts", {
 
 })
 
+
+test_that("do immu trial", {
+
+  cfg <- readRDS("cfg-example.RDS")
+
+  d <- rcpp_dat(cfg)
+
+
+  rcpp_immu(d, cfg, 1)
+
+
+
+  expect_equal(nobs, cfg$looks[1])
+
+  d3 <- d2[1:nobs,]
+
+  nseroctl <- sum(d3$serot3[d3$trt == 0])
+  nserotrt <- sum(d3$serot3[d3$trt == 1])
+
+  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
+
+  # inexact match
+  info_delay <- 0.5
+  look <- 1
+  nobs <- rcpp_n_obs(d, look, cfg$looks, cfg$interimmnths, info_delay)
+
+  expect_equal(nobs, 64)
+  d3 <- d2[1:nobs,]
+
+  nseroctl <- sum(d3$serot3[d3$trt == 0])
+  nserotrt <- sum(d3$serot3[d3$trt == 1])
+
+  expect_equal(as.numeric(unlist(rcpp_lnsero(d, nobs))), c(nseroctl, nserotrt))
+
+
+})
 
 test_that("dgp for tte correct", {
 

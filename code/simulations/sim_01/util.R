@@ -97,6 +97,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$flog_appender <- whichappender
   l$flog_logfile <- logfile
   
+  l$dnames <- dnames
   
   # not used
   l$desc <- tt$desc
@@ -124,25 +125,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
                    "inconclusive")
   
   
-  # l$field_names3 <- c("idxsim",
-  #                    "look",
-  #                    "n_obs",
-  #                    "ss_immu",
-  #                    "ss_clin",
-  #                    "n_max",
-  #                    "n_max_sero",
-  #                    
-  #                    "i_ppos_n", "i_ppos_max", "i_post_prop_ctl", "i_post_prop_trt",  # immunological
-  #                    "i_delta_mean", "i_delta_lwr_95", "i_delta_upr_95",          # immunological
-  #                    
-  #                    "c_ppos_n","c_ppos_max","c_post_lambda_ctl","c_post_lambda_trt", # clinical
-  #                    "c_lambda_mean", "c_lambda_lwr_95", "c_lambda_upr_95",       # clinical
-  #                    
-  #                    "stop_v_samp",
-  #                    "stop_i_fut",
-  #                    "stop_c_fut",
-  #                    "stop_c_sup",
-  #                    "inconclusive")
+
   
   l$simret <- list(idxsim = numeric(),
              look = numeric(),
@@ -215,7 +198,14 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   if(length(l$interimmnths) < length(l$looks)){
     l$interimmnths <- c(l$interimmnths, max(l$interimmnths)+l$interim_period)
   }
-
+  
+  # the target size is the number of participants if accrual is going at 
+  # the desired rate.
+  l$looks_target <- seq(from = l$nstart, to=l$nstop, by = 50)
+  tmpextra <- length(l$looks) - length(l$looks_target)
+  l$looks_target <- c(l$looks_target, rep(l$nstop, tmpextra))
+  
+  stopifnot(length(l$looks_target) == length(l$looks))
   stopifnot(length(l$interimmnths) == length(l$looks))
   stopifnot(max(l$looks) == l$nstop)
 
@@ -287,11 +277,6 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   
   l$b0tte <- log(2)/l$ctl_med_tte 
   l$b1tte <- (log(2)/l$trt_med_tte) - (log(2)/l$ctl_med_tte)
-  
-  # l$b0tte <- tt$b0tte 
-  # l$b1tte <- tt$b1tte  # trt effect
-  # l$b2tte <- tt$b2tte # remote
-  # l$b3tte <- tt$b3tte # baseline serot2 status
   
   # Ideally would like to incorporate serot2 status
   l$btte <- c(l$b0tte, l$b1tte)
@@ -510,23 +495,12 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       # we delay the final analysis until the youngest kid is 36 months 
       l$final_analysis_month <- l$max_age_fu_months - l$age_months_lwr + max(l$interimmnths)
       
-#       trtallocprob: 0.5
-# remoteprob: 0.5
-# age_months_lwr: 6
-# age_months_upr: 12
-# age_months_mean: 6.5
-# age_months_sd: 2
-# max_age_fu_months: 36 
-      
+
       stopifnot(length(l$interimmnths) == length(l$looks))
       stopifnot(max(l$looks) == l$nstop)
       
       
       flog.info("Updated interimmnths: %s", paste0(l$interimmnths, collapse = ", "))
-      
-# l$post_tte_sup_thresh_start = 0.96
-# l$post_tte_sup_thresh_end = 0.96      
-      
       
       clin_looks <- l$looks[l$looks >= l$nstartclin]
       l$post_tte_sup_thresh <- seq(from = l$post_tte_sup_thresh_start,
@@ -547,16 +521,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
       stopifnot(length(l$post_tte_sup_thresh) == length(l$looks))
 
       flog.info("Updated post_tte_sup_thresh: %s", paste0(l$post_tte_sup_thresh, collapse = ", "))
-      
-      
-      
-      
-# l$post_sero_win_thresh_start = 0.95
-# l$post_sero_win_thresh_end = 0.95
-# l$post_tte_win_thresh_start = 0.95
-# l$post_tte_win_thresh_end =  0.95    
-      
-      
+
       # for significance testing of a win in the ppos section 
       n1 <- length(l$looks[l$looks < l$nstartclin])
       n2 <- length(l$looks) - n1
@@ -566,11 +531,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
                                      length.out = n2))
       stopifnot(length(l$post_tte_win_thresh) == length(l$looks))
       
-      
-      
       flog.info("Updated post_tte_win_thresh: %s", paste0(l$post_tte_win_thresh, collapse = ", "))
-      
-# l$nmaxsero       = 250
       
       # for significance testing of a win in the ppos section 
       n_sero_looks <- length(l$looks[l$looks <= l$nmaxsero])

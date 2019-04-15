@@ -1616,6 +1616,7 @@ Rcpp::List rcpp_clin_ppos_test(arma::mat& d_new,
 // [[Rcpp::export]]
 Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
+  Rcpp::NumericVector target_size = cfg["target_size"];
   Rcpp::NumericVector looks = cfg["looks"];
   Rcpp::NumericVector months = cfg["interimmnths"];
   arma::mat m = arma::zeros((int)cfg["post_draw"] , 3);
@@ -1631,8 +1632,6 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
   if(looks[mylook] <= (int)cfg["nmaxsero"]){
 
-    //DBG(Rcpp::Rcout, "immu interim analysis ");
-
     // how many records did we observe in total (assumes balance)
     int nobs = rcpp_n_obs(d, look, looks, months, (float)cfg["sero_info_delay"]);
 
@@ -1643,14 +1642,15 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
     arma::mat m = arma::zeros((int)cfg["post_draw"] , 3);
     rcpp_immu_interim_post(d, m, nobs, (int)cfg["post_draw"], lnsero);
 
-    // therefore how many do we need to impute?
-    nimpute1 = looks[mylook] - nobs;
+    // therefore how many do we need to impute assuming that we
+    // were enrolling at the 50 per interim rate?
+    nimpute1 = target_size[mylook] - nobs;
 
     // if nimpute > 0 then do the ppos calc
     double post1gt0 = 0;
     if(nimpute1 > 0){
       // predicted prob of success at interim
-      pp1 = rcpp_immu_ppos_test(d, m, look,nobs, nimpute1,(int)cfg["post_draw"],lnsero, cfg);
+      pp1 = rcpp_immu_ppos_test(d, m, look, nobs, nimpute1,(int)cfg["post_draw"],lnsero, cfg);
     } else {
       // else compute the posterior prob that delta > 0
       arma::uvec tmp = arma::find(m.col(COL_DELTA) > 0);
@@ -1677,6 +1677,8 @@ Rcpp::List rcpp_immu(const arma::mat& d, const Rcpp::List& cfg, const int look){
 
     ret = Rcpp::List::create(Rcpp::Named("ppos_n") = nimpute1 > 0 ? (double)pp1["ppos"] : post1gt0,
                              Rcpp::Named("ppos_max") = nimpute2 > 0 ? (double)pp2["ppos"] : post1gt0,
+                             Rcpp::Named("nimpute1") = nimpute1,
+                             Rcpp::Named("nimpute2") = nimpute2,
                              Rcpp::Named("delta") = mean_delta,
                              Rcpp::Named("lwr") = lwr,
                              Rcpp::Named("upr") = upr);
@@ -1694,15 +1696,12 @@ int rcpp_n_obs(const arma::mat& d,
                const Rcpp::NumericVector months,
                const double info_delay){
 
-  // reset look to zero first element
+  // set look to zero (first element of array)
   int mylook = look - 1;
   double obs_to_month = months[mylook] - info_delay;
   int nobs = 0;
   int flooraccrt = 0;
   float fudge = 0.0001;
-
-  //DBG(Rcpp::Rcout, "obs_to_month " << obs_to_month);
-  //DBG(Rcpp::Rcout, "info_delay " << info_delay);
 
   for(int i = 0; i < d.n_rows; i++){
 
@@ -1833,16 +1832,6 @@ Rcpp::List rcpp_immu_interim_ppos(const arma::mat& d,
     }
   }
 
-  //DBG(Rcpp::Rcout, "pow " << std::pow((float)post_draw, 2.0) );
-  //DBG(Rcpp::Rcout, "mean difference mean_delta " << mean_delta );
-  //DBG(Rcpp::Rcout, "mean   postprobdelta_gt0 " << (double)arma::mean(postprobdelta_gt0) );
-  //DBG(Rcpp::Rcout, "median postprobdelta_gt0 " << (double)arma::median(postprobdelta_gt0) );
-  //DBG(Rcpp::Rcout, "min    postprobdelta_gt0 " << (double)arma::min(postprobdelta_gt0) );
-  //DBG(Rcpp::Rcout, "max    postprobdelta_gt0 " << (double)arma::max(postprobdelta_gt0) );
-  //DBG(Rcpp::Rcout, "win " << (double)win );
-  //DBG(Rcpp::Rcout, "post_draw " << (double)post_draw);
-  //DBG(Rcpp::Rcout, "mean wins " << (double)win / (double)post_draw );
-
   double ppos = (double)win / (double)post_draw;
 
   DBG(Rcpp::Rcout, "immu pp impute " << nimpute << " num win " << win << " ppos " << ppos <<
@@ -1911,16 +1900,6 @@ Rcpp::List rcpp_immu_ppos_test(const arma::mat& d,
       win++;
     }
   }
-
-  //DBG(Rcpp::Rcout, "pow " << std::pow((float)post_draw, 2.0) );
-  //DBG(Rcpp::Rcout, "mean difference mean_delta " << mean_delta );
-  //DBG(Rcpp::Rcout, "mean   postprobdelta_gt0 " << (double)arma::mean(postprobdelta_gt0) );
-  //DBG(Rcpp::Rcout, "median postprobdelta_gt0 " << (double)arma::median(postprobdelta_gt0) );
-  //DBG(Rcpp::Rcout, "min    postprobdelta_gt0 " << (double)arma::min(postprobdelta_gt0) );
-  //DBG(Rcpp::Rcout, "max    postprobdelta_gt0 " << (double)arma::max(postprobdelta_gt0) );
-  //DBG(Rcpp::Rcout, "win " << (double)win );
-  //DBG(Rcpp::Rcout, "post_draw " << (double)post_draw);
-  //DBG(Rcpp::Rcout, "mean wins " << (double)win / (double)post_draw );
 
   double ppos = (double)win / (double)post_draw;
 
