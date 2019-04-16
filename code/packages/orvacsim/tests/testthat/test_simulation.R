@@ -799,7 +799,7 @@ test_that("setting obst and censor status", {
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
 
-  rcpp_clin_set_obst(d, cfg, look, 0)
+  rcpp_clin_set_obst(d, cfg, look, F, F)
 
   d3 <- as.data.frame(copy(d))
   colnames(d3) <- dnames
@@ -818,7 +818,7 @@ test_that("setting obst and censor status", {
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
 
-  rcpp_clin_set_obst(d, cfg, look, 0)
+  rcpp_clin_set_obst(d, cfg, look, F, F)
 
   d3 <- as.data.frame(copy(d))
   colnames(d3) <- dnames
@@ -836,7 +836,7 @@ test_that("setting obst and censor status", {
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
 
-  rcpp_clin_set_obst(d, cfg, look, 0)
+  rcpp_clin_set_obst(d, cfg, look, F, F)
 
   d3 <- as.data.frame(copy(d))
   colnames(d3) <- dnames
@@ -847,6 +847,18 @@ test_that("setting obst and censor status", {
   expect_equal(sum(!is.na(d3$cen)), cfg$looks[look], tolerance = 0.01)
 
 
+
+
+
+  # what happens at the final?
+
+  look <- 32
+  cfg$interimmnths[look]
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+
+  rcpp_clin_set_obst(d, cfg, look, T, F)
 
 
 })
@@ -869,7 +881,7 @@ test_that("clinical endpoint posterior - basic", {
   log(2)/(cfg$b0tte + cfg$b1tte)
 
   # get sufficieitn stats
-  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look, 0))
+  (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look, F, F))
 
   # obtain posterior based on current look
   m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
@@ -908,7 +920,7 @@ test_that("clinical endpoint posterior", {
     colnames(d2) <- dnames
 
     # get sufficieitn stats
-    (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look, 0))
+    (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look, F, F))
 
     d2 <- as.data.frame(copy(d))
     colnames(d2) <- dnames
@@ -946,7 +958,7 @@ test_that("clin tte posterior check against mcmc", {
   d2 <- as.data.frame(copy(d))
   colnames(d2) <- dnames
   look <- 32
-  lsuffstat <- rcpp_clin_set_obst(d, cfg, look, 1)
+  lsuffstat <- rcpp_clin_set_obst(d, cfg, look, T, F)
   d2 <- as.data.frame(copy(d)); colnames(d2) <- dnames
   # plot_tte_hist_dat(d2$obst, d2$trt, cfg$looks[look])
 
@@ -1037,13 +1049,26 @@ test_that("clin tte data ppos basic", {
 
 test_that("clin tte data ppos", {
 
+  setwd("/home/mjones/Documents/orvac/code/packages/orvacsim/tests/testthat")
+
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("../../../../simulations/sim_01/util.R")
+  library(truncnorm)
+  library(survival)
+  library(boot)
+  library(rstan)
+  # library(eha)
+  library(rbenchmark)
 
   cfg <- readRDS("cfg-example.RDS")
 
   # no effect
   cfg$b1tte <- 0
+  cfg$post_draw <- 2000
   d <- rcpp_dat(cfg)
-  look <- 10
+  look <- 6
 
   m_clin_res <- rcpp_clin_opt(d, cfg, look)
 
@@ -1271,6 +1296,25 @@ test_that("immu model - main call", {
   diff_true <- cfg$trtprobsero - cfg$baselineprobsero
   diff_mean_est <- mean(res[,2] - res[,1])
   expect_equal(diff_true, diff_mean_est,  diff_true * 1/100)
+
+})
+
+
+
+test_that("dotrial 1", {
+
+
+  cfg <- readRDS("cfg-example.RDS")
+
+  cfg$baselineprobsero
+  cfg$trtprobsero <- 0.55
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+
+  l <- rcpp_dotrial(1, cfg, TRUE)
+
+
+
+
 
 })
 

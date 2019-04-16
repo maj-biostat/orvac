@@ -79,7 +79,7 @@ void rcpp_dat_small(const arma::mat& d,
                          const double l0,
                          const double l1);
 Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
-                     const int look);
+                     const int look, const int idxsim);
 Rcpp::List rcpp_cens(const arma::mat& d_new,
                      const arma::vec& visits,
                      const int i,
@@ -317,7 +317,6 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   double current_sup;
 
   arma::mat d = rcpp_dat(cfg);
-  arma::mat interim_post = arma::zeros(looks.length() , 6);
   int nobs = 0;
 
   //Trial t(cfg, vstop, ifut, cfut, csup, inc);
@@ -343,10 +342,6 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
       m_immu_res = rcpp_immu(d, cfg, look);
 
-      interim_post(i, 0) = (double)m_immu_res["delta"];
-      interim_post(i, 1) = (double)m_immu_res["lwr"];
-      interim_post(i, 2) = (double)m_immu_res["upr"];
-
       if((double)m_immu_res["ppos_max"] < (double)cfg["pp_sero_fut_thresh"]){
          INFO(Rcpp::Rcout, idxsim, "immu futile - stopping now, ppos_max " << (double)m_immu_res["ppos_max"] << " with " << nobs << " test results.");
          t.immu_fut();
@@ -369,15 +364,11 @@ Rcpp::List rcpp_dotrial(const int idxsim,
             << ", pp win thresh " << (double)post_tte_win_thresh[i]
             << ", fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
 
-      m_clin_res = rcpp_clin_opt(d, cfg, look);
+      m_clin_res = rcpp_clin_opt(d, cfg, look, idxsim);
 
       // INFO(Rcpp::Rcout, idxsim, "blah " << (double)m_clin_res["ratio"] << " "
       // << (double)m_clin_res["lwr"] << " "
       // << (double)m_clin_res["upr"] );
-
-      interim_post(i, 3) = (double)m_clin_res["ratio"];
-      interim_post(i, 4) = (double)m_clin_res["lwr"];
-      interim_post(i, 5) = (double)m_clin_res["upr"];
 
       if((double)m_clin_res["ppmax"] < (double)cfg["pp_tte_fut_thresh"]){
         INFO(Rcpp::Rcout, idxsim, "clin futile - stopping now, ppmax " << (double)m_clin_res["ppmax"] << " fut thresh " << (double)cfg["pp_tte_fut_thresh"]);
@@ -404,7 +395,7 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
 
   // final analysis for sero
-  // how many successes in each arm?
+  //how many successes in each arm?
   Rcpp::List lnsero = rcpp_lnsero(d, (int)cfg["nmaxsero"]);
   // posterior at this interim
   arma::mat m = arma::zeros((int)cfg["post_draw"] , 3);
@@ -501,10 +492,10 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   ret["c_upr"] = (double)c_upr;
   ret["n_uncen_0"] = (double)n_uncen_0;
   ret["n_uncen_1"] = (double)n_uncen_1;
-  ret["int_post"] = (arma::mat)interim_post;
 
-  if(ret.length() != 29){
-    Rcpp::stop("Return value is not 29 in length.");
+
+  if(ret.length() != 28){
+    Rcpp::stop("Return value is not 28 in length.");
   }
 
   INFO(Rcpp::Rcout, idxsim, "FINISHED.");
@@ -513,6 +504,8 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   if(rtn_trial_dat){
     ret["d"] = d;
   }
+
+  // Rcpp::List ret = Rcpp::List::create(Rcpp::Named("idxsim") = idxsim);
 
   return ret;
 }
@@ -632,12 +625,14 @@ void rcpp_dat_small(arma::mat& d,
 
 // [[Rcpp::export]]
 Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
-                     const int look){
+                     const int look, const int idxsim){
 
   int post_draw = (int)cfg["post_draw"];
   int mylook = look - 1;
   int winint = 0;
   int winfin = 0;
+  double ppos = 0;
+  double ppos_int = 0;
   double ppos_max = 0;
   double a = (double)cfg["prior_gamma_a"];
   double b = (double)cfg["prior_gamma_b"];
@@ -663,6 +658,12 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
   double n_uncen_1 = (double)lsuffstat["n_uncen_1"];
   double tot_obst_1 = (double)lsuffstat["tot_obst_1"];
 
+  arma::mat d_new = arma::mat(d);
+  arma::mat m_newint = arma::zeros(post_draw , 3);
+  arma::mat m_newfin = arma::zeros(post_draw , 3);
+
+  Rcpp::List lssppfin;
+
   // for i in postdraws do posterior predictive trials
   // 1. for the interim (if we are at less than 50 per qtr)
   // 2. for the max sample size
@@ -675,19 +676,18 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
 
     // copy d then generate new data for all the observations that follow
     // our current enrolled set.
-    arma::mat d_new = arma::mat(d);
     rcpp_dat_small(d_new, cfg, look, (double)m(i, COL_LAMB0), (double)m(i, COL_LAMB1));
-
-
 
     // impute for interim if looks[look] < looks_target[look]
     // impute to looks_target[look] sample size based on current draw from posterior
     if(looks[mylook] < looks_target[mylook]){
 
+      // DBG(Rcpp::Rcout, "clin - accrual rate < 50, imputing interim");
+
       // the true indicates that we look to the target sample size
       Rcpp::List lssppint = rcpp_clin_set_obst(d_new, cfg, looks.size(), false, true);
       // obtain full post_draw sample from new posterior for j in postdraws
-      arma::mat m_newint = arma::zeros(post_draw , 3);
+
       for(int j = 0; j < post_draw; j++){
         m_newint(j, COL_LAMB0) = R::rgamma(a + (double)lssppint["n_uncen_0"], 1/(b + (double)lssppint["tot_obst_0"]));
         m_newint(j, COL_LAMB1) = R::rgamma(a + (double)lssppint["n_uncen_1"], 1/(b + (double)lssppint["tot_obst_1"]));
@@ -706,9 +706,8 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
     // impute to max sample size based on current draw from posterior
     // the true indicates that we are looking at the final - this has slight different
     // implications for censoring.
-    Rcpp::List lssppfin = rcpp_clin_set_obst(d_new, cfg, looks.size(), true, false);
+    lssppfin = rcpp_clin_set_obst(d_new, cfg, looks.size(), true, false);
     // obtain full post_draw sample from new posterior for j in postdraws
-    arma::mat m_newfin = arma::zeros(post_draw , 3);
     for(int j = 0; j < post_draw; j++){
       m_newfin(j, COL_LAMB0) = R::rgamma(a + (double)lssppfin["n_uncen_0"], 1/(b + (double)lssppfin["tot_obst_0"]));
       m_newfin(j, COL_LAMB1) = R::rgamma(a + (double)lssppfin["n_uncen_1"], 1/(b + (double)lssppfin["tot_obst_1"]));
@@ -725,20 +724,29 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
   // assess the interim posterior predictive (if accrual < 50 p qtr) or
   // just look at posterior if accrual is on target (i.e. 50 p qtr)
   double post_prob_win;
+
+  utmp = arma::find(m.col(COL_RATIO) > 1);
+  post_prob_win =  (double)utmp.n_elem / (double)post_draw;
+  ppos_int = (double)winint / (double)post_draw;
+
   if(looks[mylook] == looks_target[mylook]){
-    utmp = arma::find(m.col(COL_RATIO) > 1);
-    post_prob_win =  (double)utmp.n_elem / (double)post_draw;
+    ppos = post_prob_win;
   } else {
-    post_prob_win = (double)winint / (double)post_draw;
+    ppos = ppos_int;
   }
 
   // assess results from posterior predictive imputing to max sample size
-  double ppos = (double)winfin / (double)post_draw;
+  ppos_max = (double)winfin / (double)post_draw;
 
-  DBG(Rcpp::Rcout, "     winfin " << winfin << " post_prob_win " << post_prob_win << " ppos " << ppos);
+  INFO(Rcpp::Rcout, idxsim, "     post      " << post_prob_win);
+  INFO(Rcpp::Rcout, idxsim, "     winint    " << winint  << " ppos_int " << ppos_int);
+  INFO(Rcpp::Rcout, idxsim, "     ppos      " << ppos);
+  INFO(Rcpp::Rcout, idxsim, "     winfin    " << winfin  << " ppos_max " << ppos_max);
 
-  Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppn") = post_prob_win,
-                                      Rcpp::Named("ppmax") = ppos);
+  Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppn") = ppos,
+                                      Rcpp::Named("ppmax") = ppos_max);
+
+  //DBG(Rcpp::Rcout, "     about to return " );
 
   return ret;
 }
@@ -767,12 +775,9 @@ Rcpp::List rcpp_clin_set_obst(arma::mat& d, const Rcpp::List& cfg,
     looks = cfg["looks_target"];
   }
 
-
   Rcpp::List cens;
   Rcpp::List ret;
-
   arma::vec visits;
-
 
   for(int i = 0; i < d.n_rows; i++){
 
@@ -783,20 +788,20 @@ Rcpp::List rcpp_clin_set_obst(arma::mat& d, const Rcpp::List& cfg,
       d(i, COL_CEN) = NA_REAL;
       d(i, COL_OBST) = NA_REAL;
 
-       //DBG(Rcpp::Rcout, "i " << i << " accrual time " << d(i, COL_ACCRT)
-      //                        << " occurs after current anlaysis month" << months[mylook]);
+       // DBG(Rcpp::Rcout, "i " << i << " accrual time " << d(i, COL_ACCRT)
+       //                        << " occurs after current anlaysis month" << months[mylook]);
       continue;
     }
 
     // work out when the surveillance visits happened
     visits = rcpp_visits(d, i, look, cfg, dofinal);
 
-    //DBG(Rcpp::Rcout, "i " << i << " visits " << visits);
+    // DBG(Rcpp::Rcout, "i " << i << " visits " << visits);
 
     // set the censoring indicator based on the visit times
     cens = rcpp_cens(d, visits, i, look, dofinal, dotarget, cfg);
 
-    //DBG(Rcpp::Rcout, "cen " );
+    // DBG(Rcpp::Rcout, "cen " );
 
     d(i, COL_CEN) = (double)cens["cen"];
     d(i, COL_OBST) = (double)cens["obst"];
@@ -850,10 +855,6 @@ arma::vec rcpp_visits(const arma::mat& d_new,
                       const int look,
                       const Rcpp::List& cfg,
                       const bool dofinal) {
-
-  // instead of basing this on look i think it should be done on the
-  // number of participants that we have.
-  // or sim
 
   // visits are computed for subject i
   // we can either compute visits based on the current
@@ -999,7 +1000,7 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
   int curmonth = months[mylook];
   double cen = NA_REAL;
   double obst = NA_REAL;
-  Rcpp::String reason;
+  int reason;
   double fudge = 0.0001;
 
   // if the kid was accrued before the interim
@@ -1012,12 +1013,12 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
       if(i > looks[mylook]-1){
         cen = NA_REAL;
         obst = NA_REAL;
-        reason = "no visits: i > looks[mylook]-1";
+        reason = 1; //  "no visits: i > looks[mylook]-1";
       } else {
         cen = 1;
         obst = months[mylook] - d_new(i, COL_ACCRT);
         obst = obst < 0 ? 0 : obst;
-        reason = "no visits: i <= looks[mylook]-1";
+        reason = 2 ; // "no visits: i <= looks[mylook]-1";
       }
       cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
                                 Rcpp::Named("reason") = reason);
@@ -1035,7 +1036,7 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
         cen = 0;
         obst = d_new(i, COL_EVTT);
         obst = obst < 0 ? 0 : obst;
-        reason = "has visits: event observed";
+        reason = 3; // "has visits: event observed";
         cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
                                   Rcpp::Named("reason") = reason);
         return cens;
@@ -1046,7 +1047,7 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
         cen = 1;
         obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
         obst = obst < 0 ? 0 : obst;
-        reason = "has visits: event b4 max visits but too old";
+        reason = 4; // "has visits: event b4 max visits but too old";
         cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
                                   Rcpp::Named("reason") = reason);
         return cens;
@@ -1058,11 +1059,11 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
         if(d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
           obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
           obst = obst < 0 ? 0 : obst;
-          reason = "has visits: event after vis and age at interim > max";
+          reason = 5; // "has visits: event after vis and age at interim > max";
         } else {
           obst = months[mylook] - d_new(i, COL_ACCRT);
           obst = obst < 0 ? 0 : obst;
-          reason = "has visits: event after vis and age at interim <= max";
+          reason = 6; // "has visits: event after vis and age at interim <= max";
         }
         cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
                                   Rcpp::Named("reason") = reason);
@@ -1083,11 +1084,11 @@ Rcpp::List rcpp_cens_interim(const arma::mat& d_new,
     if(d_new(i, COL_AGE) + months[mylook] - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
       obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
       obst = obst < 0 ? 0 : obst;
-      reason = "enrolled post interim - obst based on max age";
+      reason = 7; // "enrolled post interim - obst based on max age";
     } else {
       obst = months[mylook] - d_new(i, COL_ACCRT);
       obst = obst < 0 ? 0 : obst;
-      reason = "enrolled post interim - obst based on accrual time";
+      reason = 8; // "enrolled post interim - obst based on accrual time";
     }
     cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
                               Rcpp::Named("reason") = reason);
@@ -1116,7 +1117,7 @@ Rcpp::List rcpp_cens_final(const arma::mat& d_new,
 
   double cen = NA_REAL;
   double obst = NA_REAL;
-  Rcpp::String reason;
+  int reason;
 
   double fudge = 0.0001;
 
@@ -1127,7 +1128,7 @@ Rcpp::List rcpp_cens_final(const arma::mat& d_new,
     cen = 0;
     obst = d_new(i, COL_EVTT);
     obst = obst < 0 ? 0 : obst;
-    reason = "fin: has visits: event observed";
+    reason = 91; // "fin: has visits: event observed";
     cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
                               Rcpp::Named("reason") = reason);
     return cens;
@@ -1140,7 +1141,7 @@ Rcpp::List rcpp_cens_final(const arma::mat& d_new,
     cen = 1;
     obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
     obst = obst < 0 ? 0 : obst;
-    reason = "fin: has visits: too old";
+    reason = 92; /// "fin: has visits: too old";
     cens = Rcpp::List::create(Rcpp::Named("cen") = cen, Rcpp::Named("obst") = obst,
                               Rcpp::Named("reason") = reason);
     return cens;
@@ -1153,10 +1154,10 @@ Rcpp::List rcpp_cens_final(const arma::mat& d_new,
 
     if(d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT) > (double)cfg["max_age_fu_months"]){
       obst = (double)cfg["max_age_fu_months"] - d_new(i, COL_AGE);
-      reason = "fin: has visits: event after last visit age > max age";
+      reason = 93; // "fin: has visits: event after last visit age > max age";
     } else {
       obst = d_new(i, COL_AGE) + (double)arma::max(visits) - d_new(i, COL_ACCRT);
-      reason = "fin: has visits: event after last visit age <= max age";
+      reason = 94; // "fin: has visits: event after last visit age <= max age";
     }
 
     obst = obst < 0 ? 0 : obst;

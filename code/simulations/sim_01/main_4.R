@@ -94,7 +94,7 @@ packs <- c("data.table", "futile.logger", "configr", "survival",
            "foreach", "truncnorm", "beepr", "orvacsim")
 
 
-
+starttime <- Sys.time()
 
 
 
@@ -139,15 +139,11 @@ for(i in 1:length(results)){
   nm <- names(myv)
   dfres1 <- rbind(dfres1, myv)
   colnames(dfres1) <- nm
-  
-  mym <- as.data.frame(results[[i]][29])
-  mym$id <- i
-  
-  dfres2 <- rbind(dfres2, mym)
+
 }
 
+endtime <- Sys.time()
 
-rownames(dfres1) <- NULL
 end <- proc.time()
 
 duration <- end - start
@@ -159,7 +155,10 @@ beepr::beep()
 w <- warnings()
 rdsfilename <- paste0("out/res-",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RDS")
 flog.info("saving rdsfilename : %s", rdsfilename )
-saveRDS(list(results=dfres1, interim_post = dfres2, cfg = cfg, warnings = w), rdsfilename)
+saveRDS(list(results=dfres1, cfg = cfg, warnings = w,
+             starttime = starttime, endtime = endtime, 
+             duration = difftime(endtime, starttime, units = "hours")), 
+        rdsfilename)
 assign("last.warning", NULL, envir = baseenv())
 
 if(!debug){

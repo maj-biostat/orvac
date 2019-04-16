@@ -45,15 +45,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // rcpp_clin_opt
-Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg, const int look);
-RcppExport SEXP _orvacsim_rcpp_clin_opt(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP) {
+Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg, const int look, const int idxsim);
+RcppExport SEXP _orvacsim_rcpp_clin_opt(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP, SEXP idxsimSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::mat& >::type d(dSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_clin_opt(d, cfg, look));
+    Rcpp::traits::input_parameter< const int >::type idxsim(idxsimSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_clin_opt(d, cfg, look, idxsim));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -284,7 +285,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_dotrial", (DL_FUNC) &_orvacsim_rcpp_dotrial, 3},
     {"_orvacsim_rcpp_dat", (DL_FUNC) &_orvacsim_rcpp_dat, 1},
     {"_orvacsim_rcpp_dat_small", (DL_FUNC) &_orvacsim_rcpp_dat_small, 5},
-    {"_orvacsim_rcpp_clin_opt", (DL_FUNC) &_orvacsim_rcpp_clin_opt, 3},
+    {"_orvacsim_rcpp_clin_opt", (DL_FUNC) &_orvacsim_rcpp_clin_opt, 4},
     {"_orvacsim_rcpp_clin_set_obst", (DL_FUNC) &_orvacsim_rcpp_clin_set_obst, 5},
     {"_orvacsim_rcpp_visits", (DL_FUNC) &_orvacsim_rcpp_visits, 5},
     {"_orvacsim_rcpp_cens", (DL_FUNC) &_orvacsim_rcpp_cens, 7},

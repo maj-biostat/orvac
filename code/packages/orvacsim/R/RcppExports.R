@@ -13,8 +13,8 @@ rcpp_dat_small <- function(d, cfg, look, l0, l1) {
     invisible(.Call(`_orvacsim_rcpp_dat_small`, d, cfg, look, l0, l1))
 }
 
-rcpp_clin_opt <- function(d, cfg, look) {
-    .Call(`_orvacsim_rcpp_clin_opt`, d, cfg, look)
+rcpp_clin_opt <- function(d, cfg, look, idxsim) {
+    .Call(`_orvacsim_rcpp_clin_opt`, d, cfg, look, idxsim)
 }
 
 rcpp_clin_set_obst <- function(d, cfg, look, dofinal, dotarget) {
