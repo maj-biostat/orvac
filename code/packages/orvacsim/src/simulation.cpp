@@ -50,7 +50,7 @@
 
 
 
-#define _DEBUG 0
+#define _DEBUG 1
 
 #if _DEBUG
 #define DBG( os, msg )                             \
@@ -645,7 +645,8 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
 
   arma::mat m = arma::zeros(post_draw , 3);
   arma::uvec utmp;
-  arma::vec postprob_ratio_gt1 = arma::zeros(post_draw);
+  arma::vec postprob_int_ratio_gt1 = arma::zeros(post_draw);
+  arma::vec postprob_fin_ratio_gt1 = arma::zeros(post_draw);
 
   // compute suff stats (calls visits and censoring) for the current interim
   d.col(COL_CEN) = arma::vec(Rcpp::rep(NA_REAL, (int)cfg["nstop"]));
@@ -658,7 +659,10 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
   double n_uncen_1 = (double)lsuffstat["n_uncen_1"];
   double tot_obst_1 = (double)lsuffstat["tot_obst_1"];
 
+  //DBG(Rcpp::Rcout, "interim n_uncen_0 " << n_uncen_0);
+
   arma::mat d_new = arma::mat(d);
+  arma::vec vaccr = arma::vec(d.col(COL_ACCRT));
   arma::mat m_newint = arma::zeros(post_draw , 3);
   arma::mat m_newfin = arma::zeros(post_draw , 3);
 
@@ -682,11 +686,22 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
     // impute to looks_target[look] sample size based on current draw from posterior
     if(looks[mylook] < looks_target[mylook]){
 
-      // DBG(Rcpp::Rcout, "clin - accrual rate < 50, imputing interim");
+      // pretend that we were enrolling at our target rate by updating the accrual
+      // time for the number of kids that we need to be on-target. In this way we
+      // have something to set visits with.
+      //DBG(Rcpp::Rcout, "reset from " << looks[mylook] << " to " << looks_target[mylook]);
+      for(int k = looks[mylook]; k < looks_target[mylook]; k++){
+        d_new(k, COL_ACCRT) = R::runif(0, months[mylook]);
+      }
 
       // the true indicates that we look to the target sample size
-      Rcpp::List lssppint = rcpp_clin_set_obst(d_new, cfg, looks.size(), false, true);
+      Rcpp::List lssppint = rcpp_clin_set_obst(d_new, cfg, look, false, true);
       // obtain full post_draw sample from new posterior for j in postdraws
+
+      // DBG(Rcpp::Rcout, "imputed n_uncen_0 " << (double)lssppint["n_uncen_0"]
+      //                                       << " tot_obst_0 " << (double)lssppint["tot_obst_0"]
+      //                                       << " n_uncen_1 " << (double)lssppint["n_uncen_1"]
+      //                                       << " tot_obst_1 " << (double)lssppint["tot_obst_1"] );
 
       for(int j = 0; j < post_draw; j++){
         m_newint(j, COL_LAMB0) = R::rgamma(a + (double)lssppint["n_uncen_0"], 1/(b + (double)lssppint["tot_obst_0"]));
@@ -695,18 +710,27 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
       }
       // empirical posterior probability that ratio_lamb > 1
       utmp = arma::find(m_newint.col(COL_RATIO) > 1);
-      postprob_ratio_gt1(i) =  (double)utmp.n_elem / (double)post_draw;
-      if(postprob_ratio_gt1(i) > post_tte_win_thresh[mylook]){
+      postprob_int_ratio_gt1(i) =  (double)utmp.n_elem / (double)post_draw;
+      if(postprob_int_ratio_gt1(i) > post_tte_win_thresh[mylook]){
         winint++;
       }
+
+      // put accruals back as they were
+      for(int k = looks[mylook]; k < looks_target[mylook]; k++){
+        d_new(k, COL_ACCRT) = vaccr(k);
+      }
     }
-
-
 
     // impute to max sample size based on current draw from posterior
     // the true indicates that we are looking at the final - this has slight different
     // implications for censoring.
     lssppfin = rcpp_clin_set_obst(d_new, cfg, looks.size(), true, false);
+
+    // DBG(Rcpp::Rcout, "final n_uncen_0 " << (double)lssppfin["n_uncen_0"]
+    //                                         << " tot_obst_0 " << (double)lssppfin["tot_obst_0"]
+    //                                         << " n_uncen_1 " << (double)lssppfin["n_uncen_1"]
+    //                                         << " tot_obst_1 " << (double)lssppfin["tot_obst_1"] );
+
     // obtain full post_draw sample from new posterior for j in postdraws
     for(int j = 0; j < post_draw; j++){
       m_newfin(j, COL_LAMB0) = R::rgamma(a + (double)lssppfin["n_uncen_0"], 1/(b + (double)lssppfin["tot_obst_0"]));
@@ -715,36 +739,52 @@ Rcpp::List rcpp_clin_opt(arma::mat& d, const Rcpp::List& cfg,
     }
     // empirical posterior probability that ratio_lamb > 1
     utmp = arma::find(m_newfin.col(COL_RATIO) > 1);
-    postprob_ratio_gt1(i) =  (double)utmp.n_elem / (double)post_draw;
-    if(postprob_ratio_gt1(i) > post_tte_win_thresh[mylook]){
+    postprob_fin_ratio_gt1(i) =  (double)utmp.n_elem / (double)post_draw;
+    if(postprob_fin_ratio_gt1(i) > post_tte_win_thresh[mylook]){
       winfin++;
     }
   }
 
   // assess the interim posterior predictive (if accrual < 50 p qtr) or
-  // just look at posterior if accrual is on target (i.e. 50 p qtr)
+  // look at posterior if accrual is on target (i.e. 50 p qtr)
   double post_prob_win;
 
+  // this is checking the posterior prob that the ratio > 1
   utmp = arma::find(m.col(COL_RATIO) > 1);
+  // empirical prob of ratio > 1
   post_prob_win =  (double)utmp.n_elem / (double)post_draw;
-  ppos_int = (double)winint / (double)post_draw;
+  // prob of expected success
+  // ppos_int = (double)winint / (double)post_draw;
+  ppos_int = (double)arma::mean(postprob_int_ratio_gt1);
 
   if(looks[mylook] == looks_target[mylook]){
+    // if we are on target use th eposterior
     ppos = post_prob_win;
   } else {
+    // if not on target, we had to impute, so use ppos_int
     ppos = ppos_int;
   }
 
   // assess results from posterior predictive imputing to max sample size
-  ppos_max = (double)winfin / (double)post_draw;
+  // ppos_max = (double)winfin / (double)post_draw;
+  ppos_max = (double)arma::mean(postprob_fin_ratio_gt1);
 
-  INFO(Rcpp::Rcout, idxsim, "     post      " << post_prob_win);
-  INFO(Rcpp::Rcout, idxsim, "     winint    " << winint  << " ppos_int " << ppos_int);
-  INFO(Rcpp::Rcout, idxsim, "     ppos      " << ppos);
-  INFO(Rcpp::Rcout, idxsim, "     winfin    " << winfin  << " ppos_max " << ppos_max);
+  INFO(Rcpp::Rcout, idxsim, "     winint     " << winint);
+  INFO(Rcpp::Rcout, idxsim, "     winfin     " << winfin);
 
-  Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppn") = ppos,
-                                      Rcpp::Named("ppmax") = ppos_max);
+  INFO(Rcpp::Rcout, idxsim, "     posterior  " << post_prob_win);
+  INFO(Rcpp::Rcout, idxsim, "     ppos (int) " << ppos);
+  INFO(Rcpp::Rcout, idxsim, "     ppos (fin) " << ppos_max << std::endl);
+
+
+  Rcpp::List ret = Rcpp::List::create(Rcpp::Named("post_prob") = post_prob_win,
+                                      Rcpp::Named("ppn") = ppos,
+                                      Rcpp::Named("ppmax") = ppos_max,
+                                      Rcpp::Named("pp_int") = postprob_int_ratio_gt1,
+                                      Rcpp::Named("pp_fin") = postprob_fin_ratio_gt1,
+                                      Rcpp::Named("m_post") = m,
+                                      Rcpp::Named("m_newint") = m_newint,
+                                      Rcpp::Named("m_newfin") = m_newfin);
 
   //DBG(Rcpp::Rcout, "     about to return " );
 
@@ -778,30 +818,30 @@ Rcpp::List rcpp_clin_set_obst(arma::mat& d, const Rcpp::List& cfg,
   Rcpp::List cens;
   Rcpp::List ret;
   arma::vec visits;
+  int j = 0;
 
-  for(int i = 0; i < d.n_rows; i++){
+  //DBG(Rcpp::Rcout, "setting up to " << looks[mylook]);
 
-    // if the kid was enrolled after the current interim month then set
-    // the censoring and event times to NA
-    if(d(i, COL_ACCRT) > months[mylook] + fudge && months[mylook] != max(months)){
-
-      d(i, COL_CEN) = NA_REAL;
-      d(i, COL_OBST) = NA_REAL;
-
-       // DBG(Rcpp::Rcout, "i " << i << " accrual time " << d(i, COL_ACCRT)
-       //                        << " occurs after current anlaysis month" << months[mylook]);
-      continue;
-    }
+  for(int i = 0; i < looks[mylook]; i++){
 
     // work out when the surveillance visits happened
     visits = rcpp_visits(d, i, look, cfg, dofinal);
 
     // DBG(Rcpp::Rcout, "i " << i << " visits " << visits);
 
+    // if(i == 400 & dotarget == 1){
+    //   DBG(Rcpp::Rcout, "i " << i << " dotarget " << dotarget << " visits " << visits);
+    // }
+
     // set the censoring indicator based on the visit times
     cens = rcpp_cens(d, visits, i, look, dofinal, dotarget, cfg);
 
-    // DBG(Rcpp::Rcout, "cen " );
+    // if(i == 400 & dotarget == 1){
+    //   DBG(Rcpp::Rcout, "i " << i << " obst " << (double)cens["obst"] << " cen " << (double)cens["cen"]);
+    // }
+
+    // DBG(Rcpp::Rcout, "cen  " << (double)cens["cen"]);
+    // DBG(Rcpp::Rcout, "obst " << (double)cens["obst"]);
 
     d(i, COL_CEN) = (double)cens["cen"];
     d(i, COL_OBST) = (double)cens["obst"];
@@ -834,7 +874,7 @@ Rcpp::List rcpp_clin_set_obst(arma::mat& d, const Rcpp::List& cfg,
     }
   }
 
-//DBG(Rcpp::Rcout, "create " << n_uncen_0);
+
 
 
   ret = Rcpp::List::create(Rcpp::Named("n_uncen_0") = n_uncen_0,

@@ -1,5 +1,6 @@
 # setwd("~/Documents/orvac/code/packages/orvacsim/tests/testthat")
 # setwd("/home/mjones/Documents/orvac/code/packages/orvacsim/tests/testthat")
+# setwd("/home/mark/Documents/orvac/code/packages/orvacsim/tests/testthat")
 
 library(testthat)
 library(orvacsim)
@@ -1004,46 +1005,73 @@ test_that("clin tte posterior check against mcmc", {
 
 test_that("clin tte data ppos basic", {
 
-
+  setwd("/home/mark/Documents/orvac/code/packages/orvacsim/tests/testthat")
   library(testthat)
   library(orvacsim)
   library(data.table)
   source("../../../../simulations/sim_01/util.R")
   library(truncnorm)
   library(survival)
-  library(boot)
-  library(rstan)
-  # library(eha)
   library(rbenchmark)
+  library(configr)
 
   cfg <- readRDS("cfg-example.RDS")
-  look <- 28
-  d <- rcpp_dat(cfg)
-  set.seed(5)
-  v1 <- rcpp_visits(d, 300, look, cfg)
+  #cfg <- readRDS("cfg-50.RDS")
 
-  set.seed(5)
-  v2 <- rcpp_visits_test(d, 300, look, cfg)
+  look <- 12
+  c(cfg$interimmnths[look], cfg$looks[look], cfg$looks_target[look])
+  cfg$interimmnths
+  cfg$looks
+  cfg$looks_target
 
-  cbind(v1, v2)
+  cfg$ctl_med_tte <- 30
+  cfg$trt_med_tte <- 35
 
-  benchmark(rcpp_visits(d, 300, look, cfg),
-            rcpp_visits_test(d, 300, look, cfg),
-            columns=c("test", "elapsed", "relative"),
-            order="relative", replications=1000000)
+  cfg$b0tte <- log(2)/cfg$ctl_med_tte
+  cfg$b1tte <- (log(2)/cfg$trt_med_tte) - (log(2)/cfg$ctl_med_tte)
+
+  #cfg$post_draw <- 1000
+
+
+  #set.seed(5)
+  nsim <- 500
+  lres <- list()
+  ppos_int <- numeric(nsim)
+  ppos_fin <- numeric(nsim)
+  for(i in 1:nsim){
+    d <- rcpp_dat(cfg)
+    lres[[i]] <- rcpp_clin_opt(d, cfg, look, i)
+    ppos_int[i] <- lres[[i]]$ppn
+    ppos_fin[i] <- lres[[i]]$ppmax
+  }
+
+
+  # save the results
+  # l30 <- list(ppos_int = ppos_int, ppos_fin = ppos_fin, lres = lres)
+  # l50 <- list(ppos_int = ppos_int, ppos_fin = ppos_fin, lres = lres)
+  # run with different accrual
+  # compare
+
+  par(mfrow = c(2, 1))
+  hist(l30$ppos_int, prob = T)
+  abline(v = mean(l30$ppos_int))
+  hist(l50$ppos_int, prob = T)
+  abline(v = mean(l50$ppos_int))
+
+
+
+  dp1 <- test$pp_int
+  dp2 <- test$pp_fin
+  dmm1 <- as.data.frame(test$m_post)
+  dmm2 <- as.data.frame(test$m_newint)
+  dmm3 <- as.data.frame(test$m_newfin)
+
+  hist(dp1)
+  hist(dp2)
+  hist(dmm1[,3], xlim = c(0.3, 3))
+  hist(dmm2[,3], xlim = c(0.3, 3))
+  hist(dmm3[,3], xlim = c(0.3, 3))
   #
-
-  cfg <- readRDS("cfg-example.RDS")
-  look <- 22
-  d <- rcpp_dat(cfg)
-  c1 <- rcpp_clin_opt(d, cfg, look)
-  c2 <- rcpp_clin_opt_test(d, cfg, look)
-  list(c1, c2)
-
-  benchmark(rcpp_clin_opt(d, cfg, look),
-            rcpp_clin_opt_test(d, cfg, look),
-            columns=c("test", "elapsed", "relative"),
-            order="relative", replications=5)
 
 })
 
