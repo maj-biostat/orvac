@@ -1,12 +1,10 @@
 ---
 title: "Simulations to explore accrual rate influence on power/ppos"
-subtitle: "Accrual and time to event endpoint"
+subtitle: "`r knitr::current_input(dir = TRUE)`"
 author: "Mark Jones"
 date: "`r Sys.time()`"
 output:
   html_document:
-    classoption: landscape
-    css: style.css
     number_sections: yes
     self_contained: yes
     theme: united
@@ -21,7 +19,6 @@ output:
 geometry: left=0.2cm,right=0.2cm,top=1cm,bottom=1cm
 editor_options:
   chunk_output_type: console
-classoption: landscape
 ---
 
 <!--    toc: yes
@@ -72,12 +69,14 @@ odd_to_prob <- function(x){
 
 # Preamble
 
-Assume you have interims starting at $n_{min}$ then every $n$ patients up to a maximum sample size $N$. If you vary $n$per interim (the accrual rate) how does it effect power in a survival endpoint (exponential)? We initially assume 40% censoring (plausibly indicative of orvac).
+Assume you have interims starting at $n_{min}$ then every $n$ patients up to a maximum sample size $N$. If you vary $n$ per interim (the accrual rate) how does it effect power in a survival endpoint (exponential)? 
 
 # Generate Data
 
+Exponential model. Censor at 45 months.
+
 ```{r}
-trial_dat <- function(trialid, n, t0, delta, c_rate){
+trial_dat <- function(trialid, n, t0, delta){
   t1 <- t0 + delta
   b0 <- log(2)/t0
   b1 <- log(2)/t1 - log(2)/t0
@@ -85,11 +84,8 @@ trial_dat <- function(trialid, n, t0, delta, c_rate){
   d <- data.frame(trialid = trialid, id = 1:n)
   d$trt <- rep(0:1, len = n)
   d$y <- rexp(n, b0 + b1*d$trt)
-  d$c <- 0
-  if(c_rate != 0){
-    d$c[sample(1:n, n*c_rate)] = 1
-  }
-  d$y <- ifelse(d$c == 1, 36, d$y)
+  d$c <- ifelse(d$y > 45, 1, 0)
+  d$y <- ifelse(d$c == 1, 45, d$y)
   d
 }
 
@@ -100,75 +96,154 @@ N <- 1000
 # med tte
 t0 <- 30
 # trt effect
-delta <- 10
-# censoring rate
-c_rate <- 0.4
-d <- lapply(1:nsim, trial_dat, N, t0, delta, c_rate)
+delta <- 5
+d <- lapply(1:nsim, trial_dat, N, t0, delta)
 
 head(d[[1]])
 ```
 
-Compute when interim analyses happen.
+Compute sample size at a given interim for a range of accrual rates.
 
 ```{r}
-get_int <- function(n){
-  nmin <- 200
-  interm_n <- seq(nmin, N, by = n)
-  if(max(interm_n)!=N){
-    interm_n <- c(interm_n, N)
-  } 
-  interm_n
-}
-get_int(n = 30)
+# this is the target accrual rate - it dictates how many will be imputed
+n_interim_target <- seq(200, N, by = 50)
+
+# assume accrual is going slow e.g. 30 to 49 people per interim
+n_interims_slow_accru <- seq(200, N, by = 30)
+n_interims_slow_accru <- c(n_interims_slow_accru, 1000)
+
+n_interim_med_accru <- seq(200, N, by = 40)
+
+n_interim_target_accru <- seq(200, N, by = 49)
+n_interim_target_accru <- c(n_interim_target_accru, 1000)
 ```
 
-Simulation using logrank.
+Gamma conjugate prior to exponential likelihood - parameterisation is based on rate.
 
 ```{r}
+# Sufficient statistics based on those enrolled at the
+# time of the interim.
+suff <- function(dat, idx){
+  
+  # can only view a subset of the data
+  c <- dat$c[1:idx]
+  y <- dat$y[1:idx]
+  trt <- dat$trt[1:idx]
+  
+  n_uncen_0 <- sum(c[trt == 0]==0)
+  n_uncen_1 <- sum(c[trt == 1]==0)
+  obst_0 <- sum(y[trt == 0])
+  obst_1 <- sum(y[trt == 1])
 
-fit <- function(current_n, trial_id){
-  lm1 <- survdiff(Surv(y, 1-c) ~ trt, data=d[[trial_id]][1:current_n,])
-  pchisq(lm1$chisq,df = 1, lower.tail = F)
+  return(list(n_uncen_0 = n_uncen_0,
+              n_uncen_1 = n_uncen_1,
+              obst_0 = obst_0,
+              obst_1 = obst_1,
+              n = length(y)))
 }
 
-sim <- function(trial_id, n_step){
-  res <- unlist(lapply(get_int(n_step), fit, trial_id))
-  any(p.adjust(res, method = "bonferroni") < 0.05)
+
+# turn interim into function simulate 1000 times.
+do_interim <- function(x, accrual = n_interims_slow_accru){
+  
+  # grab the precomputed data from subj 1 through to subject 
+  # at the target sample size
+  dat <- d[[x]][1:n_interim_target[idx_intrm],]
+
+  # compute sufficient stats from those that are enrolled
+  lsuff <- suff(dat, idx = accrual[idx_intrm])
+  
+  # sample from the posterior
+  l0 <- rgamma(n_post_draw, 1 + lsuff$n_uncen_0, 10 + lsuff$obst_0)
+  l1 <- rgamma(n_post_draw, 1 + lsuff$n_uncen_1, 10 + lsuff$obst_1)
+  
+  # save original state (event times and censoring)
+  idx0 <- which(dat$trt == 0)
+  idx1 <- which(dat$trt == 1)
+  y0 <- dat$y[idx0]
+  y1 <- dat$y[idx1]
+  c0 <- dat$c[idx0]
+  c1 <- dat$c[idx1]
+  
+  # prob of ratio of hazards being > 1
+  ptx <- numeric(n_post_draw)
+
+  # how many do we need to impute to get to the target size?
+  n_impute <- length(seq(accrual[idx_intrm]+1, n_target_interim[idx_intrm], by = 1))
+  
+  msg = 1
+  if(msg == 1) {message(" Imputing ", n_impute); msg = 0}
+  
+  for(i in 1:n_post_draw){
+    
+    # for the subset we need to impute, 
+    # set the time to event to zero and censoring to 1
+    dat$y[seq(accrual[idx_intrm]+1, n_target_interim[idx_intrm], by = 1)] <- 0
+    dat$c[seq(accrual[idx_intrm]+1, n_target_interim[idx_intrm], by = 1)] <- 1
+  
+    # impute values for ALL censored (using memoryless property of expo)
+    dat$y[idx0 & dat$c[idx0] == 1] <- dat$y[idx0 & dat$c[idx0] == 1] + 
+      rexp(sum(idx0 & dat$c[idx0] == 1), l0[i])
+    
+    # as above for the trt group
+    dat$y[idx1 & dat$c[idx1] == 1] <- dat$y[idx1 & dat$c[idx1] == 1] + 
+      rexp(sum(idx1 & dat$c[idx1] == 1), l1[i])
+    
+    # everyone now has a time to event.
+    dat$c <- 0
+    
+    # do analysis
+    lsuff <- suff(dat, idx = n_interim_target[idx_intrm])
+    lpp0 <- rgamma(n_post_draw, 10 + lsuff$n_uncen_0, 0.1 + lsuff$obst_0)
+    lpp1 <- rgamma(n_post_draw, 10 + lsuff$n_uncen_1, 0.1 + lsuff$obst_1)
+    ptx[i] <- mean((lpp0/lpp1)>1)
+    
+    # now reset y and c to what they were originally 
+    # so we are ready for the next round
+    dat$y[idx0] <- y0
+    dat$y[idx1] <- y1
+    dat$c[idx0] <- c0
+    dat$c[idx1] <- c1
+  
+  }
+
+  ptx
 }
 
-# ppos
-accrual_rates <- c(30, 40, 50)
-ppos1 <- rep(0, length(accrual_rates))
 
-for(i in 1:length(accrual_rates)){
-  ppos1[i] <- mean(unlist(lapply(1:nsim, sim, accrual_rates[i])))
-}
+# particles 
+n_post_draw <- 1000
+# choose an interim
+# in theory power should decrease as accrual rates get higher...
+idx_intrm <- 10
+res <- lapply(1:nsim, do_interim, accrual = n_interims_slow_accru)
+saveRDS(res, "res_slow.RDS")
+pr1 <- unlist(lapply(1:nsim, function(x)mean(res[[x]])))
+
+res <- lapply(1:nsim, do_interim, accrual = n_interim_med_accru)
+saveRDS(res, "res_med.RDS")
+pr2 <- unlist(lapply(1:nsim, function(x)mean(res[[x]])))
+
+res <- lapply(1:nsim, do_interim, accrual = n_interim_target_accru)
+saveRDS(res, "res_target.RDS")
+pr3 <- unlist(lapply(1:nsim, function(x)mean(res[[x]])))
 
 
+den1 <- density(pr1)
+den2 <- density(pr2)
+den3 <- density(pr3)
 
-# ppos - no censoring
-accrual_rates <- c(30, 40, 50)
-c_rate <- 0
-d <- lapply(1:nsim, trial_dat, N, t0, delta, c_rate)
-
-ppos2 <- rep(0, length(accrual_rates))
-
-for(i in 1:length(accrual_rates)){
-  ppos2[i] <- mean(unlist(lapply(1:nsim, sim, accrual_rates[i])))
-}
-
-```
-
-Plot (dashed has more censoring).
-
-```{r}
-plot(accrual_rates, ppos1, type = "l", ylim = c(0.4, 0.8))
-plot(accrual_rates, ppos2, type = "l")
+plot(den1, main = "Prob that hazd ratio > 1")
+lines(den2, lty = 2)
+lines(den3, lty = 3)
+legend("topleft",
+       legend = c("Slow accrual", "Med accrual", "Fast accrual"), 
+       lty = 1:3)
 ```
 
 # Summary
 
-For the given samplesize, with $n$ participants per interim and censoring rate indicative of ORVAC, PPOS (adjustment for multiple comparisons) increases as accrual increases. 
+This seems to suggest that as accrual increases the probability of detecting that the hazard ratio > 1 also increases. 
 
 
 
