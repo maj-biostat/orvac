@@ -1,6 +1,5 @@
 ---
 title: "Simulations to explore accrual rate influence on power/ppos"
-subtitle: "`r knitr::current_input(dir = TRUE)`"
 author: "Mark Jones"
 date: "`r Sys.time()`"
 output:
@@ -34,10 +33,8 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.path = 'figs/')
-suppressPackageStartupMessages(library(simstudy))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(dplyr))
-suppressPackageStartupMessages(library(mcmc))
 suppressPackageStartupMessages(library(survival))
 suppressPackageStartupMessages(library(doParallel))
 suppressPackageStartupMessages(library(foreach))
@@ -68,6 +65,13 @@ odd_to_prob <- function(x){
   return(x/(1+x))
 }
 
+```
+
+# Status and file location
+
+```{r, echo = F}
+message("Working draft")
+message(knitr::current_input(dir = TRUE))
 ```
 
 # Preamble
@@ -243,9 +247,9 @@ Simulate with slow accrual.
 
 ```{r}
 # 1000 trials each with interims def by interm_n
-nsim <- 2000
+nsim <- 1000
 # obs per trial
-N <- 300 
+N <- 400 
 # med tte
 t0 <- 35
 # trt effect
@@ -261,12 +265,13 @@ lamb(t0) / lamb(t0 + delta)
 
 fu_t <- 90
 
+starttime <- Sys.time()
+
 # Pregenerate data
 d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 0.3)
-head(d[[1]])
-tail(d[[1]])
+summary(d[[1]])
 
-cl <- makeCluster(parallel::detectCores() - 2, outfile="")
+cl <- makeCluster(parallel::detectCores() , outfile="")
 registerDoParallel(cl)
 # registerDoSEQ()
 results <- foreach(i = 1:nsim,
@@ -275,7 +280,7 @@ results <- foreach(i = 1:nsim,
                    #.export = c("do_interim", "suff", "d")
                    ) %dopar%{
     
-  n_interims <- c(100, 150, 200, 250, 300)
+  n_interims <- c(100, 150, 200, 250, 300, 350, 400)
 
   for(j in 1:length(n_interims)){
     
@@ -299,14 +304,15 @@ Simulate with faster accrual.
 
 ```{r}
 d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 2.5)
-cl <- makeCluster(parallel::detectCores() - 2, outfile="")
+summary(d[[1]])
+cl <- makeCluster(parallel::detectCores() , outfile="")
 registerDoParallel(cl)
 #registerDoSEQ()
 results <- foreach(i = 1:nsim,
                    .errorhandling = 'pass'
                    ) %dopar%{
     
-  n_interims <- c(100, 150, 200, 250, 300)
+  n_interims <- c(100, 150, 200, 250, 300, 350, 400)
 
   for(j in 1:length(n_interims)){
     
@@ -327,15 +333,16 @@ saveRDS(list(results=res2), rdsfname)
 ```
 
 ```{r}
-d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 4)
-cl <- makeCluster(parallel::detectCores() - 2, outfile="")
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 5)
+summary(d[[1]])
+cl <- makeCluster(parallel::detectCores() , outfile="")
 registerDoParallel(cl)
 #registerDoSEQ()
 results <- foreach(i = 1:nsim,
                    .errorhandling = 'pass'
                    ) %dopar%{
     
-  n_interims <- c(100, 150, 200, 250, 300)
+  n_interims <- c(100, 150, 200, 250, 300, 350, 400)
 
   for(j in 1:length(n_interims)){
     
@@ -357,11 +364,15 @@ saveRDS(list(results=res3), rdsfname)
 
 ```{r}
 lapply(list(res1, res2, res3), summary)
+
+endtime <- Sys.time()
+difftime(endtime, starttime, units = "hours")
 ```
+
 
 # Summary
 
-Shows the relationship between power and accrual in tte context. With moderate time to events (i.e. not instantaneous) slower accrual implies  
+Shows the relationship between power and accrual in tte context. With moderate time to events (i.e. not instantaneous) slower accrual implies increase? in power. Also, mean sample size (at which a decision for es can be made) increases.
 
 
 
