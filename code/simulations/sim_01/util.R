@@ -201,6 +201,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   
   # the target size is the number of participants if accrual is going at 
   # the desired rate.
+  # 70, 120, 170 etc
   l$looks_target <- seq(from = l$nstart, to=l$nstop, by = 50)
   tmpextra <- length(l$looks) - length(l$looks_target)
   l$looks_target <- c(l$looks_target, rep(l$nstop, tmpextra))
