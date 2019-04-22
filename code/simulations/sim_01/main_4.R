@@ -135,7 +135,7 @@ dfres2 <- data.frame()
 
 for(i in 1:length(results)){
   
-  myv <- unlist(results[[i]][1:28])
+  myv <- unlist(results[[i]][1:27])
   nm <- names(myv)
   dfres1 <- rbind(dfres1, myv)
   colnames(dfres1) <- nm

@@ -213,10 +213,13 @@ do_interim <- function(x=1, idx_intrm=1, n_interims){
     
     # update tte conditional on censoring
     dat$tte[idx_ctl] <- ifelse(dat$c[idx_ctl] == 1, 
-                               pmin(fu_t, dat$time_of_analysis[idx_ctl] - dat$enro_t[idx_ctl]), 
+                               pmin(fu_t, 
+                                 dat$time_of_analysis[idx_ctl] - dat$enro_t[idx_ctl]), 
                                dat$tte[idx_ctl])
+    
     dat$tte[idx_trt] <- ifelse(dat$c[idx_trt] == 1,  
-                               pmin(fu_t, dat$time_of_analysis[idx_trt] - dat$enro_t[idx_trt]), 
+                               pmin(fu_t, 
+                                 dat$time_of_analysis[idx_trt] - dat$enro_t[idx_trt]), 
                                dat$tte[idx_trt])
 
     dat$event_t[idx_ctl] <- dat$tte[idx_ctl] + dat$enro_t[idx_ctl] 
