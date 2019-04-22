@@ -386,15 +386,15 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
 
   // how many events observed during the interim looks
-  Rcpp::List lss = m_clin_res["lss_post"];
-  double n_evnt_0 = (double)lss["n_evnt_0"];
-  double n_evnt_1 = (double)lss["n_evnt_1"];
+  // Rcpp::List lss = m_clin_res["lss_post"];
+  // double n_evnt_0 = (double)lss["n_evnt_0"];
+  // double n_evnt_1 = (double)lss["n_evnt_1"];
 
   // final analysis for tte
   d.col(COL_CEN) = arma::vec(Rcpp::rep(NA_REAL, (int)cfg["nstop"]));
   d.col(COL_OBST) = arma::vec(Rcpp::rep(NA_REAL, (int)cfg["nstop"]));
   // updates d(COL_CEN) and d(COL_OBST)
-  lss = rcpp_clin_set_state(d, looks.size(), max(looks) + 36, cfg);
+  Rcpp::List lss = rcpp_clin_set_state(d, looks.size(), max(looks) + 36, cfg);
 
   double n_evnt_0b = (double)lss["n_evnt_0"];
   double n_evnt_1b = (double)lss["n_evnt_1"];
@@ -481,20 +481,20 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   ret["c_mean"] = (double)c_mym;
   ret["c_lwr"] = (double)c_lwr;
   ret["c_upr"] = (double)c_upr;
-  ret["n_evnt_0"] = (double)n_evnt_0;
-  ret["n_evnt_1"] = (double)n_evnt_1;
+  // ret["n_evnt_0"] = (double)n_evnt_0;
+  // ret["n_evnt_1"] = (double)n_evnt_1;
 
 
-  if(ret.length() != 27){
-    Rcpp::stop("Return value is not 27 in length.");
-  }
+  // if(ret.length() != 27){
+  //   Rcpp::stop("Return value is not 27 in length.");
+  // }
 
   INFO(Rcpp::Rcout, idxsim, "FINISHED.");
 
 
-  if(rtn_trial_dat){
-    ret["d"] = d;
-  }
+  // if(rtn_trial_dat){
+  //   ret["d"] = d;
+  // }
 
   // Rcpp::List ret = Rcpp::List::create(Rcpp::Named("idxsim") = idxsim);
 

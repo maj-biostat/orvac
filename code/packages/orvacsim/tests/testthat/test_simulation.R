@@ -722,13 +722,10 @@ library(rbenchmark)
   # library(eha)
   library(rbenchmark)
 
-  cfg <- readRDS("cfg-example.RDS")
+  # cfg <- readRDS("cfg-example.RDS")
+  cfg <- readRDS("cfg-50.RDS")
 
-  cfg$baselineprobsero
-  cfg$trtprobsero <- 0.55
-  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
-
-  l <- rcpp_dotrial(1, cfg, TRUE)
+  (l <- rcpp_dotrial(1, cfg, TRUE))
 #
 
 
