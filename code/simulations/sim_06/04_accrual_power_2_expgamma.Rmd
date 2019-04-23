@@ -1,0 +1,412 @@
+---
+title: "Simulations to explore accrual rate influence on power/ppos"
+author: "Mark Jones"
+date: "`r Sys.time()`"
+output:
+  html_document:
+    number_sections: yes
+    self_contained: yes
+    theme: united
+  pdf_document:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+  word_document:
+    toc: yes
+    toc_depth: '3'
+geometry: left=0.2cm,right=0.2cm,top=1cm,bottom=1cm
+editor_options:
+  chunk_output_type: console
+---
+
+<!--    toc: yes
+    toc_float: true -->
+
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path = 'figs/')
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(survival))
+suppressPackageStartupMessages(library(doParallel))
+suppressPackageStartupMessages(library(foreach))
+suppressPackageStartupMessages(library(poisson))
+
+ggplot2::theme_set(ggplot2::theme_bw())
+ggplot2::theme_update(text = element_text(size = 10))
+ggplot2::theme_update(legend.position = "top")
+# ggplot2::theme_update(legend.title = element_blank())
+ggplot2::theme_update(axis.text.x = element_text(size = 10))
+ggplot2::theme_update(axis.text.y = element_text(size = 10))
+
+# Work|Right|Fast
+# rmarkdown::render("simulation_report.Rmd", clean=TRUE)
+
+# logit to p
+inv_logit <- function(x){
+  return(exp(x)/(1+exp(x)))
+}
+# p to logit
+logit <- function(p){
+  return(log(p/(1-p)))
+}
+prob_to_odd <- function(x){
+  return(x/(1-x))
+}
+odd_to_prob <- function(x){
+  return(x/(1+x))
+}
+
+```
+
+# Status and file location
+
+```{r, echo = F}
+message("Working draft")
+message(knitr::current_input(dir = TRUE))
+```
+
+# Preamble
+
+
+Simulate the power of a two arm trial (time to event response) where the trial has a superiority check at the interims. If the probability of expected success is above a specified threshold value then the trial is stopped. 
+
+Now assume that we run interim every 3 months with whatever data we have and run a time to event analysis with subjects followed up for a maximum of z months.
+
+# Generate Data
+
+The data generation and sufficient stats are the same as in (./03_accrual_effects_expgamma.html). Exponential model. Control and treatment group.
+
+```{r}
+trial_dat <- function(trialid, n, t0, delta, enro_rate = 3){
+  t1 <- t0 + delta
+  b0 <- log(2)/t0
+  b1 <- log(2)/t1 - log(2)/t0
+
+  d <- data.frame(trialid = trialid, id = 1:n)
+  
+  d$enro_t <- nhpp.sim(rate = enro_rate, 
+                       num.events = n, 
+                       prob.func = function(t) 1, 
+                       prepend.t0 = F)
+  
+  d$trt <- rep(0:1, len = n)
+  d$y <- rexp(n, b0 + b1*d$trt)
+  d$c <- 0
+  d
+}
+
+
+```
+
+Gamma conjugate prior to exponential likelihood - parameterisation is based on rate. Sufficient statistics are number of events and total observed time.
+
+```{r}
+# Sufficient statistics up to index idx
+suff <- function(dat, idx){
+  
+  # can only view a subset of the data
+  c <- dat$c[1:idx]
+  tte <- dat$tte[1:idx]
+  trt <- dat$trt[1:idx]
+  
+  n_uncen_0 <- sum(c[trt == 0]==0)
+  n_uncen_1 <- sum(c[trt == 1]==0)
+  obst_0 <- sum(tte[trt == 0])
+  obst_1 <- sum(tte[trt == 1])
+
+  return(list(n_uncen_0 = n_uncen_0,
+              n_uncen_1 = n_uncen_1,
+              obst_0 = obst_0,
+              obst_1 = obst_1,
+              n = length(tte)))
+}
+```
+
+Interim analysis. At each interim select the relevant number of subjects from the complete dataset. Set the censoring based on the current interim time and enrolled times. The sufficient stats are computed on this set. The posterior for the rate parameters are computed based on the observed data for the control and treatment arms. 
+
+Using these posteriors, simulate data for all subjects that are enrolled but for whom observations have not yet been observed. Total trial duration is the accrual period plus a fu period. Assuming accrual is stopped at the current sample size, all enrolled patients have the same remaining fu.
+
+We simulate event times up to the time of the interim PLUS the fu time. All observations are censored at x months so that we have the same follow up period for all individuals. This simulated dataset is then used to compute the posterior values for the rate parameter in each group.
+
+Finally, the empirical probability that the rate ratio is greater than 1 is computed. The process is repeated for z thousand particles from the original trt and ctl posteriors.
+
+```{r}
+do_interim <- function(x=1, idx_intrm=1, n_interim_mnth){
+  
+  n_post_draw <- 1000
+  
+  # grab the precomputed data from subj 1 through to subject 
+  # at the target sample size
+  dat <- d[[x]]
+  dat <- dat[dat$enro_t <= n_interim_mnth[idx_intrm],]
+  
+  dat$event_t <- dat$enro_t + dat$y
+  dat$tte <- 0
+  
+  dat$time_at_interim <- n_interim_mnth[idx_intrm]
+  dat$time_of_analysis <- dat$time_at_interim + fu_t
+  
+  # set censoring based on the current observed data
+  # we compare enrol + time to event (y) with the time of the interim
+  for(i in 1:nrow(dat)){
+    if(dat$enro_t[i] + dat$y[i] <= dat$time_at_interim[i]){
+      
+      if(dat$y[i] <= fu_t){
+        dat$c[i] <- 0
+        dat$tte[i] <- dat$y[i]
+      } else {
+        dat$c[i] <- 1
+        dat$tte[i] <- fu_t
+      }
+      
+    } else {
+      
+        dat$c[i] <- 1
+        dat$tte[i] <- min(dat$time_at_interim[i] - dat$enro_t[i], fu_t)
+
+    }
+  }
+
+  # compute sufficient stats from those that are enrolled
+  lsuff <- suff(dat, idx = nrow(dat))
+
+  
+  
+  
+  
+  
+  # sample from the posterior
+  # use a gamma(1, 50) prior throughout - est mean = 0.02
+  l0 <- rgamma(n_post_draw, prior_a + lsuff$n_uncen_0, prior_b + lsuff$obst_0)
+  l1 <- rgamma(n_post_draw, prior_a + lsuff$n_uncen_1, prior_b + lsuff$obst_1)
+  
+  # save original state (event times and censoring)
+  idx0 <- which(dat$trt == 0)
+  idx1 <- which(dat$trt == 1)
+  tte0 <- dat$tte[idx0]
+  tte1 <- dat$tte[idx1]
+  c0 <- dat$c[idx0]
+  c1 <- dat$c[idx1]
+  
+  # storage for prob of hazard ratio being > 1
+  ptx <- numeric(n_post_draw)
+
+  # we will impute for everyone that is yet to experience an event at 
+  # the time of the interim analysis
+  dat$idx_impute <- dat$enro_t + dat$y > dat$time_at_interim 
+  idx_ctl <- dat$idx_impute & dat$trt == 0
+  idx_trt <- dat$idx_impute & dat$trt == 1
+ 
+  # imputing up to the interim plus the fu time, i.e. make the
+  # assessment as if you were doing the final analysis
+  for(i in 1:n_post_draw){
+ 
+    # apply memoryless property
+    dat$tte[idx_ctl] <- dat$tte[idx_ctl] + rexp(sum(idx_ctl), l0[i])
+    dat$tte[idx_trt] <- dat$tte[idx_trt] + rexp(sum(idx_trt), l1[i])
+
+    # update censoring for imputed
+    dat$c[idx_ctl] <- ifelse(dat$enro_t[idx_ctl] + dat$tte[idx_ctl] >
+                               dat$time_of_analysis[idx_ctl] |
+                               dat$tte[idx_ctl] > fu_t, 1, 0)
+    dat$c[idx_trt] <- ifelse(dat$enro_t[idx_trt] + dat$tte[idx_trt] >
+                               dat$time_of_analysis[idx_trt] |
+                               dat$tte[idx_trt] > fu_t, 1, 0)
+    
+    # update tte conditional on censoring
+    dat$tte[idx_ctl] <- ifelse(dat$c[idx_ctl] == 1, 
+                               pmin(fu_t, dat$time_of_analysis[idx_ctl] -
+                                      dat$enro_t[idx_ctl]), 
+                               dat$tte[idx_ctl])
+    dat$tte[idx_trt] <- ifelse(dat$c[idx_trt] == 1,  
+                               pmin(fu_t, dat$time_of_analysis[idx_trt] -
+                                      dat$enro_t[idx_trt]), 
+                               dat$tte[idx_trt])
+
+    dat$event_t[idx_ctl] <- dat$tte[idx_ctl] + dat$enro_t[idx_ctl] 
+    dat$event_t[idx_trt] <- dat$tte[idx_trt] + dat$enro_t[idx_trt] 
+    
+    # do analysis
+    lsuff <- suff(dat, idx = nrow(dat))
+    lpp0 <- rgamma(n_post_draw, prior_a + lsuff$n_uncen_0, prior_b + lsuff$obst_0)
+    lpp1 <- rgamma(n_post_draw, prior_a + lsuff$n_uncen_1, prior_b + lsuff$obst_1)
+    ptx[i] <- mean((lpp0/lpp1)>1)
+    
+    # this sets the times back to what they were originally 
+    # so we are ready for the next iteration
+    dat$tte[idx0] <- tte0
+    dat$tte[idx1] <- tte1
+    dat$c[idx0] <- c0
+    dat$c[idx1] <- c1
+  
+  }
+
+  # returning prob that hazard ratio > 1
+  ptx
+}
+
+```
+
+Simulate with slow accrual.
+
+```{r}
+# 1000 trials each with interims def by interm_n
+nsim <- 10
+# obs per trial
+N <- 400 
+# med tte
+t0 <- 35
+# trt effect
+delta <- 4
+# prior parameters for gamma
+prior_a <- 1
+prior_b <- 50 
+
+lamb <- function(med) log(2)/med
+lamb(t0)
+lamb(t0 + delta)
+lamb(t0) / lamb(t0 + delta)
+
+fu_t <- 50
+
+starttime <- Sys.time()
+
+# Pregenerate data
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 1)
+summary(d[[1]])
+
+
+cl <- makeCluster(parallel::detectCores() , outfile="")
+registerDoParallel(cl)
+# registerDoSEQ()
+results <- foreach(i = 1:nsim,
+                   .errorhandling = 'pass'#,
+                   # .packages=c()
+                   #.export = c("do_interim", "suff", "d")
+                   ) %dopar%{
+    
+  max_val <- max(d[[i]]$enro_t)
+  n_interim_mnth <- seq(25, ceiling(max_val), by = 30)
+  if(!(ceiling(max_val) %in% n_interim_mnth)) 
+    n_interim_mnth <- c(n_interim_mnth, ceiling(max_val))
+  
+  for(j in 1:length(n_interim_mnth)){
+    
+    n <- sum(d[[i]]$enro_t <= n_interim_mnth[j])
+    
+    ptx <- do_interim(i, j, n_interim_mnth)
+    if(mean(ptx) > 0.80){
+      return(list(i=i, n = n, ptx = mean(ptx), es = 1))
+    }
+
+  }
+  return(list(i=i, n = n, ptx = mean(ptx), es = 0))
+}
+stopCluster(cl)
+
+res_slow <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
+rdsfname <- paste0("res-",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RDS")
+saveRDS(list(results=res_slow), rdsfname)
+
+```
+
+Simulate with faster accrual.
+
+```{r}
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 2)
+summary(d[[1]])
+cl <- makeCluster(parallel::detectCores() , outfile="")
+registerDoParallel(cl)
+# registerDoSEQ()
+results <- foreach(i = 1:nsim,
+                   .errorhandling = 'pass'#,
+                   # .packages=c()
+                   #.export = c("do_interim", "suff", "d")
+                   ) %dopar%{
+    
+  max_val <- max(d[[i]]$enro_t)
+  n_interim_mnth <- seq(25, ceiling(max_val), by = 30)
+  if(!(ceiling(max_val) %in% n_interim_mnth)) 
+    n_interim_mnth <- c(n_interim_mnth, ceiling(max_val))
+  
+  for(j in 1:length(n_interim_mnth)){
+    
+    n <- sum(d[[i]]$enro_t <= n_interim_mnth[j])
+    
+    ptx <- do_interim(i, j, n_interim_mnth)
+    if(mean(ptx) > 0.80){
+      return(list(i=i, n = n, ptx = mean(ptx), es = 1))
+    }
+
+  }
+  return(list(i=i, n = n, ptx = mean(ptx), es = 0))
+}
+stopCluster(cl)
+
+res_med <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
+rdsfname <- paste0("res-",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RDS")
+saveRDS(list(results=res_med), rdsfname)
+
+```
+
+```{r}
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 3)
+summary(d[[1]])
+cl <- makeCluster(parallel::detectCores() , outfile="")
+registerDoParallel(cl)
+# registerDoSEQ()
+results <- foreach(i = 1:nsim,
+                   .errorhandling = 'pass'#,
+                   # .packages=c()
+                   #.export = c("do_interim", "suff", "d")
+                   ) %dopar%{
+    
+  max_val <- max(d[[i]]$enro_t)
+  n_interim_mnth <- seq(25, ceiling(max_val), by = 30)
+  if(!(ceiling(max_val) %in% n_interim_mnth)) 
+    n_interim_mnth <- c(n_interim_mnth, ceiling(max_val))
+  
+  for(j in 1:length(n_interim_mnth)){
+    
+    n <- sum(d[[i]]$enro_t <= n_interim_mnth[j])
+    
+    ptx <- do_interim(i, j, n_interim_mnth)
+    if(mean(ptx) > 0.80){
+      return(list(i=i, n = n, ptx = mean(ptx), es = 1))
+    }
+
+  }
+  return(list(i=i, n = n, ptx = mean(ptx), es = 0))
+}
+stopCluster(cl)
+
+res_fast <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
+rdsfname <- paste0("res-",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RDS")
+saveRDS(list(results=res_fast), rdsfname)
+
+```
+
+```{r}
+lapply(list(res_slow, res_med, res_fast), summary)
+
+endtime <- Sys.time()
+difftime(endtime, starttime, units = "hours")
+```
+
+
+# Summary
+
+Shows the relationship between power and accrual in tte context. With moderate time to events (i.e. not instantaneous) slower accrual implies increase? in power. Also, mean sample size (at which a decision for es can be made) increases.
+
+
+
+
