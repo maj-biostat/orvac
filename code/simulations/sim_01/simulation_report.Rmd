@@ -203,13 +203,13 @@ mywarnings <- list()
 
 post_final_thresh <- 0
 
-resfiles <- list.files("out", pattern = "*.RDS")
+resfiles <- list.files("out_simple_censoring", pattern = "*.RDS")
 
 df_all <- data.frame(stringsAsFactors = F)
 df_fig1 <- data.frame(stringsAsFactors = F)
 
 for(fname in resfiles){
-  d1 <- readRDS(file.path(getwd(), "out", fname))
+  d1 <- readRDS(file.path(getwd(), "out_simple_censoring", fname))
   # d1 <- readRDS(file.path(getwd(), "out", resfiles[1]))
 
   mywarnings[[d1$cfg$idsim]] <- d1$warnings
@@ -272,9 +272,7 @@ for(fname in resfiles){
     dplyr::summarise(ss_mean = mean(ss_immu), 
                      ss_sd = sd(ss_immu)) 
   
-  evnts_0 <- mean(df_outcome$n_uncen_0)
-  evnts_1 <- mean(df_outcome$n_uncen_1)
-  
+
   df_outcome$look_cut <- cut(df_outcome$look, breaks = c(0, 250, 500, 750, 1000), 
                              include.lowest = T, right = F)
   
@@ -321,10 +319,7 @@ for(fname in resfiles){
     
                      ss_immu_mean = as.numeric(df_ss_immu["ss_mean"]),
                      ss_immu_sd = as.numeric(df_ss_immu["ss_sd"]),
-    
-                     evnts_0  = evnts_0,
-                     evnts_1  = evnts_1,
-    
+
                      prob_ss_lt250 = as.numeric(prob_ss[1]),
                      prob_ss_lt500 = as.numeric(prob_ss[2]),
                      prob_ss_lt750 = as.numeric(prob_ss[3]),
@@ -359,9 +354,7 @@ for(fname in resfiles){
                   f_ss_lt2 = sprintf("%.2f", prob_ss_lt500),
                   f_ss_lt3 = sprintf("%.2f", prob_ss_lt750),
                   f_ss_lt4 = sprintf("%.2f", prob_ss_lt1k),
-      
-                  f_ss_evts = sprintf("%.0f/%.0f", evnts_0, evnts_1),
-      
+
                   f_prob_fin_immi = sprintf("%.3f", prob_fin_immi),
                   f_prob_fin_clin = sprintf("%.3f", prob_fin_clin), 
                   
@@ -386,7 +379,6 @@ df_0 <- df_all %>%
                 f_prob_sup, f_prob_fut, f_prob_stopv, f_prob_incon, 
                 f_ss_clin, f_ss_immu, 
                 f_ss_lt1, f_ss_lt2, f_ss_lt3,
-    f_ss_evts,
                 f_prob_fin_clin, f_prob_fin_immi, 
                 f_c_intrm_vs_fin, f_i_intrm_vs_fin, 
                 fname, idsim, alt_cen, date) %>%
@@ -396,7 +388,7 @@ df_blank <- df_0 %>% dplyr::slice(1L)
 
 
 digits <- c(0, 0, 2, 2, 0, 2,
-            0, 0, 0, 0, 0,0,0,0,
+            0, 0, 0, 0, 0,0,0,
             0, 0, 0, 0, 0, 0, 0)
 options(knitr.kable.NA = '-')
 showwarn <- length(mywarnings > 0)
@@ -480,6 +472,7 @@ Null scenarios showing control of type-i error < 0.05 on the clinical endpoint. 
 ```{r, echo = F, eval = T}
 
 kable(df_0 %>% 
+        #dplyr::filter(accrual == 50) %>%
         dplyr::mutate(delta = trtclin - baseclin, 
                       gamma = trtsero - basesero) %>%
         dplyr::filter(delta == 0 & gamma == 0) %>%
@@ -489,7 +482,8 @@ kable(df_0 %>%
       caption = "Table 4. Simulation Null Scenarios",
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
-                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
+                    "enrolled", "blood res", "P(<250)", "P(<500)", 
+                    "P(<750)", 
                     "clin", "immu", "clin", "immu", "fname"),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
@@ -499,7 +493,7 @@ kable(df_0 %>%
   add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
                      "Info rate" = 2, 
                      "Interim" = 4,
-                     "SS" = 6, 
+                     "SS" = 5, 
                      "Wins @ final" = 2, "!Flip-flop" = 2, " " = 1))
 
 ```
@@ -512,6 +506,7 @@ Power increases as a function of effect size, is higher at the extremes of basel
 ```{r, echo = F, eval = T, fig.height=8, fig.width=6}
 
 df_tmp <- df_all %>%
+        #dplyr::filter(accrual !=30) %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
   dplyr::filter(delta > 0 & gamma > 0) %>%
@@ -525,6 +520,7 @@ ggplot(df_tmp, aes(x = delta, y = prob_sup,
                    group = paste(accrual, ":", baseclin), 
                    linetype = paste0(accrual), 
                    colour = paste0(baseclin))) +
+  geom_point(size = 0.9) + 
   geom_line(size = 0.9) + 
   scale_color_manual(name = "Baseline clinical (mnths): ", values = cbp[2:5]) +
   scale_linetype_discrete(name = "Accrual (per qtr)") +
@@ -543,10 +539,12 @@ Futility decreases with effect size. Increasing accrual rates tend to decrease t
 ```{r, echo = F, eval = T, fig.height=8, fig.width=6}
 
 df_tmp <- df_all %>%
+       # dplyr::filter(accrual !=30) %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
   dplyr::filter(delta > 0 & gamma > 0) %>%
-  dplyr::group_by(basesero, trtsero, trtclin, baseclin, accrual, info_delay, delta, gamma) %>%
+  dplyr::group_by(basesero, trtsero, trtclin, baseclin, 
+                  accrual, info_delay, delta, gamma) %>%
   dplyr::summarise(prob_fut = mean(prob_fut)) %>%
   dplyr::ungroup()
 
@@ -573,6 +571,7 @@ Is based on finding strong evidence of an effect in the immunological endpoint. 
 
 ```{r, echo = F, eval = T, fig.height=8, fig.width=6}
 df_tmp <- df_all %>%
+      #  dplyr::filter(accrual !=30) %>%
   dplyr::mutate(gamma = trtsero - basesero) %>%
   dplyr::filter(gamma > 0) %>%
   dplyr::group_by(basesero, trtsero, accrual, info_delay, gamma) %>%
@@ -604,6 +603,7 @@ Rarely occurs and rapidly falls to zero as effect size gets larger.
 ```{r, echo = F, eval = T, fig.height=8, fig.width=6}
 
 df_tmp <- df_all %>%
+      #  dplyr::filter(accrual !=30) %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
   dplyr::filter(delta > 0 & gamma > 0) %>%
@@ -636,6 +636,7 @@ Both sample size expectation and variability tend to decrease with increasing ef
 ```{r, echo = F, eval = T, fig.height=8, fig.width=6}
 
 df_tmp <- df_all %>%
+     #   dplyr::filter(accrual !=30) %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
   dplyr::filter(delta > 0 & gamma > 0) %>%
@@ -678,6 +679,7 @@ Sample size dependent on effect size and baseline rates in line with standard lo
 ```{r, echo = F, eval = T, fig.height=4, fig.width=6}
 
 df_tmp <- df_all %>%
+     #   dplyr::filter(accrual !=30) %>%
   dplyr::mutate(gamma = trtsero - basesero) %>%
   dplyr::filter(gamma > 0 ) %>%
   dplyr::group_by(basesero, trtsero, 
@@ -719,6 +721,7 @@ Results tend to increase in consistency as effect size increases. Higher accrual
 ```{r, echo = F, eval = T, fig.height=8, fig.width=6}
 
 df_tmp <- df_all %>%
+     #   dplyr::filter(accrual !=30) %>%
   dplyr::mutate(delta = trtclin - baseclin,
                 gamma = trtsero - basesero) %>%
   dplyr::filter(delta > 0 & gamma > 0) %>%
@@ -751,6 +754,7 @@ Consistency increases with effect size.
 
 ```{r, echo = F, eval = T, fig.height=4, fig.width=6}
 df_tmp <- df_all %>%
+     #   dplyr::filter(accrual !=30) %>%
   dplyr::mutate(gamma = trtsero - basesero) %>%
   dplyr::filter(gamma > 0) %>%
   # dplyr::select(basesero, trtsero, trtclin, baseclin,
@@ -791,13 +795,14 @@ Table 6 shows the combined the simulations results on which this report depends.
 
 
 ```{r, echo = F, eval = T}
-kable(df_0 %>% 
+kable(df_0 %>%
+   #     dplyr::filter(accrual !=30) %>%
   dplyr::select(-idsim, -nsim, -alt_cen, -date) %>%
     dplyr::arrange(desc(fname))  ,
       caption = paste0("Table 6. Combined Simulation Results"),
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
-                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", "evnts",
+                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", 
                     "clin", "immu", "clin", "immu", "fname"),
       digits = digits) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
@@ -807,7 +812,7 @@ kable(df_0 %>%
   add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
                      "Info rate" = 2, 
                      "Interim" = 4,
-                     "SS" = 6, 
+                     "SS" = 5, 
                      "Wins @ final" = 2, "!Flip-flop" = 2, " " = 1))
 
 ```
