@@ -76,7 +76,9 @@ message(knitr::current_input(dir = TRUE))
 
 # Preamble
 
-Assume some nominal sample size at each interim, say 100, 150, 200, 250, 300 and run a time to event analysis with subjects followed up for a maximum of 40 months.
+Simulate the power of a trial with a time to event response where the trial has a superiority check at the interims. If the probability of expected success is above a specified threshold value then the trial is stopped. 
+
+Assume some nominal sample size at each interim, say 100, 150, 200, 250, 300 and run a time to event analysis with subjects all followed up for a maximum of z months.
 
 # Generate Data
 
@@ -140,7 +142,7 @@ Finally, the empirical probability that the rate ratio is greater than 1 is comp
 ```{r}
 do_interim <- function(x=1, idx_intrm=1, n_interims){
   
-  n_post_draw <- 2000
+  n_post_draw <- 1000
   
   # grab the precomputed data from subj 1 through to subject 
   # at the target sample size
@@ -206,17 +208,21 @@ do_interim <- function(x=1, idx_intrm=1, n_interims){
     dat$tte[idx_trt] <- dat$tte[idx_trt] + rexp(sum(idx_trt), l1[i])
 
     # update censoring for imputed
-    dat$c[idx_ctl] <- ifelse(dat$enro_t[idx_ctl] + dat$tte[idx_ctl] > dat$time_of_analysis[idx_ctl] |
+    dat$c[idx_ctl] <- ifelse(dat$enro_t[idx_ctl] + dat$tte[idx_ctl] >
+                               dat$time_of_analysis[idx_ctl] |
                                dat$tte[idx_ctl] > fu_t, 1, 0)
-    dat$c[idx_trt] <- ifelse(dat$enro_t[idx_trt] + dat$tte[idx_trt] > dat$time_of_analysis[idx_trt] |
+    dat$c[idx_trt] <- ifelse(dat$enro_t[idx_trt] + dat$tte[idx_trt] >
+                               dat$time_of_analysis[idx_trt] |
                                dat$tte[idx_trt] > fu_t, 1, 0)
     
     # update tte conditional on censoring
     dat$tte[idx_ctl] <- ifelse(dat$c[idx_ctl] == 1, 
-                               pmin(fu_t, dat$time_of_analysis[idx_ctl] - dat$enro_t[idx_ctl]), 
+                               pmin(fu_t, dat$time_of_analysis[idx_ctl] -
+                                      dat$enro_t[idx_ctl]), 
                                dat$tte[idx_ctl])
     dat$tte[idx_trt] <- ifelse(dat$c[idx_trt] == 1,  
-                               pmin(fu_t, dat$time_of_analysis[idx_trt] - dat$enro_t[idx_trt]), 
+                               pmin(fu_t, dat$time_of_analysis[idx_trt] -
+                                      dat$enro_t[idx_trt]), 
                                dat$tte[idx_trt])
 
     dat$event_t[idx_ctl] <- dat$tte[idx_ctl] + dat$enro_t[idx_ctl] 
@@ -247,7 +253,7 @@ Simulate with slow accrual.
 
 ```{r}
 # 1000 trials each with interims def by interm_n
-nsim <- 1000
+nsim <- 2500
 # obs per trial
 N <- 400 
 # med tte
@@ -263,12 +269,12 @@ lamb(t0)
 lamb(t0 + delta)
 lamb(t0) / lamb(t0 + delta)
 
-fu_t <- 90
+fu_t <- 50
 
 starttime <- Sys.time()
 
 # Pregenerate data
-d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 0.3)
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 1)
 summary(d[[1]])
 
 cl <- makeCluster(parallel::detectCores() , outfile="")
@@ -294,16 +300,16 @@ results <- foreach(i = 1:nsim,
 }
 stopCluster(cl)
 
-res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
+res_slow <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 rdsfname <- paste0("res-",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RDS")
-saveRDS(list(results=res1), rdsfname)
+saveRDS(list(results=res_slow), rdsfname)
 
 ```
 
 Simulate with faster accrual.
 
 ```{r}
-d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 2.5)
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 2)
 summary(d[[1]])
 cl <- makeCluster(parallel::detectCores() , outfile="")
 registerDoParallel(cl)
@@ -326,14 +332,14 @@ results <- foreach(i = 1:nsim,
 }
 stopCluster(cl)
 
-res2 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
+res_med <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 rdsfname <- paste0("res-",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RDS")
-saveRDS(list(results=res2), rdsfname)
+saveRDS(list(results=res_med), rdsfname)
 
 ```
 
 ```{r}
-d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 5)
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 3)
 summary(d[[1]])
 cl <- makeCluster(parallel::detectCores() , outfile="")
 registerDoParallel(cl)
@@ -356,14 +362,14 @@ results <- foreach(i = 1:nsim,
 }
 stopCluster(cl)
 
-res3 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
+res_fast <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 rdsfname <- paste0("res-",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RDS")
-saveRDS(list(results=res3), rdsfname)
+saveRDS(list(results=res_fast), rdsfname)
 
 ```
 
 ```{r}
-lapply(list(res1, res2, res3), summary)
+lapply(list(res_slow, res_med, res_fast), summary)
 
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
@@ -372,7 +378,7 @@ difftime(endtime, starttime, units = "hours")
 
 # Summary
 
-Shows the relationship between power and accrual in tte context. With moderate time to events (i.e. not instantaneous) slower accrual implies increase? in power. Also, mean sample size (at which a decision for es can be made) increases.
+Shows the relationship between power and accrual in tte context. With moderate time to events (i.e. not instantaneous) slower accrual (generally) implies increase in power. Also, mean sample size (at which a decision for es can be made) increases.
 
 
 
