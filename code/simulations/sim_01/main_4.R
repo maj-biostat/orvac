@@ -134,8 +134,8 @@ dfres1 <- data.frame()
 dfres2 <- data.frame()
 
 for(i in 1:length(results)){
-  
-  myv <- unlist(results[[i]][1:28])
+
+  myv <- unlist(results[[i]][1:25])
   nm <- names(myv)
   dfres1 <- rbind(dfres1, myv)
   colnames(dfres1) <- nm
@@ -153,11 +153,14 @@ flog.info("system  %s", round(duration[2], 2) )
 flog.info("elapsed %s", round(duration[3], 2) )
 beepr::beep()
 w <- warnings()
+# rdsfilename <- paste0("out/list-",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RDS")
+# flog.info("saving rdsfilename : %s", rdsfilename )
+# saveRDS(results, rdsfilename)
 rdsfilename <- paste0("out/res-",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RDS")
 flog.info("saving rdsfilename : %s", rdsfilename )
 saveRDS(list(results=dfres1, cfg = cfg, warnings = w,
-             starttime = starttime, endtime = endtime, 
-             duration = difftime(endtime, starttime, units = "hours")), 
+             starttime = starttime, endtime = endtime,
+             duration = difftime(endtime, starttime, units = "hours")),
         rdsfilename)
 assign("last.warning", NULL, envir = baseenv())
 

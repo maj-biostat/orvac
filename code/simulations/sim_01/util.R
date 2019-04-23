@@ -30,11 +30,48 @@ COL_DELTA     <-    2+1
 
 dnames <- c("id", "trt", "accrt", "age", 
             "serot2", "serot3", "probt3", 
-            "evtt", "fu1", "fu2", "cen", "obst")
+            "evtt", "fu1", "fu2", "cen", "obst", 
+              "reason", "impute", "reftime")
 
 
 
 # To test, type test_file('util.R')
+
+state_reason <- function(x){
+  if(x == 1) {
+    message("(1: observed event before reftime & age <= age_max)")
+    message("(1: obst = evtt)")
+    }
+  if(x == 2) {
+    message("(2: event before reftime but age @ evtt > age_max - age_0)")
+    message("(2: obst = age_max - age_0)")
+    }
+  if(x == 3) {
+    message("(3: event after reftime & reftime - accru <= age_max - age_0)")
+    message("(3: obst = ref_time - accrual)")
+    }
+  if(x == 4) {
+    message("(4: event after reftime & reftime - accru > age_max - age_0)")
+    message("(4: obst = age_max - age_0)")
+    }
+}
+
+obs_summary <- function(d2, idx, look, cfg){
+
+  message("subject                     ", d2$id[idx])
+  message("interim time                ", cfg$interimmnths[look])
+  message("interim + fu time           ", round(d2$reftime[idx], 1))
+  message("time of event (accr + evtt) ", round(d2$accrt[idx], 1), " + ", 
+    round(d2$evtt[idx], 1), " = ", round(d2$accrt[idx] + d2$evtt[idx], 1))
+  message("age @ event (age_0 + evtt)  ", round(d2$age[idx], 1), " + ", 
+    round(d2$evtt[idx], 1), " = ", round(d2$age[idx] + d2$evtt[idx], 1))
+  message("observed tte                ", round(d2$obst[idx], 1))
+  message("censored                    ", d2$cen[idx])
+  message("reason                      ", d2$reason[idx])
+  state_reason(d2$reason[idx])
+  message("impute                      ", d2$impute[idx])
+
+}
 
 
 compute_sero_delta <- function(p_ctl, p_trt){
@@ -179,7 +216,7 @@ sim_cfg <- function(cfgfile = "cfg1.yaml", opt = NULL){
   l$nmaxsero <- tt$nmaxsero  
   l$nstartclin <- tt$nstartclin
   
-  l$looks <- seq(from = l$nstart, to=l$nstop, by = l$people_per_interim_period)
+  l$looks <- seq(from = l$nstart, to=l$nstop, by = 50)
   # ensure max is exactly 1000
   if(max(l$looks) < l$nstop){
     l$looks <- c(l$looks, l$nstop)
