@@ -89,12 +89,15 @@ mainloop <- function(nsim = 2,
   summary(d2[[1]])
  
   if(cluster){
+    message("running as cluster")
     cl <- makeCluster(parallel::detectCores() , outfile="")
     registerDoParallel(cl)
   } else {
     registerDoSEQ()
   }
-  
+ 
+  message("number of simulations : ", nsim)
+ 
   results <- foreach(i = 1:nsim,
                      .packages = c("orvacsim"),
                      .errorhandling = 'pass'
