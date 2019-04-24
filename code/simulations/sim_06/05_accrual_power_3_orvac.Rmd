@@ -135,7 +135,7 @@ Looking at:
 nsim <- 1000 
 
 med0 = 30 
-med1 = 30 
+med1 = 35 
 fu = 36
 idx_interim = 20
 
