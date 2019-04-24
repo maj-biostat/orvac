@@ -89,12 +89,15 @@ mainloop <- function(nsim = 1,
   summary(d2[[1]])
  
   if(cluster){
+    message("running as cluster")
     cl <- makeCluster(parallel::detectCores() , outfile="")
     registerDoParallel(cl)
   } else {
     registerDoSEQ()
   }
-  
+ 
+  message("number of simulations : ", nsim)
+ 
   results <- foreach(i = 1:nsim,
                      .packages = c("orvacsim"),
                      .errorhandling = 'pass'
@@ -126,7 +129,6 @@ Looking at:
 ```{r}
 nsim <- 1000
 
-nsim = 1
 med0 = 30 
 med1 = 35 
 fu = 36
@@ -144,7 +146,6 @@ colMeans(res1)
 # Expt 2
 
 ```{r}
-nsim = 1
 med0 = 30 
 med1 = 40 
 fu = 36
@@ -161,7 +162,6 @@ colMeans(res1)
 # Expt 3
 
 ```{r}
-nsim = 1
 med0 = 30 
 med1 = 35 
 fu = 75
@@ -178,7 +178,6 @@ colMeans(res1)
 # Expt 4
 
 ```{r}
-nsim = 1
 med0 = 30 
 med1 = 40 
 fu = 75
@@ -195,7 +194,6 @@ colMeans(res1)
 # Expt 5
 
 ```{r}
-nsim = 1
 med0 = 20 
 med1 = 30 
 fu = 36
@@ -212,7 +210,6 @@ colMeans(res1)
 # Expt 6
 
 ```{r}
-nsim = 1
 med0 = 20 
 med1 = 30 
 fu = 75
