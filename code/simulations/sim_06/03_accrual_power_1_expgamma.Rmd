@@ -253,13 +253,13 @@ Simulate with slow accrual.
 
 ```{r}
 # 1000 trials each with interims def by interm_n
-nsim <- 2500
+nsim <- 1000
 # obs per trial
 N <- 400 
 # med tte
-t0 <- 35
+t0 <- 30
 # trt effect
-delta <- 4
+delta <- 5
 # prior parameters for gamma
 prior_a <- 1
 prior_b <- 50 
@@ -269,12 +269,12 @@ lamb(t0)
 lamb(t0 + delta)
 lamb(t0) / lamb(t0 + delta)
 
-fu_t <- 50
+fu_t <- 36
 
 starttime <- Sys.time()
 
 # Pregenerate data
-d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 1)
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 10)
 summary(d[[1]])
 
 cl <- makeCluster(parallel::detectCores() , outfile="")
@@ -309,7 +309,7 @@ saveRDS(list(results=res_slow), rdsfname)
 Simulate with faster accrual.
 
 ```{r}
-d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 2)
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 14)
 summary(d[[1]])
 cl <- makeCluster(parallel::detectCores() , outfile="")
 registerDoParallel(cl)
@@ -339,7 +339,7 @@ saveRDS(list(results=res_med), rdsfname)
 ```
 
 ```{r}
-d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 3)
+d <- lapply(1:nsim, trial_dat, N, t0, delta, enro_rate = 17)
 summary(d[[1]])
 cl <- makeCluster(parallel::detectCores() , outfile="")
 registerDoParallel(cl)
