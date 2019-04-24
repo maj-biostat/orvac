@@ -124,13 +124,14 @@ Looking at:
 # Expt 1
 
 ```{r}
+nsim <- 1000
+
 nsim = 1
 med0 = 30 
 med1 = 35 
 fu = 36
 idx_interim = 20
 
-nsim <- 500
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
@@ -149,7 +150,6 @@ med1 = 40
 fu = 36
 idx_interim = 20
 
-nsim <- 500
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
@@ -167,7 +167,6 @@ med1 = 35
 fu = 75
 idx_interim = 20
 
-nsim <- 500
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
@@ -185,7 +184,6 @@ med1 = 40
 fu = 75
 idx_interim = 20
 
-nsim <- 500
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
@@ -203,7 +201,6 @@ med1 = 30
 fu = 36
 idx_interim = 20
 
-nsim <- 500
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
@@ -221,7 +218,6 @@ med1 = 30
 fu = 75
 idx_interim = 20
 
-nsim <- 500
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
