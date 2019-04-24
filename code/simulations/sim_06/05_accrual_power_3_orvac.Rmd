@@ -49,7 +49,7 @@ Now look at the relationship between accrual and power in orvac.
 
 ```{r}
 
-mainloop <- function(nsim = 1, 
+mainloop <- function(nsim = 2, 
                      med0 = 30, 
                      med1 = 35, 
                      fu = 36, 
@@ -103,7 +103,12 @@ mainloop <- function(nsim = 1,
     test1 <- rcpp_clin(d1[[i]], cfg1, idx_interim, i)
     test2 <- rcpp_clin(d2[[i]], cfg2, idx_interim, i)
   
-    m <- array(c(test1$ppn, test2$ppn), dim = c(1, 2))  
+    m <- array(c(test1$ppn, test2$ppn), dim = c(1, 2)) 
+    
+    mynames <- c(paste0("accr_", 
+                      c(cfg1$people_per_interim_period,
+                        cfg2$people_per_interim_period)))
+    names(m) <- mynames
     return(list(m = m))
   }
   if(cluster){
@@ -124,27 +129,25 @@ Looking at:
 # Expt 1
 
 ```{r}
-nsim <- 1000
+nsim <- 2
 
-nsim = 1
 med0 = 30 
-med1 = 35 
+med1 = 30 
 fu = 36
 idx_interim = 20
 
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
-res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
+res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
-colMeans(res1)
+mymeans <- c(expt = 1, colMeans(res1))
 ```
 
 
 # Expt 2
 
 ```{r}
-nsim = 1
 med0 = 30 
 med1 = 40 
 fu = 36
@@ -152,16 +155,17 @@ idx_interim = 20
 
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
-res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
+res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
 colMeans(res1)
+mymeans <- rbind(mymeans, 
+                 c(expt = 2, colMeans(res1)))
 ```
 
 # Expt 3
 
 ```{r}
-nsim = 1
 med0 = 30 
 med1 = 35 
 fu = 75
@@ -169,16 +173,17 @@ idx_interim = 20
 
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
-res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
+res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
 colMeans(res1)
+mymeans <- rbind(mymeans, 
+                 c(expt = 3, colMeans(res1)))
 ```
 
 # Expt 4
 
 ```{r}
-nsim = 1
 med0 = 30 
 med1 = 40 
 fu = 75
@@ -186,16 +191,17 @@ idx_interim = 20
 
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
-res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
+res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
 colMeans(res1)
+mymeans <- rbind(mymeans, 
+                 c(expt = 4, colMeans(res1)))
 ```
 
 # Expt 5
 
 ```{r}
-nsim = 1
 med0 = 20 
 med1 = 30 
 fu = 36
@@ -203,16 +209,17 @@ idx_interim = 20
 
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
-res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
+res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
 colMeans(res1)
+mymeans <- rbind(mymeans, 
+                 c(expt = 5, colMeans(res1)))
 ```
 
 # Expt 6
 
 ```{r}
-nsim = 1
 med0 = 20 
 med1 = 30 
 fu = 75
@@ -220,8 +227,23 @@ idx_interim = 20
 
 starttime <- Sys.time()
 results <- mainloop(nsim, med0, med1, fu, idx_interim)
-res1 <- do.call(rbind, lapply(1:1, function(x) unlist(results[[x]])))
+res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
 colMeans(res1)
+mymeans <- rbind(mymeans, 
+                 c(expt = 6, colMeans(res1)))
+rownames(mymeans) <- NULL
 ```
+
+
+
+```{r, fig.width = 4, fig.height=5, fig.cap="Probability of ES by accrual"}
+dfig <- as.data.frame(mymeans) %>% 
+  tidyr::gather(key = "accrual", value = "prob_es", -expt)
+
+ggplot(dfig, aes(x = expt, y = prob_es, colour = paste0(accrual)))+
+  geom_point()+
+  scale_color_discrete("Enrolled per 3 months")
+```
+
