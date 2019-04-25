@@ -44,16 +44,6 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
-// mytest
-Rcpp::List mytest();
-RcppExport SEXP _orvacsim_mytest() {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(mytest());
-    return rcpp_result_gen;
-END_RCPP
-}
 // rcpp_clin
 Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg, const int look, const int idxsim);
 RcppExport SEXP _orvacsim_rcpp_clin(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP, SEXP idxsimSEXP) {
@@ -68,9 +58,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpp_clin2
-Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg, const int look, const int idxsim);
-RcppExport SEXP _orvacsim_rcpp_clin2(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP, SEXP idxsimSEXP) {
+// rcpp_clin_med
+Rcpp::List rcpp_clin_med(arma::mat& d, const Rcpp::List& cfg, const int look, const int idxsim);
+RcppExport SEXP _orvacsim_rcpp_clin_med(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP, SEXP idxsimSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -78,7 +68,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
     Rcpp::traits::input_parameter< const int >::type idxsim(idxsimSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_clin2(d, cfg, look, idxsim));
+    rcpp_result_gen = Rcpp::wrap(rcpp_clin_med(d, cfg, look, idxsim));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -229,9 +219,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_dotrial", (DL_FUNC) &_orvacsim_rcpp_dotrial, 3},
     {"_orvacsim_rcpp_dat", (DL_FUNC) &_orvacsim_rcpp_dat, 1},
     {"_orvacsim_rcpp_dat_small", (DL_FUNC) &_orvacsim_rcpp_dat_small, 5},
-    {"_orvacsim_mytest", (DL_FUNC) &_orvacsim_mytest, 0},
     {"_orvacsim_rcpp_clin", (DL_FUNC) &_orvacsim_rcpp_clin, 4},
-    {"_orvacsim_rcpp_clin2", (DL_FUNC) &_orvacsim_rcpp_clin2, 4},
+    {"_orvacsim_rcpp_clin_med", (DL_FUNC) &_orvacsim_rcpp_clin_med, 4},
     {"_orvacsim_rcpp_clin_set_state", (DL_FUNC) &_orvacsim_rcpp_clin_set_state, 4},
     {"_orvacsim_rcpp_immu", (DL_FUNC) &_orvacsim_rcpp_immu, 3},
     {"_orvacsim_rcpp_n_obs", (DL_FUNC) &_orvacsim_rcpp_n_obs, 5},

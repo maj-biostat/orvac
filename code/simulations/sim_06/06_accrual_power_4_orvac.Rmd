@@ -51,9 +51,9 @@ Now look at the relationship between accrual and power in orvac.
 
 mainloop <- function(nsim = 2, 
                      med0 = 30, 
-                     med1 = 35, 
+                     med1 = 35,
                      fu = 36,
-                     fnamecfg = "cfg-30-custom.RDS",
+                     fnamecfg = "cfg-30.RDS",
                      cluster = T){
   
   beta_tte <- function(med0, med1){
@@ -96,14 +96,14 @@ mainloop <- function(nsim = 2,
   ) %dopar%{
     
   
-    n_interims <- c(100, 150, 200, 250, 300, 350, 400)
+    n_interims <- cfg1$looks[cfg1$looks >= 200]
     for(j in 1:length(n_interims)){
-      test1 <- rcpp_clin2(d1[[i]], cfg1, j, i)
+      test1 <- rcpp_clin_med(d1[[i]], cfg1, j, i)
       if(test1$ppn > 0.80){
-        return(list(i=i, j=n_interims[j], ppn = test1$ppn, es = 1))
+        return(test1)
       }
     }
-    return(list(i=i, j=n_interims[j], ppn = test1$ppn, es = 0))
+    return(test1)
 
   }
   if(cluster){
@@ -124,30 +124,28 @@ Looking at:
 # Expt 0
 
 ```{r}
-nsim <- 500 
+nsim <- 1 
 
 med0 = 30 
 med1 = 35
 fu = 36
 
 starttime <- Sys.time()
-results <- mainloop(nsim, med0, med1, fu, fnamecfg = "cfg-30-custom.RDS")
+results <- mainloop(nsim, med0, med1, fu, fnamecfg = "cfg-30.RDS")
 res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
 saveRDS(res1, "res1.RDS")
-summary(res1)
 ```
 
 
 ```{r}
 starttime <- Sys.time()
-results <- mainloop(nsim, med0, med1, fu, fnamecfg = "cfg-50-custom.RDS")
+results <- mainloop(nsim, med0, med1, fu, fnamecfg = "cfg-50.RDS")
 res2 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
 saveRDS(res2, "res2.RDS")
-summary(res2)
 ```
 
 

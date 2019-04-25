@@ -64,7 +64,6 @@
 #endif
 
 // function prototypes
-Rcpp::List mytest();
 
 arma::mat rcpp_dat(const Rcpp::List& cfg);
 void rcpp_dat_small(const arma::mat& d,
@@ -75,7 +74,7 @@ void rcpp_dat_small(const arma::mat& d,
 
 Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
                      const int look, const int idxsim);
-Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg,
+Rcpp::List rcpp_clin_med(arma::mat& d, const Rcpp::List& cfg,
                      const int look, const int idxsim);
 Rcpp::List rcpp_clin_set_state(arma::mat& d, const int look,
                               const double ref_time,
@@ -388,11 +387,6 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
 
 
-  // how many events observed during the interim looks
-  // Rcpp::List lss = m_clin_res["lss_post"];
-  // double n_evnt_0 = (double)lss["n_evnt_0"];
-  // double n_evnt_1 = (double)lss["n_evnt_1"];
-
   // final analysis for tte
   d.col(COL_CEN) = arma::vec(Rcpp::rep(NA_REAL, (int)cfg["nstop"]));
   d.col(COL_OBST) = arma::vec(Rcpp::rep(NA_REAL, (int)cfg["nstop"]));
@@ -441,24 +435,6 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   t.clin_state(idxsim);
 
 
-  //Rcpp::List ret;
-  // Rcpp::List ret = Rcpp::List::create(Rcpp::Named("idxsim") = idxsim,
-  //                                     Rcpp::Named("i") = i,
-  //                                     Rcpp::Named("p0") = (double)cfg["baselineprobsero"],
-  //                                     Rcpp::Named("p1") = (double)cfg["trtprobsero"],
-  //                                     Rcpp::Named("m0") = log(2)/(double)cfg["b0tte"],
-  //                                     Rcpp::Named("m1") = log(2)/((double)cfg["b0tte"] + (double)cfg["b1tte"]),
-  //                                     Rcpp::Named("look") = i < looks.length() ? looks[i] : max(looks),
-  //                                     Rcpp::Named("ss_immu") = t.get_immu_ss(),  // enrolled with sero results
-  //                                     Rcpp::Named("ss_clin") = t.get_clin_ss(),
-  //                                     Rcpp::Named("stop_v_samp") = t.is_v_samp_stopped(),
-  //                                     Rcpp::Named("stop_i_fut") = t.is_immu_fut(),
-  //                                     Rcpp::Named("stop_c_fut") = t.is_clin_fut(),
-  //                                     Rcpp::Named("stop_c_sup") = t.is_clin_sup(),
-  //                                     Rcpp::Named("inconclu") = t.is_inconclusive(),
-  //                                     Rcpp::Named("i_final") = t.immu_final(),
-  //                                     Rcpp::Named("c_final") = t.clin_final());
-
   Rcpp::List ret = Rcpp::List::create(Rcpp::Named("idxsim") = idxsim);
   ret["p0"] = (double)cfg["baselineprobsero"];
   ret["p1"] = (double)cfg["trtprobsero"];
@@ -484,16 +460,8 @@ Rcpp::List rcpp_dotrial(const int idxsim,
   ret["c_mean"] = (double)c_mym;
   ret["c_lwr"] = (double)c_lwr;
   ret["c_upr"] = (double)c_upr;
-  // ret["n_evnt_0"] = (double)n_evnt_0;
-  // ret["n_evnt_1"] = (double)n_evnt_1;
-
-
-  // if(ret.length() != 27){
-  //   Rcpp::stop("Return value is not 27 in length.");
-  // }
 
   INFO(Rcpp::Rcout, idxsim, "FINISHED.");
-
 
   // if(rtn_trial_dat){
   //   ret["d"] = d;
@@ -622,24 +590,6 @@ void rcpp_dat_small(arma::mat& d,
 
 // clinical endpoint
 
-// [[Rcpp::export]]
-Rcpp::List mytest() {
-
-  int n = 1000;
-  arma::vec a = arma::randn(n);
-  arma::uvec ugt1;
-  arma::vec gt1a = arma::zeros(n);
-
-  for(int i =0; i<n; i++){
-    a = arma::randn(n);
-    ugt1 = arma::find(a > 1);
-    gt1a(i) =  (double)ugt1.n_elem / (double)n;
-  }
-
-  Rcpp::List ret = Rcpp::List::create(Rcpp::Named("gt1a") = gt1a);
-  return ret;
-
-}
 
 
 
@@ -783,18 +733,6 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
 
   INFO(Rcpp::Rcout, idxsim, "clin: ppn " << ppn << " ppmax " << ppmax);
 
-  // Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppn") = ppn,
-  //                               Rcpp::Named("ppmax") = ppmax,
-  //                               Rcpp::Named("lss_post") = lss_post,
-  //                               Rcpp::Named("lss_int") = lss_int,
-  //                               Rcpp::Named("lss_max") = lss_max,
-  //                               Rcpp::Named("m") = m,
-  //                               Rcpp::Named("m_pp_int") = m_pp_int,
-  //                               Rcpp::Named("m_pp_max") = m_pp_max,
-  //                               Rcpp::Named("ppos_int_ratio_gt1") = ppos_int_ratio_gt1,
-  //                               Rcpp::Named("ppos_max_ratio_gt1") = ppos_max_ratio_gt1,
-
-
   Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppn") = ppn,
                                 Rcpp::Named("ppmax") = ppmax,
                                 Rcpp::Named("lss_post") = lss_post,
@@ -819,7 +757,7 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
 
 
 // [[Rcpp::export]]
-Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg,
+Rcpp::List rcpp_clin_med(arma::mat& d, const Rcpp::List& cfg,
                      const int look, const int idxsim){
 
   int post_draw = (int)cfg["post_draw"];
@@ -856,9 +794,13 @@ Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg,
   int n_evnt_1 = (double)lss_post["n_evnt_1"];
   double tot_obst_0 = (double)lss_post["tot_obst_0"];
   double tot_obst_1 = (double)lss_post["tot_obst_1"];
+  double log2 = (double)0.6931472;
 
   Rcpp::List lss_int;
   Rcpp::List lss_max;
+
+  Rcpp::List reslist1(post_draw);
+  Rcpp::List reslist2(post_draw);
 
   // keep a copy of the original state
   d_new = arma::mat(d);
@@ -884,8 +826,8 @@ Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg,
 
     // compute the posterior based on the __observed__ data to the time of the interim
     // take single draw
-    m(i, COL_LAMB0) = 1/R::rgamma(a + n_evnt_0, 1/(b + 0.6931472*tot_obst_0));
-    m(i, COL_LAMB1) = 1/R::rgamma(a + n_evnt_1, 1/(b + 0.6931472*tot_obst_1));
+    m(i, COL_LAMB0) = 1/R::rgamma(a + n_evnt_0, 1/(b + log2*tot_obst_0));
+    m(i, COL_LAMB1) = 1/R::rgamma(a + n_evnt_1, 1/(b + log2*tot_obst_1));
     m(i, COL_RATIO) = m(i, COL_LAMB1) - m(i, COL_LAMB0);
 
     // use memoryless prop of exponential and impute enrolled kids that have not
@@ -894,9 +836,9 @@ Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg,
       int sub_idx = uimpute(j);
       if(d(sub_idx, COL_TRT) == 0){
         // this just assigns a new evtt time on which we can update state.
-        d(sub_idx, COL_EVTT) = d(sub_idx, COL_OBST) + R::rexp(1/(0.6931472/m(i, COL_LAMB0)))  ;
+        d(sub_idx, COL_EVTT) = d(sub_idx, COL_OBST) + R::rexp(1/(log2/m(i, COL_LAMB0)))  ;
       } else {
-        d(sub_idx, COL_EVTT) = d(sub_idx, COL_OBST) + R::rexp(1/(0.6931472/m(i, COL_LAMB1)))  ;
+        d(sub_idx, COL_EVTT) = d(sub_idx, COL_OBST) + R::rexp(1/(log2/m(i, COL_LAMB1)))  ;
       }
     }
 
@@ -907,22 +849,25 @@ Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg,
 
     for(int j = 0; j < post_draw; j++){
       m_pp_int(j, COL_LAMB0) = 1/R::rgamma(a + (double)lss_int["n_evnt_0"],
-               1/(b + 0.6931472*(double)lss_int["tot_obst_0"]));
+               1/(b + log2*(double)lss_int["tot_obst_0"]));
       m_pp_int(j, COL_LAMB1) = 1/R::rgamma(a + (double)lss_int["n_evnt_1"],
-               1/(b + 0.6931472*(double)lss_int["tot_obst_1"]));
+               1/(b + log2*(double)lss_int["tot_obst_1"]));
       m_pp_int(j, COL_RATIO) = m_pp_int(j, COL_LAMB1) - m_pp_int(j, COL_LAMB0);
     }
     ugt1 = arma::find(m_pp_int.col(COL_RATIO) > 0);
     ppos_int_ratio_gt1(i) =  (double)ugt1.n_elem / (double)post_draw;
+
+    reslist1[i] = lss_int;
+    reslist2[i] = m_pp_int;
 
     // impute the remaining kids
     //DBG(Rcpp::Rcout, "from " << looks[mylook] << " to " << max(looks));
 
     for(int k = looks[mylook]; k < max(looks); k++){
       if(d(k, COL_TRT) == 0){
-        d(k, COL_EVTT) = R::rexp(1/(0.6931472/m(i, COL_LAMB0)))  ;
+        d(k, COL_EVTT) = R::rexp(1/(log2/m(i, COL_LAMB0)))  ;
       } else {
-        d(k, COL_EVTT) = R::rexp(1/(0.6931472/m(i, COL_LAMB1)))  ;
+        d(k, COL_EVTT) = R::rexp(1/(log2/m(i, COL_LAMB1)))  ;
       }
     }
     //DBG(Rcpp::Rcout, "d last " << d(max(looks)-1, COL_OBST) );
@@ -934,9 +879,9 @@ Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg,
     // what does the posterior at max sample size say?
     for(int j = 0; j < post_draw; j++){
       m_pp_max(j, COL_LAMB0) = 1/R::rgamma(a + (double)lss_max["n_evnt_0"],
-               1/(b + 0.6931472*(double)lss_max["tot_obst_0"]));
+               1/(b + log2*(double)lss_max["tot_obst_0"]));
       m_pp_max(j, COL_LAMB1) = 1/R::rgamma(a + (double)lss_max["n_evnt_1"],
-               1/(b + 0.6931472*(double)lss_max["tot_obst_1"]));
+               1/(b + log2*(double)lss_max["tot_obst_1"]));
       m_pp_max(j, COL_RATIO) = m_pp_max(j, COL_LAMB1) - m_pp_max(j, COL_LAMB0);
     }
     // empirical posterior probability that ratio_lamb > 0
@@ -958,8 +903,6 @@ Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg,
 
   INFO(Rcpp::Rcout, idxsim, "clin: ppn " << ppn << " ppmax " << ppmax);
 
-
-
   Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppn") = ppn,
                                       Rcpp::Named("ppmax") = ppmax,
                                       Rcpp::Named("lss_post") = lss_post,
@@ -973,7 +916,8 @@ Rcpp::List rcpp_clin2(arma::mat& d, const Rcpp::List& cfg,
                                       Rcpp::Named("d2") = d2,
                                       Rcpp::Named("d3") = d3,
                                       Rcpp::Named("ppos_int_ratio_gt1") = ppos_int_ratio_gt1,
-                                      Rcpp::Named("ppos_max_ratio_gt1") = ppos_max_ratio_gt1);
+                                      Rcpp::Named("reslist1") = reslist1,
+                                      Rcpp::Named("reslist2") = reslist2);
 
   // Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppmax") = 0);
 
