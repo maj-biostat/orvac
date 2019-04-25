@@ -70,8 +70,7 @@ if(!debug){
   cfg <- sim_cfg(opt$cfgfile, opt)
   
 } else {
-  cfgfile = "cfg1.yaml"
-  cfg <- sim_cfg("cfg1.yaml", opt)
+  cfg <- sim_cfg(cfgfile = "cfg1.yaml", opt)
 }
 
 

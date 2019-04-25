@@ -1,0 +1,155 @@
+---
+title: "Simulations to explore accrual/power relation in orvac code"
+author: "Mark Jones"
+date: "`r Sys.time()`"
+output:
+  html_document:
+    number_sections: yes
+    self_contained: yes
+    theme: united
+  pdf_document:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+  word_document:
+    toc: yes
+    toc_depth: '3'
+geometry: left=0.2cm,right=0.2cm,top=1cm,bottom=1cm
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path = 'figs/')
+
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(doParallel))
+suppressPackageStartupMessages(library(foreach))
+suppressPackageStartupMessages(library(poisson))
+source("../sim_01/util.R")
+library(orvacsim)
+
+ggplot2::theme_set(ggplot2::theme_bw())
+ggplot2::theme_update(text = element_text(size = 10))
+ggplot2::theme_update(legend.position = "top")
+ggplot2::theme_update(axis.text.x = element_text(size = 10))
+ggplot2::theme_update(axis.text.y = element_text(size = 10))
+
+# Work|Right|Fast
+# rmarkdown::render("simulation_report.Rmd", clean=TRUE)
+```
+
+# Preamble 
+
+Now look at the relationship between accrual and power in orvac. 
+
+```{r}
+
+mainloop <- function(nsim = 2, 
+                     med0 = 30, 
+                     med1 = 35, 
+                     fu = 36,
+                     fnamecfg = "cfg-30-custom.RDS",
+                     cluster = T){
+  
+  beta_tte <- function(med0, med1){
+    b0 <- log(2)/med0
+    b1 <- log(2)/med1 - b0
+    list(b0 = b0, b1 = b1)
+  }
+  ttebeta <- beta_tte(med0, med1)
+  
+  # accrual at 30
+  cfg1 <- readRDS(fnamecfg)
+  d <- rcpp_dat(cfg1)
+  d2 <- as.data.frame(d)
+  names(d2) <- cfg1$dnames
+  summary(d2)
+  
+  # updates
+  cfg1$max_age_fu_months <- fu
+  cfg1$b0tte <- ttebeta$b0
+  cfg1$b1tte <- ttebeta$b1
+  
+  # create data
+  d1 <- lapply(1:nsim, function(x) rcpp_dat(cfg1))
+  summary(d1[[1]])
+  
+ 
+  if(cluster){
+    message("running as cluster")
+    cl <- makeCluster(parallel::detectCores() , outfile="")
+    registerDoParallel(cl)
+  } else {
+    registerDoSEQ()
+  }
+ 
+  message("number of simulations : ", nsim)
+ 
+  results <- foreach(i = 1:nsim,
+                     .packages = c("orvacsim"),
+                     .errorhandling = 'pass'
+  ) %dopar%{
+    
+  
+    n_interims <- c(100, 150, 200, 250, 300, 350, 400)
+    for(j in 1:length(n_interims)){
+      test1 <- rcpp_clin2(d1[[i]], cfg1, j, i)
+      if(test1$ppn > 0.80){
+        return(list(i=i, j=n_interims[j], ppn = test1$ppn, es = 1))
+      }
+    }
+    return(list(i=i, j=n_interims[j], ppn = test1$ppn, es = 0))
+
+  }
+  if(cluster){
+    stopCluster(cl)
+  }
+  
+  results
+}
+
+```
+
+Looking at:
+
++ a fixed interim
++ differing fu
++ differing median tte baseline and diff
+
+# Expt 0
+
+```{r}
+nsim <- 500 
+
+med0 = 30 
+med1 = 35
+fu = 36
+
+starttime <- Sys.time()
+results <- mainloop(nsim, med0, med1, fu, fnamecfg = "cfg-30-custom.RDS")
+res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
+endtime <- Sys.time()
+difftime(endtime, starttime, units = "hours")
+saveRDS(res1, "res1.RDS")
+summary(res1)
+```
+
+
+```{r}
+starttime <- Sys.time()
+results <- mainloop(nsim, med0, med1, fu, fnamecfg = "cfg-50-custom.RDS")
+res2 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
+endtime <- Sys.time()
+difftime(endtime, starttime, units = "hours")
+saveRDS(res2, "res2.RDS")
+summary(res2)
+```
+
+
+
+
