@@ -64,6 +64,7 @@
 #endif
 
 // function prototypes
+Rcpp::List mytest();
 
 arma::mat rcpp_dat(const Rcpp::List& cfg);
 void rcpp_dat_small(const arma::mat& d,
@@ -620,6 +621,28 @@ void rcpp_dat_small(arma::mat& d,
 // clinical endpoint
 
 // [[Rcpp::export]]
+Rcpp::List mytest() {
+
+  int n = 1000;
+  arma::vec a = arma::randn(n);
+  arma::uvec ugt1;
+  arma::vec gt1a = arma::zeros(n);
+
+  for(int i =0; i<n; i++){
+    a = arma::randn(n);
+    ugt1 = arma::find(a > 1);
+    gt1a(i) =  (double)ugt1.n_elem / (double)n;
+  }
+
+  Rcpp::List ret = Rcpp::List::create(Rcpp::Named("gt1a") = gt1a);
+  return ret;
+
+}
+
+
+
+
+// [[Rcpp::export]]
 Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
                      const int look, const int idxsim) {
 
@@ -642,6 +665,7 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
   arma::mat m = arma::zeros(post_draw , 3);
   arma::mat m_pp_int = arma::zeros(post_draw , 3);
   arma::mat m_pp_max = arma::zeros(post_draw , 3);
+
   arma::uvec uimpute;
   arma::uvec ugt1;
   arma::vec ppos_int_ratio_gt1 = arma::zeros(post_draw);
@@ -693,6 +717,7 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
     for(int j = 0; j < (int)uimpute.n_elem; j++){
       int sub_idx = uimpute(j);
       if(d(sub_idx, COL_TRT) == 0){
+        // this just assigns a new evtt time on which we can update state.
         d(sub_idx, COL_EVTT) = d(sub_idx, COL_OBST) + R::rexp(1/m(i, COL_LAMB0))  ;
       } else {
         d(sub_idx, COL_EVTT) = d(sub_idx, COL_OBST) + R::rexp(1/m(i, COL_LAMB1))  ;
@@ -703,6 +728,7 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
     // kids that have all now been given an event time
     lss_int = rcpp_clin_set_state(d, look, months[mylook] + fu_36, cfg);
     d2 = arma::mat(d);
+
     for(int j = 0; j < post_draw; j++){
       m_pp_int(j, COL_LAMB0) = R::rgamma(a + (double)lss_int["n_evnt_0"], 1/(b + (double)lss_int["tot_obst_0"]));
       m_pp_int(j, COL_LAMB1) = R::rgamma(a + (double)lss_int["n_evnt_1"], 1/(b + (double)lss_int["tot_obst_1"]));
@@ -711,6 +737,8 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
     // empirical posterior probability that ratio_lamb > 1
     ugt1 = arma::find(m_pp_int.col(COL_RATIO) > 1);
     ppos_int_ratio_gt1(i) =  (double)ugt1.n_elem / (double)post_draw;
+
+
 
     // impute the remaining kids
     //DBG(Rcpp::Rcout, "from " << looks[mylook] << " to " << max(looks));
@@ -763,15 +791,22 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
   //                               Rcpp::Named("m_pp_max") = m_pp_max,
   //                               Rcpp::Named("ppos_int_ratio_gt1") = ppos_int_ratio_gt1,
   //                               Rcpp::Named("ppos_max_ratio_gt1") = ppos_max_ratio_gt1,
-  //                               Rcpp::Named("d1") = d1,
-  //                               Rcpp::Named("d2") = d2,
-  //                               Rcpp::Named("d3") = d3);
+
 
   Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppn") = ppn,
                                 Rcpp::Named("ppmax") = ppmax,
                                 Rcpp::Named("lss_post") = lss_post,
                                 Rcpp::Named("lss_int") = lss_int,
-                                Rcpp::Named("lss_max") = lss_max);
+                                Rcpp::Named("lss_max") = lss_max,
+                                Rcpp::Named("uimpute") = uimpute,
+                                Rcpp::Named("m") = m,
+                                Rcpp::Named("m_pp_int") = m_pp_int,
+                                Rcpp::Named("m_pp_max") = m_pp_max,
+                                Rcpp::Named("d1") = d1,
+                                Rcpp::Named("d2") = d2,
+                                Rcpp::Named("d3") = d3,
+                                Rcpp::Named("ppos_int_ratio_gt1") = ppos_int_ratio_gt1,
+                                Rcpp::Named("ppos_max_ratio_gt1") = ppos_max_ratio_gt1);
 
   // Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppmax") = 0);
 
@@ -843,7 +878,7 @@ Rcpp::List rcpp_clin_set_state(arma::mat& d, const int look,
       d(sub_idx, COL_REASON) = 3;
       d(sub_idx, COL_IMPUTE) = 1;
       d(sub_idx, COL_REFTIME) = ref_time;
-    } else { // mnth - accrual >= max age
+    } else { // mnth - accrual >= max age - age at accrual
       // censor at max age
       // dont impute
       d(sub_idx, COL_CEN) = 1;
