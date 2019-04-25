@@ -617,6 +617,7 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
   arma::mat m = arma::zeros(post_draw , 3);
   arma::mat m_pp_int = arma::zeros(post_draw , 3);
   arma::mat m_pp_max = arma::zeros(post_draw , 3);
+  arma::mat m_res = arma::zeros(post_draw , 6);
 
   arma::uvec uimpute;
   arma::uvec ugt1;
@@ -664,6 +665,9 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
     m(i, COL_LAMB1) = R::rgamma(a + n_evnt_1, 1/(b + tot_obst_1));
     m(i, COL_RATIO) = m(i, COL_LAMB0) / m(i, COL_LAMB1);
 
+    m_res(i, 0) = m(i, COL_LAMB0);
+    m_res(i, 3) = m(i, COL_LAMB1);
+
     // use memoryless prop of exponential and impute enrolled kids that have not
     // yet had event.
     for(int j = 0; j < (int)uimpute.n_elem; j++){
@@ -690,7 +694,8 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
     ugt1 = arma::find(m_pp_int.col(COL_RATIO) > 1);
     ppos_int_ratio_gt1(i) =  (double)ugt1.n_elem / (double)post_draw;
 
-
+    m_res(i, 1) = arma::mean(m_pp_int.col(COL_LAMB0));
+    m_res(i, 4) = arma::mean(m_pp_int.col(COL_LAMB1));
 
     // impute the remaining kids
     //DBG(Rcpp::Rcout, "from " << looks[mylook] << " to " << max(looks));
@@ -718,6 +723,9 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
     ugt1 = arma::find(m_pp_max.col(COL_RATIO) > 1);
     ppos_max_ratio_gt1(i) =  (double)ugt1.n_elem / (double)post_draw;
 
+    m_res(i, 2) = arma::mean(m_pp_max.col(COL_LAMB0));
+    m_res(i, 5) = arma::mean(m_pp_max.col(COL_LAMB1));
+
     // reset to original state ready for the next posterior draw
     d.col(COL_EVTT) = arma::vec(d_orig.col(0));
     d.col(COL_CEN) = arma::vec(d_orig.col(1));
@@ -742,6 +750,7 @@ Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg,
                                 Rcpp::Named("m") = m,
                                 Rcpp::Named("m_pp_int") = m_pp_int,
                                 Rcpp::Named("m_pp_max") = m_pp_max,
+                                Rcpp::Named("m_res") = m_res,
                                 Rcpp::Named("d1") = d1,
                                 Rcpp::Named("d2") = d2,
                                 Rcpp::Named("d3") = d3,
@@ -780,6 +789,8 @@ Rcpp::List rcpp_clin_med(arma::mat& d, const Rcpp::List& cfg,
   arma::mat m_pp_int = arma::zeros(post_draw , 3);
   arma::mat m_pp_max = arma::zeros(post_draw , 3);
 
+  arma::mat m_res = arma::zeros(post_draw , 6);
+
   arma::uvec uimpute;
   arma::uvec ugt1;
   arma::vec ppos_int_ratio_gt1 = arma::zeros(post_draw);
@@ -798,9 +809,6 @@ Rcpp::List rcpp_clin_med(arma::mat& d, const Rcpp::List& cfg,
 
   Rcpp::List lss_int;
   Rcpp::List lss_max;
-
-  Rcpp::List reslist1(post_draw);
-  Rcpp::List reslist2(post_draw);
 
   // keep a copy of the original state
   d_new = arma::mat(d);
@@ -830,6 +838,9 @@ Rcpp::List rcpp_clin_med(arma::mat& d, const Rcpp::List& cfg,
     m(i, COL_LAMB1) = 1/R::rgamma(a + n_evnt_1, 1/(b + log2*tot_obst_1));
     m(i, COL_RATIO) = m(i, COL_LAMB1) - m(i, COL_LAMB0);
 
+    m_res(i, 0) = m(i, COL_LAMB0);
+    m_res(i, 3) = m(i, COL_LAMB1);
+
     // use memoryless prop of exponential and impute enrolled kids that have not
     // yet had event.
     for(int j = 0; j < (int)uimpute.n_elem; j++){
@@ -857,8 +868,8 @@ Rcpp::List rcpp_clin_med(arma::mat& d, const Rcpp::List& cfg,
     ugt1 = arma::find(m_pp_int.col(COL_RATIO) > 0);
     ppos_int_ratio_gt1(i) =  (double)ugt1.n_elem / (double)post_draw;
 
-    reslist1[i] = lss_int;
-    reslist2[i] = m_pp_int;
+    m_res(i, 1) = arma::mean(m_pp_int.col(COL_LAMB0));
+    m_res(i, 4) = arma::mean(m_pp_int.col(COL_LAMB1));
 
     // impute the remaining kids
     //DBG(Rcpp::Rcout, "from " << looks[mylook] << " to " << max(looks));
@@ -888,6 +899,9 @@ Rcpp::List rcpp_clin_med(arma::mat& d, const Rcpp::List& cfg,
     ugt1 = arma::find(m_pp_max.col(COL_RATIO) > 0);
     ppos_max_ratio_gt1(i) =  (double)ugt1.n_elem / (double)post_draw;
 
+    m_res(i, 2) = arma::mean(m_pp_max.col(COL_LAMB0));
+    m_res(i, 5) = arma::mean(m_pp_max.col(COL_LAMB1));
+
     // reset to original state ready for the next posterior draw
     d.col(COL_EVTT) = arma::vec(d_orig.col(0));
     d.col(COL_CEN) = arma::vec(d_orig.col(1));
@@ -912,12 +926,12 @@ Rcpp::List rcpp_clin_med(arma::mat& d, const Rcpp::List& cfg,
                                       Rcpp::Named("m") = m,
                                       Rcpp::Named("m_pp_int") = m_pp_int,
                                       Rcpp::Named("m_pp_max") = m_pp_max,
+                                      Rcpp::Named("m_res") = m_res,
                                       Rcpp::Named("d1") = d1,
                                       Rcpp::Named("d2") = d2,
                                       Rcpp::Named("d3") = d3,
                                       Rcpp::Named("ppos_int_ratio_gt1") = ppos_int_ratio_gt1,
-                                      Rcpp::Named("reslist1") = reslist1,
-                                      Rcpp::Named("reslist2") = reslist2);
+                                      Rcpp::Named("ppos_max_ratio_gt1") = ppos_max_ratio_gt1);
 
   // Rcpp::List ret = Rcpp::List::create(Rcpp::Named("ppmax") = 0);
 

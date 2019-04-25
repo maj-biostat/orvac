@@ -124,7 +124,7 @@ Looking at:
 # Expt 0
 
 ```{r}
-nsim <- 1 
+nsim <- 1000 
 
 med0 = 30 
 med1 = 35
