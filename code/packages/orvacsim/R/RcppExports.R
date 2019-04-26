@@ -17,12 +17,8 @@ rcpp_clin <- function(d, cfg, look, idxsim) {
     .Call(`_orvacsim_rcpp_clin`, d, cfg, look, idxsim)
 }
 
-rcpp_clin_med <- function(d, cfg, look, idxsim) {
-    .Call(`_orvacsim_rcpp_clin_med`, d, cfg, look, idxsim)
-}
-
-rcpp_clin_set_state <- function(d, look, ref_time, cfg) {
-    .Call(`_orvacsim_rcpp_clin_set_state`, d, look, ref_time, cfg)
+rcpp_clin_set_state <- function(d, look, fu, cfg) {
+    .Call(`_orvacsim_rcpp_clin_set_state`, d, look, fu, cfg)
 }
 
 rcpp_immu <- function(d, cfg, look) {

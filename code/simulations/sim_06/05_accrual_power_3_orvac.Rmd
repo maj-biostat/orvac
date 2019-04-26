@@ -45,7 +45,7 @@ ggplot2::theme_update(axis.text.y = element_text(size = 10))
 
 # Preamble 
 
-Now look at the relationship between accrual and power in orvac. 
+Look at the relationship between accrual and power in orvac. 
 
 ```{r}
 
@@ -105,11 +105,16 @@ mainloop <- function(nsim = 2,
     test1 <- rcpp_clin(d1[[i]], cfg1, idx_interim, i)
     test2 <- rcpp_clin(d2[[i]], cfg2, idx_interim, i)
   
-    m <- array(c(test1$ppn, test2$ppn), dim = c(1, 2)) 
+    m <- array(c(test1$ppn, test2$ppn, test1$ppmax, test2$ppmax), dim = c(1, 4)) 
     
-    mynames <- c(paste0("accr_", 
+    mynames <- c(paste0("ppn_accr_", 
+                      c(cfg1$people_per_interim_period,
+                        cfg2$people_per_interim_period)),
+                 paste0("ppmax_accr_", 
                       c(cfg1$people_per_interim_period,
                         cfg2$people_per_interim_period)))
+
+    
     names(m) <- mynames
     return(list(m = m))
   }
@@ -131,7 +136,8 @@ Looking at:
 # Expt 0
 
 ```{r}
-nsim <- 1000 
+set.seed(3)
+nsim <- 2 
 
 med0 = 30 
 med1 = 30
@@ -150,8 +156,6 @@ mymeans <- c(expt = 0, colMeans(res1))
 # Expt 1
 
 ```{r}
-nsim <- 1000 
-
 med0 = 30 
 med1 = 35
 fu = 36
@@ -180,7 +184,6 @@ results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
-colMeans(res1)
 mymeans <- rbind(mymeans, 
                  c(expt = 2, colMeans(res1)))
 ```
@@ -198,7 +201,6 @@ results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
-colMeans(res1)
 mymeans <- rbind(mymeans, 
                  c(expt = 3, colMeans(res1)))
 ```
@@ -216,7 +218,6 @@ results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
-colMeans(res1)
 mymeans <- rbind(mymeans, 
                  c(expt = 4, colMeans(res1)))
 ```
@@ -234,7 +235,6 @@ results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
-colMeans(res1)
 mymeans <- rbind(mymeans, 
                  c(expt = 5, colMeans(res1)))
 ```
@@ -252,12 +252,16 @@ results <- mainloop(nsim, med0, med1, fu, idx_interim)
 res1 <- do.call(rbind, lapply(1:nsim, function(x) unlist(results[[x]])))
 endtime <- Sys.time()
 difftime(endtime, starttime, units = "hours")
-colMeans(res1)
 mymeans <- rbind(mymeans, 
                  c(expt = 6, colMeans(res1)))
 rownames(mymeans) <- NULL
 ```
 
+
+
+```{r}
+summary(mymeans)
+```
 
 
 ```{r, fig.width = 4, fig.height=5, fig.cap="Probability of ES by accrual"}
