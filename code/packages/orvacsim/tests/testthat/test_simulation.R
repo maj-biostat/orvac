@@ -45,6 +45,13 @@ test_that("dotrial", {
   set.seed(3)
   l <- rcpp_dotrial(1, cfg, TRUE)
 
+  cfg$baselineprobsero
+  cfg$trtprobsero <- 0.5
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+  set.seed(4)
+  l <- rcpp_dotrial(1, cfg, TRUE)
+
+
   df <- as.data.frame(l$d)
   names(df) <- dnames
   b1 <- boot.ci(doglm(df[1:cfg$nmaxsero, ]), type="norm")

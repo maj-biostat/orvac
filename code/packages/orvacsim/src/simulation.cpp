@@ -361,7 +361,7 @@ Rcpp::List rcpp_dotrial(const int idxsim,
 
   // final analysis for sero
   //how many successes in each arm?
-  if(looks[immulook] > (int)cfg["nmaxsero"]) immulook = immulook - 1;
+  //if(looks[immulook] > (int)cfg["nmaxsero"]) immulook = immulook - 1;
   nobs = rcpp_n_obs(d, immulook , looks, months, 0);
   Rcpp::List lnsero = rcpp_lnsero(d, nobs);
 
