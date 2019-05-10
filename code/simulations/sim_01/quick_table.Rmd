@@ -296,8 +296,10 @@ print("WARNINGS PRESENT IN DATA!!")
 
 kable(df_0 %>% 
   dplyr::select(-idsim, -nsim, -alt_cen, -date) %>%
+    dplyr::filter(trtclin - baseclin != 0 &
+                    trtsero - basesero != 0) %>%
     dplyr::arrange(desc(fname))  ,
-      caption = paste0("Table 6. Combined Simulation Results"),
+      caption = paste0("Table 6. Combined Simulation Results - Non-zero effects"),
       col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
                     "e.s.", "e.f", "s.v.", "n.d", 
                     "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", 
@@ -316,5 +318,28 @@ kable(df_0 %>%
 ```
 
 
+```{r, echo = F, eval = T}
 
+kable(df_0 %>% 
+  dplyr::select(-idsim, -nsim, -alt_cen, -date) %>%
+    dplyr::filter(trtclin - baseclin == 0 &
+                    trtsero - basesero == 0) %>%
+    dplyr::arrange(desc(fname))  ,
+      caption = paste0("Table 6. Combined Simulation Results - null configuration"),
+      col.names = c("ctl", "trt", "ctl", "trt", "accrual", "delay",
+                    "e.s.", "e.f", "s.v.", "n.d", 
+                    "enrolled", "blood res", "P(<250)", "P(<500)", "P(<750)", 
+                    "clin", "immu", "clin", "immu", "fname"),
+      digits = digits) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",
+                font_size = 12,
+                latex_options = "hold_position") %>%
+  add_header_above(c("Clinical" = 2, "Seroconversion" = 2, 
+                     "Info rate" = 2, 
+                     "Interim" = 4,
+                     "SS" = 5, 
+                     "Wins @ final" = 2, "!Flip-flop" = 2, " " = 1))
+
+```
 
