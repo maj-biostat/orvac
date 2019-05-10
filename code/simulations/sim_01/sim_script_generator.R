@@ -1,12 +1,12 @@
 library(dplyr)
 
-nsim <- 2500
-accrual <- c(30, 50)
+nsim <- 1000  # 10000
+accrual <- c(30, 50) 
 info_delay <- c(0.5)
 p0 <- c(0.1, 0.4, 0.7)
-pdelta <- c(0.05, 0.1, 0.15)
+pdelta <- c(0.05, 0.1, 0.15) # 0
 t0 <- c(20, 35, 50)
-tdelta <- c(5, 10, 15)
+tdelta <-  c(5, 10, 15) # 0
 
 d <- expand.grid(accrual, info_delay, 
                  p0, pdelta, 
