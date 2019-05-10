@@ -30,20 +30,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpp_dat_small
-void rcpp_dat_small(arma::mat& d, const Rcpp::List& cfg, const int look, const double l0, const double l1);
-RcppExport SEXP _orvacsim_rcpp_dat_small(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP, SEXP l0SEXP, SEXP l1SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat& >::type d(dSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
-    Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
-    Rcpp::traits::input_parameter< const double >::type l0(l0SEXP);
-    Rcpp::traits::input_parameter< const double >::type l1(l1SEXP);
-    rcpp_dat_small(d, cfg, look, l0, l1);
-    return R_NilValue;
-END_RCPP
-}
 // rcpp_clin
 Rcpp::List rcpp_clin(arma::mat& d, const Rcpp::List& cfg, const int look, const int idxsim);
 RcppExport SEXP _orvacsim_rcpp_clin(SEXP dSEXP, SEXP cfgSEXP, SEXP lookSEXP, SEXP idxsimSEXP) {
@@ -59,8 +45,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // rcpp_clin_set_state
-Rcpp::List rcpp_clin_set_state(arma::mat& d, const int look, const double fu, const Rcpp::List& cfg);
-RcppExport SEXP _orvacsim_rcpp_clin_set_state(SEXP dSEXP, SEXP lookSEXP, SEXP fuSEXP, SEXP cfgSEXP) {
+Rcpp::List rcpp_clin_set_state(arma::mat& d, const int look, const double fu, const Rcpp::List& cfg, const int idxsim);
+RcppExport SEXP _orvacsim_rcpp_clin_set_state(SEXP dSEXP, SEXP lookSEXP, SEXP fuSEXP, SEXP cfgSEXP, SEXP idxsimSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -68,7 +54,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int >::type look(lookSEXP);
     Rcpp::traits::input_parameter< const double >::type fu(fuSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type cfg(cfgSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_clin_set_state(d, look, fu, cfg));
+    Rcpp::traits::input_parameter< const int >::type idxsim(idxsimSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_clin_set_state(d, look, fu, cfg, idxsim));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -204,9 +191,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_orvacsim_rcpp_dotrial", (DL_FUNC) &_orvacsim_rcpp_dotrial, 3},
     {"_orvacsim_rcpp_dat", (DL_FUNC) &_orvacsim_rcpp_dat, 1},
-    {"_orvacsim_rcpp_dat_small", (DL_FUNC) &_orvacsim_rcpp_dat_small, 5},
     {"_orvacsim_rcpp_clin", (DL_FUNC) &_orvacsim_rcpp_clin, 4},
-    {"_orvacsim_rcpp_clin_set_state", (DL_FUNC) &_orvacsim_rcpp_clin_set_state, 4},
+    {"_orvacsim_rcpp_clin_set_state", (DL_FUNC) &_orvacsim_rcpp_clin_set_state, 5},
     {"_orvacsim_rcpp_immu", (DL_FUNC) &_orvacsim_rcpp_immu, 3},
     {"_orvacsim_rcpp_n_obs", (DL_FUNC) &_orvacsim_rcpp_n_obs, 5},
     {"_orvacsim_rcpp_lnsero", (DL_FUNC) &_orvacsim_rcpp_lnsero, 2},

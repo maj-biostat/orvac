@@ -3,6 +3,7 @@
 # setwd("/home/mark/Documents/orvac/code/packages/orvacsim/tests/testthat")
 
 library(testthat)
+library(ggplot2)
 library(orvacsim)
 library(data.table)
 source("../../../../simulations/sim_01/util.R")
@@ -15,8 +16,352 @@ library(rbenchmark)
 
 
 
+test_that("dotrial", {
 
 
+
+  setwd("~/Documents/orvac/code/packages/orvacsim/tests/testthat")
+  #  setwd("/home/mark/Documents/orvac/code/packages/orvacsim/tests/testthat")
+
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("../../../../simulations/sim_01/util.R")
+  library(truncnorm)
+  library(survival)
+  library(boot)
+  library(rbenchmark)
+
+  cfg <- readRDS("cfg-example.RDS")
+
+  cfg$baselineprobsero
+  cfg$trtprobsero <- 0.55
+  cfg$deltaserot3 <- compute_sero_delta(cfg$baselineprobsero, cfg$trtprobsero)
+
+  set.seed(1)
+  l <- rcpp_dotrial(1, cfg, TRUE)
+  set.seed(2)
+  l <- rcpp_dotrial(1, cfg, TRUE)
+  set.seed(3)
+  l <- rcpp_dotrial(1, cfg, TRUE)
+
+  df <- as.data.frame(l$d)
+  names(df) <- dnames
+  b1 <- boot.ci(doglm(df[1:cfg$nmaxsero, ]), type="norm")
+
+  expect_equal(b1$normal[2], l$i_lwr, tolerance = 0.2)
+  expect_equal(b1$normal[3], l$i_upr, tolerance = 0.2)
+
+
+  b1 <- boot.ci(doexp(df), type="norm")
+
+  expect_equal(b1$normal[2], l$c_lwr, tolerance = 0.2)
+  expect_equal(b1$normal[3], l$c_upr, tolerance = 0.2)
+
+
+
+})
+
+
+test_that("experimentation with clinical main loop", {
+
+
+  setwd("~/Documents/orvac/code/packages/orvacsim/tests/testthat")
+  #  setwd("/home/mark/Documents/orvac/code/packages/orvacsim/tests/testthat")
+
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("../../../../simulations/sim_01/util.R")
+  library(truncnorm)
+  library(survival)
+  library(boot)
+  library(rbenchmark)
+
+  cfg <- readRDS("cfg-example.RDS")
+
+  # test - are the correct number of obs times and censor status set at first interim
+
+  # question
+  # is ppn less variable with larger post_draw?
+
+  look <- 10
+  simid <- 2
+  nsim <- 1000
+  c(cfg$interimmnths[look], cfg$looks[look])
+
+  post_draw <- c(5000)
+  pgt1 <- matrix(NA, nrow = nsim, ncol = length(post_draw))
+  i = j = 1
+
+  for(i in 1:length(post_draw)){
+    cfg$post_draw <- post_draw[i]
+    for(j in 1:nsim){
+      d <- rcpp_dat(cfg)
+      test <- rcpp_clin(d, cfg, look, j)
+      pgt1[j, i] <- test$ppn
+    }
+  }
+
+  plot(density(pgt1[,1]))
+  lines(density(pgt1[,2]))
+  lines(density(pgt1[,3]))
+
+  colMeans(pgt1)
+})
+
+
+test_that("visualisation with clinical main loop", {
+
+
+
+  mysummary <- function(clin_res){
+    message("Observed ", paste(round(unlist(clin_res$lss_post),1), sup = " "))
+    message("Interim  ", paste(round(unlist(clin_res$lss_int),1), sup = " "))
+    message("Maximum  ", paste(round(unlist(clin_res$lss_max),1), sup = " "))
+    message("pp intrm ", clin_res$ppn)
+    message("pp max   ", clin_res$ppmax)
+  }
+
+
+  cfg <- readRDS("cfg-example.RDS")
+
+  look <- 10
+  simid <- 1
+  c(cfg$interimmnths[look], cfg$looks[look])
+  cfg$post_draw <- 10000
+
+  d <- rcpp_dat(cfg)
+  d2 <- as.data.frame(copy(d))
+  colnames(d2) <- dnames
+
+  test <- rcpp_clin(d, cfg, look, simid)
+
+  poster <- data.frame(l0_int = test$m[,1],
+                       l1_int = test$m[,2],
+                       l0_max = test$m[,1],
+                       l1_max = test$m[,2])
+  poster <- poster %>%
+    tidyr::gather(key = "param", value = "val")
+
+  pp_post1 <- data.frame(id = rep(1:cfg$post_draw, each = cfg$post_draw),
+                               l0_int = test$int_post[,1],
+                                l1_int = test$int_post[,2],
+                         l0_max = test$max_post[,1],
+                         l1_max = test$max_post[,2])
+
+  pp_post1 <- pp_post1 %>%
+    tidyr::gather(key = "param", value = "val", -id)
+
+  idx <- sample(1:cfg$post_draw, size = 100, replace = F)
+  pp_post1 <- pp_post1[pp_post1$id == idx,]
+  ggplot(pp_post1, aes(x = val, group = factor(id)))+
+    geom_line(stat = "density", alpha = 0.2)+
+    geom_line(data = poster, aes(x = val),
+              inherit.aes = F, stat = "density", col = "red")+
+    ggtitle(paste0(cfg$post_draw)) +
+    facet_wrap(~param)
+
+
+#
+  poster <- data.frame(ratio_int = test$m[,1]/test$m[,2],
+                       ratio_max = test$m[,1]/test$m[,2])
+
+  poster <- poster %>%
+    tidyr::gather(key = "param", value = "val")
+
+  pp_post1 <- data.frame(id = rep(1:cfg$post_draw, each = cfg$post_draw),
+                         ratio_int = test$int_post[,1]/test$int_post[,2],
+                         ratio_max = test$max_post[,1]/test$max_post[,2])
+
+  pp_post1 <- pp_post1 %>%
+    tidyr::gather(key = "param", value = "val", -id)
+
+  idx <- sample(1:cfg$post_draw, size = 100, replace = F)
+  pp_post1 <- pp_post1[pp_post1$id == idx,]
+  ggplot(pp_post1, aes(x = val))+
+    geom_line(stat = "density")+
+    geom_line(stat = "density", aes(group = factor(id)), alpha = 0.2)+
+    geom_line(data = poster, aes(x = val),
+              inherit.aes = F, stat = "density", col = "red")+
+    ggtitle(paste0(cfg$post_draw)) +
+    facet_wrap(~param)
+
+})
+
+
+test_that("examine rcpp_clin_set_state updates at interim plus fu", {
+
+  setwd("~/Documents/orvac/code/packages/orvacsim/tests/testthat")
+  #  setwd("/home/mark/Documents/orvac/code/packages/orvacsim/tests/testthat")
+
+  library(testthat)
+  library(orvacsim)
+  library(data.table)
+  source("../../../../simulations/sim_01/util.R")
+  library(truncnorm)
+  library(survival)
+  library(boot)
+  library(rbenchmark)
+
+
+  cfg <- readRDS("cfg-example.RDS")
+
+  set.seed(1)
+  simid <- 1
+  look <- 2
+  cfg$interimmnths[look]
+  cfg$post_draw <- 1000
+  d <- rcpp_dat(cfg)
+  dat <- as.data.frame(copy(d))
+  colnames(dat) <- dnames
+
+  # observed event
+  dat$accrt[1] <- 5
+  dat$age[1] <- 6
+  dat$evtt[1] <- 12
+  obs_summary(dat, 1, look, cfg)
+  dat <- as.matrix(dat)
+  rcpp_clin_set_state(as.matrix(dat), look, 36, cfg)
+  dat <- as.data.frame(copy(dat))
+  colnames(dat) <- dnames
+  obs_summary(dat, 1, look, cfg)
+  expect_equal(dat$obst[1], 12)
+  expect_equal(dat$cen[1], 0)
+  expect_equal(dat$impute[1], 0)
+  expect_equal(dat$reason[1], 1)
+  expect_equal(dat$reftime[1], 35)
+
+  # event after reftime, subj > max fu age
+  dat$accrt[2] <- 5
+  dat$age[2] <- 8
+  dat$evtt[2] <- 32
+  obs_summary(dat, 2, look, cfg)
+  dat <- as.matrix(dat)
+  rcpp_clin_set_state(as.matrix(dat), look, 36, cfg)
+  dat <- as.data.frame(copy(dat))
+  colnames(dat) <- dnames
+  obs_summary(dat, 2, look, cfg)
+  expect_equal(dat$obst[2], 28)
+  expect_equal(dat$cen[2], 1)
+  expect_equal(dat$impute[2], 1)
+  expect_equal(dat$reason[2], 3)
+  expect_equal(dat$reftime[2], 33)
+
+
+
+  # max n - observed
+  look <- length(cfg$looks)
+  cfg$interimmnths[look]
+
+  dat$accrt[1000] <- cfg$interimmnths[look]
+  dat$age[1000] <- 10
+  dat$evtt[1000] <- 12
+  obs_summary(dat, 1000, look, cfg)
+  dat <- as.matrix(dat)
+  rcpp_clin_set_state(as.matrix(dat), look, 36, cfg)
+  dat <- as.data.frame(copy(dat))
+  colnames(dat) <- dnames
+  obs_summary(dat, 1000, look, cfg)
+  expect_equal(dat$obst[1000], 12)
+  expect_equal(dat$cen[1000], 0)
+  expect_equal(dat$impute[1000], 0)
+  expect_equal(dat$reason[1000], 1)
+  expect_equal(dat$reftime[1000], 126)
+
+  # max n - censored
+  look <- length(cfg$looks)
+  cfg$interimmnths[look]
+
+  dat$accrt[1000] <- cfg$interimmnths[look]
+  dat$age[1000] <- 10
+  dat$evtt[1000] <- 32
+  obs_summary(dat, 1000, look, cfg)
+  dat <- as.matrix(dat)
+  rcpp_clin_set_state(as.matrix(dat), look, 36, cfg)
+  dat <- as.data.frame(copy(dat))
+  colnames(dat) <- dnames
+  obs_summary(dat, 1000, look, cfg)
+  expect_equal(dat$obst[1000], 26)
+  expect_equal(dat$cen[1000], 1)
+  expect_equal(dat$impute[1000], 1)
+  expect_equal(dat$reason[1000], 3)
+  expect_equal(dat$reftime[1000], 126)
+
+
+
+
+})
+
+test_that("examine rcpp_clin_set_state updates at interim", {
+
+  cfg <- readRDS("cfg-example.RDS")
+
+  set.seed(1)
+  simid <- 1
+  look <- 10
+  cfg$post_draw <- 1000
+  d <- rcpp_dat(cfg)
+  dat <- as.data.frame(copy(d))
+  colnames(dat) <- dnames
+  # observed event
+  dat$age[1] <- 8
+  dat$evtt[1] <- 4
+  obs_summary(dat, 1, look, cfg)
+  # event prior to reftime but sub too old
+  dat$accrt[2] <- 10
+  dat$age[2] <- 35
+  dat$evtt[2] <- 2
+  obs_summary(dat, 2, look, cfg)
+  # event after reftime and age not above max
+  dat$accrt[3] <- 33
+  dat$age[3] <- 6
+  dat$evtt[3] <- 5
+  obs_summary(dat, 3, look, cfg)
+  # event after reftime and age above max prior to reftime
+  dat$accrt[4] <- 10
+  dat$age[4] <- 34
+  dat$evtt[4] <- 30
+  obs_summary(dat, 3, look, cfg)
+
+  dat <- as.matrix(dat)
+  rcpp_clin_set_state(as.matrix(dat), look, 0, cfg)
+  dat <- as.data.frame(copy(dat))
+  colnames(dat) <- dnames
+  obs_summary(dat, 1, look, cfg)
+  obs_summary(dat, 2, look, cfg)
+  obs_summary(dat, 3, look, cfg)
+  obs_summary(dat, 4, look, cfg)
+
+  expect_equal(dat$obst[1], 4)
+  expect_equal(dat$obst[2], 1)
+  expect_equal(dat$obst[3], 1)
+  expect_equal(dat$obst[4], 2)
+
+  expect_equal(dat$cen[1], 0)
+  expect_equal(dat$cen[2], 1)
+  expect_equal(dat$cen[3], 1)
+  expect_equal(dat$cen[4], 1)
+
+  expect_equal(dat$impute[1], 0)
+  expect_equal(dat$impute[2], 0)
+  expect_equal(dat$impute[3], 1)
+  expect_equal(dat$impute[4], 0)
+
+  expect_equal(dat$reason[1], 1)
+  expect_equal(dat$reason[2], 2)
+  expect_equal(dat$reason[3], 3)
+  expect_equal(dat$reason[4], 4)
+
+  expect_equal(dat$reftime[1], 34)
+  expect_equal(dat$reftime[2], 34)
+  expect_equal(dat$reftime[3], 34)
+  expect_equal(dat$reftime[4], 34)
+
+
+  expect_equal(dat$reftime[cfg$looks[look]], 34)
+
+})
 
 
 test_that("visit times", {
@@ -670,119 +1015,7 @@ library(rbenchmark)
 
 context("clinical endpoint framework")
 
-test_that("clinical main loop", {
 
-   setwd("/home/mark/Documents/orvac/code/packages/orvacsim/tests/testthat")
-
-library(testthat)
-library(orvacsim)
-library(data.table)
-source("../../../../simulations/sim_01/util.R")
-library(truncnorm)
-library(survival)
-library(boot)
-library(rstan)
-# library(eha)
-library(rbenchmark)
-
-  cfg <- readRDS("cfg-example.RDS")
-
-  # test - are the correct number of obs times and censor status set at first interim
-
-  set.seed(4343)
-  look <- 10
-  c(cfg$interimmnths[look], cfg$looks[look], cfg$looks_target[look])
-
-  d <- rcpp_dat(cfg)
-  d2 <- as.data.frame(copy(d))
-  colnames(d2) <- dnames
-
-  c(cfg$interimmnths[look], cfg$looks[look], cfg$looks_target[look])
-
-  simid <- 1
-  test <- rcpp_clin(d, cfg, look, simid)
-  d1 <- as.data.frame(copy(test$d1))
-  d2 <- as.data.frame(copy(test$d2))
-  d3 <- as.data.frame(copy(test$d3))
-  colnames(d1) <- dnames
-  colnames(d2) <- dnames
-  colnames(d3) <- dnames
-
-
-  setwd("/home/mark/Documents/orvac/code/packages/orvacsim/tests/testthat")
-
-  library(testthat)
-  library(orvacsim)
-  library(data.table)
-  source("../../../../simulations/sim_01/util.R")
-  library(truncnorm)
-  library(survival)
-  library(boot)
-  library(rstan)
-  # library(eha)
-  library(rbenchmark)
-
-  # cfg <- readRDS("cfg-example.RDS")
-  cfg <- readRDS("cfg-50.RDS")
-
-  (l <- rcpp_dotrial(1, cfg, TRUE))
-#
-
-
-
-
-
-
-  test$lss_post
-  test$lss_int
-  test$lss_max
-  hist(test$ppos_int_ratio_gt1)
-  hist(test$ppos_max_ratio_gt1)
-
-  obs_summary(d2, idx = 66, look = look, cfg)
-
-  test$lss1
-  test$lss2
-
-  dnew <- as.data.frame(copy(test$d_new))
-  colnames(dnew) <- dnames
-
-  test$lsuffstat
-  test$lsuff_fu
-
-  for(i in 1:cfg$looks[look]){
-
-  }
-
-
-
-
-
-
-  # with_followup <- 0
-  #
-  # idxcpp <- 0
-  # cfg$interimmnths[look]
-  #
-  # suffstat <- rcpp_clin_set_state(d, look, cfg, with_followup)
-  # suffstat
-  #
-  # c(cfg$interimmnths[look], cfg$looks[look], cfg$looks_target[look])
-  # cfg$interimmnths
-  # cfg$looks
-  # cfg$looks_target
-  # d2
-  # withfollowup <- 0
-  # visits <- rcpp_clin_visits(as.matrix(d2), idxcpp, look, cfg, withfollowup)
-  # visits
-  #
-  #
-  # cens_status <- rcpp_clin_cens(as.matrix(d2), idxcpp, look, cfg, visits, withfollowup)
-  # expect_equal(cens_status$cen, 1)
-  # expect_equal(cens_status$obst, 0.2)
-
-
-})
 
 test_that("clinical endpoint posterior", {
 
@@ -1513,93 +1746,5 @@ test_that("dotrial", {
 
 
 
-# test_that("clinical endpoint posterior - approximation", {
-#
-#   cfg <- readRDS("cfg-example.RDS")
-#
-#
-#   # test - estimated median tte is biased in both arms due to censoring mechanism
-#   # but ratio is preserved with lower than 2% bias
-#   look <- 32
-#   nsim <- 1000
-#   v <- numeric(nsim)
-#
-#   for(i in 1:nsim){
-#     # i = i + 1
-#     d <- rcpp_dat(cfg)
-#     d2 <- as.data.frame(copy(d))
-#     colnames(d2) <- dnames
-#
-#     # get sufficieitn stats
-#     (lsuffstat1 <- rcpp_clin_set_obst(d, cfg, look, 1))
-#
-#     d2 <- as.data.frame(copy(d))
-#     colnames(d2) <- dnames
-#
-#     #lsuffstat2 <- rcpp_clin_set_obst(d, cfg, look)
-#
-#     # obtain posterior based on current look
-#     m <- matrix(0, nrow = cfg$post_draw, ncol = 3)
-#     rcpp_clin_interim_post(m,
-#                            lsuffstat1$n_uncen_0, lsuffstat1$tot_obst_0,
-#                            lsuffstat1$n_uncen_1, lsuffstat1$tot_obst_1,
-#                            cfg$post_draw, cfg);
-#
-#     x0 <- rgamma(cfg$post_draw,
-#                  shape = cfg$prior_gamma_a + lsuffstat1$n_uncen_0,
-#                  rate = cfg$prior_gamma_b + lsuffstat1$tot_obst_0)
-#
-#     a <- cfg$prior_gamma_a + lsuffstat1$n_uncen_0
-#     b <- 1/(cfg$prior_gamma_b + lsuffstat1$tot_obst_0)
-#     mu0 <- a*b
-#     s0 <- sqrt(a)*b
-#
-#     plot(density(rnorm(1000, mu0, s0)))
-#
-#     plot(density(m[,1]))
-#     lines(density(x0), col = "red")
-#
-#     c <- cfg$prior_gamma_a + lsuffstat1$n_uncen_1
-#     d <- 1/(cfg$prior_gamma_b + lsuffstat1$tot_obst_1)
-#     mu1 <- c*d
-#     s1<- sqrt(c)*d
-#
-#
-#
-#     x1 <- rgamma(cfg$post_draw,
-#                  shape = cfg$prior_gamma_a + lsuffstat1$n_uncen_1,
-#                  rate = cfg$prior_gamma_b + lsuffstat1$tot_obst_1)
-#
-#     plot(density(m[,1]))
-#     lines(density(x0), col = "red")
-#
-#
-#
-#     # plot(density(m[,2]))
-#     # lines(density(x1), col = "red")
-#
-#     # plot(density(m[,3]))
-#     # lines(density(x0/x1), col = "red")
-#
-#     mu3 <- mean(m[,3])
-#     sd3 <- sd(m[,3])
-#
-#     plot(density(rnorm(1000, mu3, sd3)))
-#     lines(density(m[,3]), col = "red")
-#
-#
-#     # plot_tte_hist(m)
-#     v[i] <- mean(m[, 1]/m[, 2])
-#
-#     # should be (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte)
-#   }
-#   # hist(v)
-#   # abline(v = (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), col = cbp[2], lwd = 2)
-#   # abline(v = mean(v), col = cbp[3], lwd = 2, lty = 3)
-#
-#   # expect_equal(mean(v), (log(2)/(cfg$b0tte + cfg$b1tte))/ (log(2)/cfg$b0tte), tolerance = 0.02)
-#
-#
-#
-# })
+
 

@@ -9,16 +9,12 @@ rcpp_dat <- function(cfg) {
     .Call(`_orvacsim_rcpp_dat`, cfg)
 }
 
-rcpp_dat_small <- function(d, cfg, look, l0, l1) {
-    invisible(.Call(`_orvacsim_rcpp_dat_small`, d, cfg, look, l0, l1))
-}
-
 rcpp_clin <- function(d, cfg, look, idxsim) {
     .Call(`_orvacsim_rcpp_clin`, d, cfg, look, idxsim)
 }
 
-rcpp_clin_set_state <- function(d, look, fu, cfg) {
-    .Call(`_orvacsim_rcpp_clin_set_state`, d, look, fu, cfg)
+rcpp_clin_set_state <- function(d, look, fu, cfg, idxsim) {
+    .Call(`_orvacsim_rcpp_clin_set_state`, d, look, fu, cfg, idxsim)
 }
 
 rcpp_immu <- function(d, cfg, look) {
